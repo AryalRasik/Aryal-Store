@@ -825,6 +825,12 @@
 const API_BASE = 'https://aryal-store-backend-1.onrender.com';
 const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
+function imgUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return API_BASE + url;
+}
+
 let allProducts = [];
 let cart = JSON.parse(localStorage.getItem('aryal_cart')) || [];
 let currentFilter = 'all';
@@ -892,7 +898,7 @@ function renderCartView() {
   }
   container.innerHTML = cart.map(item => {
     const p = findProduct(item.id);
-    const img = p && p.image ? '<img src="' + API_BASE + p.image + '" style="width:50px;height:50px;border-radius:10px;object-fit:cover;">' : '<i class="' + (item.icon || 'fas fa-box') + '"></i>';
+    const img = p && p.image ? '<img src="' + imgUrl(p.image) + '" style="width:50px;height:50px;border-radius:10px;object-fit:cover;">' : '<i class="' + (item.icon || 'fas fa-box') + '"></i>';
     return '<div class="cart-item-info"><div class="thumb" style="background:' + (item.gradient || '#e94560') + ';">' + img + '</div><div class="details"><h5>' + item.name + '</h5><div class="meta">' + (item.size ? 'Size: ' + item.size : '') + (item.size && item.color ? ' | ' : '') + (item.color ? 'Color: ' + item.color : '') + '</div><div class="price">' + item.price + '</div><div class="qty-controls"><button onclick="updateQty(' + item.id + ',-1)"><i class="fas fa-minus"></i></button><span>' + item.qty + '</span><button onclick="updateQty(' + item.id + ',1)"><i class="fas fa-plus"></i></button><button class="remove-item" onclick="removeFromCart(' + item.id + ')"><i class="fas fa-trash-alt"></i></button></div></div></div>';
   }).join('');
   document.getElementById('checkoutBtn').style.display = '';
@@ -1090,7 +1096,7 @@ document.getElementById('searchInput').addEventListener('input', async function(
       const data = await res.json();
       if (data.length) {
         suggest.innerHTML = data.map(p => '<div class="suggestion-item" onclick="selectSuggestion(' + p.id + ')">' +
-          (p.image ? '<img src="' + API_BASE + p.image + '">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#999;"><i class="fas fa-box"></i></div>') +
+          (p.image ? '<img src="' + imgUrl(p.image) + '">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#999;"><i class="fas fa-box"></i></div>') +
           '<div class="info"><h5>' + p.name + '</h5><p>' + (p.price || '') + '</p></div></div>'
         ).join('');
         suggest.classList.add('show');
@@ -1183,7 +1189,7 @@ function renderProducts(prods) {
       '<div class="badge-row">' + badges.join('') + '</div>' +
       '<button class="wishlist-btn ' + (inWishlist ? 'active' : '') + '" onclick="toggleWishlist(' + p.id + ')"><i class="' + (inWishlist ? 'fas' : 'far') + ' fa-heart"></i></button>' +
       '<div class="product-img" style="background:' + (p.gradient || '#e94560') + ';">' +
-        (p.image ? '<img src="' + API_BASE + p.image + '" alt="' + p.name + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
+        (p.image ? '<img src="' + imgUrl(p.image) + '" alt="' + p.name + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
         (p.stock_count != null && p.stock_count < 100 ? '<div class="stock-bar"><div class="fill ' + (stockLow ? 'low' : '') + '" style="width:' + stockPct + '%"></div></div>' : '') +
       '</div>' +
       '<div class="product-body">' +
@@ -1229,11 +1235,11 @@ function showProductModal(p) {
   const imgs = p.images_list && p.images_list.length ? p.images_list : (p.image ? [{ image_url: p.image, is_primary: 1 }] : []);
   const mainImg = imgs.length ? imgs[0].image_url : '';
 
-  document.getElementById('mainImage').innerHTML = mainImg ? '<img src="' + API_BASE + mainImg + '" alt="' + p.name + '">' : '<i class="' + (p.icon || 'fas fa-box') + '" style="font-size:4rem;color:#ccc;"></i>';
+  document.getElementById('mainImage').innerHTML = mainImg ? '<img src="' + imgUrl(mainImg) + '" alt="' + p.name + '">' : '<i class="' + (p.icon || 'fas fa-box') + '" style="font-size:4rem;color:#ccc;"></i>';
   document.getElementById('mainImage').className = 'main-image';
 
   if (imgs.length > 1) {
-    document.getElementById('thumbRow').innerHTML = imgs.map((img, i) => '<div class="thumb ' + (i === 0 ? 'active' : '') + '" onclick="switchImage(this,\'' + img.image_url + '\')"><img src="' + API_BASE + img.image_url + '"></div>').join('');
+    document.getElementById('thumbRow').innerHTML = imgs.map((img, i) => '<div class="thumb ' + (i === 0 ? 'active' : '') + '" onclick="switchImage(this,\'' + img.image_url + '\')"><img src="' + imgUrl(img.image_url) + '"></div>').join('');
   } else {
     document.getElementById('thumbRow').innerHTML = '';
   }
@@ -1326,7 +1332,7 @@ function showProductModal(p) {
 function switchImage(el, url) {
   document.querySelectorAll('.thumb-row .thumb').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  document.getElementById('mainImage').innerHTML = '<img src="' + API_BASE + url + '" alt="">';
+  document.getElementById('mainImage').innerHTML = '<img src="' + imgUrl(url) + '" alt="">';
   document.getElementById('mainImage').className = 'main-image';
 }
 
@@ -1372,7 +1378,7 @@ async function loadRecommendations(id) {
         document.getElementById('recommendationsRow').style.display = '';
         document.getElementById('recScroll').innerHTML = recs.map(r =>
           '<div class="rec-item" onclick="viewProduct(' + r.id + ')">' +
-          (r.image ? '<img src="' + API_BASE + r.image + '" loading="lazy">' : '<div style="width:100%;height:120px;background:' + (r.gradient || '#eee') + ';border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;"><i class="' + (r.icon || 'fas fa-box') + '"></i></div>') +
+          (r.image ? '<img src="' + imgUrl(r.image) + '" loading="lazy">' : '<div style="width:100%;height:120px;background:' + (r.gradient || '#eee') + ';border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;"><i class="' + (r.icon || 'fas fa-box') + '"></i></div>') +
           '<h5>' + r.name + '</h5>' +
           '<p>' + (r.price || '') + '</p></div>'
         ).join('');
@@ -1427,7 +1433,7 @@ function openWishlist() {
   } else {
     content.innerHTML = '<div style="display:grid;gap:10px;">' + wishlistItems.map(p =>
       '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;">' +
-      (p.image ? '<img src="' + API_BASE + p.image + '" style="width:50px;height:50px;border-radius:8px;object-fit:cover;">' : '<div style="width:50px;height:50px;border-radius:8px;background:' + (p.gradient || '#eee') + ';display:flex;align-items:center;justify-content:center;color:#fff;"><i class="' + (p.icon || 'fas fa-box') + '"></i></div>') +
+      (p.image ? '<img src="' + imgUrl(p.image) + '" style="width:50px;height:50px;border-radius:8px;object-fit:cover;">' : '<div style="width:50px;height:50px;border-radius:8px;background:' + (p.gradient || '#eee') + ';display:flex;align-items:center;justify-content:center;color:#fff;"><i class="' + (p.icon || 'fas fa-box') + '"></i></div>') +
       '<div style="flex:1;cursor:pointer;" onclick="viewProduct(' + p.id + ');closeWishlist();"><h5 style="font-size:0.9rem;">' + p.name + '</h5><span style="color:#e94560;font-weight:600;">' + (p.price || '') + '</span></div>' +
       '<button class="btn btn-primary btn-sm" onclick="addToCart(' + p.id + ');toast(\'' + p.name + ' added to cart!\',\'success\');">Add</button>' +
       '<button class="btn btn-sm" style="background:#fee;color:#e74c3c;" onclick="toggleWishlist(' + p.id + ');openWishlist();"><i class="fas fa-trash"></i></button></div>'
@@ -1745,7 +1751,7 @@ async function loadShowcaseSections() {
           container.innerHTML = prods.map(p =>
             '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;" onclick="viewProduct(' + p.id + ')">' +
             '<div class="product-img" style="height:160px;background:' + (p.gradient || '#e94560') + ';">' +
-            (p.image ? '<img src="' + API_BASE + p.image + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
+            (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
             '</div>' +
             '<div class="product-body" style="padding:12px;">' +
             '<div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">' + p.name + '</div>' +
