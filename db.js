@@ -10,7 +10,8 @@ const DB_PATH = process.env.RENDER
 
 // Ensure the /data directory exists if we are running live on Render
 if (process.env.RENDER && !fs.existsSync('/data')) {
-  fs.mkdirSync('/data', { recursive: true });
+// Change it to look like this:
+fs.mkdirSync('./data', { recursive: true });
 }
 let db = null;
 

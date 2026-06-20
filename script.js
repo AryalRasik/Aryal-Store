@@ -1,3 +1,31 @@
+// 1. Initialize the Supabase Client
+const supabaseUrl = 'https://srlejludttajosnrfkca.supabase.co'
+const supabaseAnonKey = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ'
+
+const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey)
+
+// 2. Fetch products from your Supabase table
+async function loadProducts() {
+  const { data, error } = await supabase
+    .from('products') // Your exact Supabase table name
+    .select('*')
+
+  if (error) {
+    console.error("Error fetching data from Supabase:", error.message)
+    return
+  }
+
+  console.log("✅ Successfully connected! Your product details:", data)
+  
+  // Your code to display 'data' on your webpage goes here
+}
+
+// Run the function when the page loads
+loadProducts()
+
+// =========================================================
+// YOUR ORIGINAL WEBSITE LOGIC (Kept exactly as it was)
+// =========================================================
 const hamburger = document.getElementById('hamburger');
 const navMenu = document.getElementById('navMenu');
 const navLinks = document.querySelectorAll('.nav-link');

@@ -1,11 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Supabase Project</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <h1>Supabase Connection Test</h1>
+    <div id="output">Open your browser console (F12) to see database results!</div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<script type="module" src="script.js"></script>
+<script src="script.js"></script>
+<script type="module" src="script.js"></script>
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aryal Store</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
+    
     * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
     a { text-decoration: none; color: inherit; }
@@ -405,7 +426,7 @@
         <li><a href="#products">Products</a></li>
         <li><a href="#testimonials">Testimonials</a></li>
         <li><a href="#contact">Contact</a></li>
-        <li><a href="admin.html" target="_blank"><i class="fas fa-lock" style="font-size:0.8rem;"></i> Admin</a></li>
+        <li><a href="admin-supabase.html" target="_blank"><i class="fas fa-lock" style="font-size:0.8rem;"></i> Admin</a></li>
       </ul>
       <div class="nav-icons">
         <i class="fas fa-heart" id="wishlistIcon" onclick="openWishlist()" title="Wishlist"><span class="count-badge" id="wishlistCount">0</span></i>
