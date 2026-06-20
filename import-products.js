@@ -41,7 +41,7 @@ function downloadImage(url, filename) {
   });
 }
 
-async function importAll() {
+async function importAll(closeOnFinish = true) {
   await initDb();
 
   const data = await fetchJson('https://kolzsticks.github.io/Free-Ecommerce-Products-Api/main/products.json');
@@ -232,10 +232,14 @@ async function importAll() {
   const all = queryAll('SELECT category, COUNT(*) as cnt FROM products GROUP BY category ORDER BY category');
   console.log('Products by category:');
   all.forEach(r => console.log(`  ${r.category}: ${r.cnt}`));
-  process.exit(0);
+  if (closeOnFinish) process.exit(0);
 }
 
-importAll().catch(err => {
-  console.error('Import failed:', err);
-  process.exit(1);
-});
+module.exports = { importAll };
+
+if (require.main === module) {
+  importAll().catch(err => {
+    console.error('Import failed:', err);
+    process.exit(1);
+  });
+}

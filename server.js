@@ -861,6 +861,18 @@ app.get('/api/recommendations/:product_id', (req, res) => {
   res.json(combined.slice(0, 4));
 });
 
+// ========== SEED DATABASE ==========
+app.post('/api/seed', authMiddleware, async (req, res) => {
+  try {
+    const { importAll } = require('./import-products');
+    await importAll(false);
+    const products = queryAll('SELECT category, COUNT(*) as cnt FROM products GROUP BY category ORDER BY category');
+    res.json({ success: true, products });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`Aryal Store backend running at http://localhost:${PORT}`);
