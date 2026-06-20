@@ -873,7 +873,17 @@ app.post('/api/seed', authMiddleware, async (req, res) => {
   }
 });
 
-initDb().then(() => {
+initDb().then(async () => {
+  const count = queryOne('SELECT COUNT(*) as cnt FROM products');
+  if (!count || count.cnt === 0) {
+    console.log('Database empty — seeding with default products...');
+    try {
+      const { importAll } = require('./import-products');
+      await importAll(false);
+    } catch (err) {
+      console.error('Auto-seed failed:', err.message);
+    }
+  }
   app.listen(PORT, () => {
     console.log(`Aryal Store backend running at http://localhost:${PORT}`);
   });
