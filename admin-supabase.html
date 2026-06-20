@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Full Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+    .login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1a1a2e, #16213e); }
+    .login-box { background: #fff; padding: 40px; border-radius: 15px; width: 100%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; }
+    .login-box h2 { font-size: 1.5rem; margin-bottom: 5px; color: #1a1a2e; }
+    .login-box h2 span { color: #e94560; }
+    .login-box p { color: #888; margin-bottom: 25px; font-size: 0.9rem; }
+    .login-box input { width: 100%; padding: 14px 18px; border: 2px solid #eee; border-radius: 10px; font-size: 1rem; margin-bottom: 15px; outline: none; transition: border 0.3s; }
+    .login-box input:focus { border-color: #e94560; }
+    .login-box .error { color: #e74c3c; font-size: 0.9rem; margin-bottom: 10px; display: none; }
+    .dashboard { display: none; }
+    .dash-header { background: #1a1a2e; color: #fff; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+    .dash-header h2 { font-size: 1.3rem; }
+    .dash-header h2 span { color: #e94560; }
+    .dash-header .admin-info { display: flex; align-items: center; gap: 15px; }
+    .dash-header .admin-info span { color: #ccc; font-size: 0.85rem; }
+    .dash-header .logout-btn { padding: 7px 18px; border-radius: 50px; border: 1px solid #e94560; background: transparent; color: #e94560; cursor: pointer; font-weight: 600; transition: all 0.3s; font-size: 0.85rem; }
+    .dash-header .logout-btn:hover { background: #e94560; color: #fff; }
+    .dash-body { display: flex; min-height: calc(100vh - 52px); }
+    .dash-sidebar { width: 220px; background: #fff; border-right: 1px solid #e0e0e0; padding: 15px 0; flex-shrink: 0; overflow-y: auto; }
+    .dash-sidebar .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; color: #555; font-weight: 500; transition: all 0.3s; border-left: 3px solid transparent; font-size: 0.85rem; }
+    .dash-sidebar .nav-item:hover { background: #f8f9fa; color: #e94560; }
+    .dash-sidebar .nav-item.active { background: #fff5f5; color: #e94560; border-left-color: #e94560; }
+    .dash-sidebar .nav-item i { width: 18px; text-align: center; }
+    .dash-content { flex: 1; padding: 25px; overflow-y: auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tab-content h3 { font-size: 1.4rem; margin-bottom: 20px; color: #1a1a2e; }
+    .card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+    .card h4 { margin-bottom: 15px; font-size: 1.05rem; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.85rem; color: #555; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 9px 12px; border: 2px solid #eee; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border 0.3s; font-family: inherit; background: #fff; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: #e94560; }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .btn { padding: 9px 22px; border-radius: 50px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.3s; }
+    .btn-primary { background: #e94560; color: #fff; }
+    .btn-primary:hover { background: #d63851; }
+    .btn-success { background: #27ae60; color: #fff; }
+    .btn-success:hover { background: #219a52; }
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-warning { background: #f39c12; color: #fff; }
+    .btn-warning:hover { background: #d68910; }
+    .btn-sm { padding: 5px 14px; font-size: 0.75rem; }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; }
+    .list-item .info { flex: 1; }
+    .list-item .info h5 { font-size: 0.95rem; margin-bottom: 2px; }
+    .list-item .info p { color: #888; font-size: 0.8rem; }
+    .list-item .actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .msg { padding: 10px 16px; border-radius: 8px; margin-bottom: 12px; display: none; font-weight: 500; font-size: 0.85rem; }
+    .msg.success { display: block; background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .msg.error { display: block; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .toast-bottom { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 9999; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 8px 32px rgba(0,0,0,0.18); display: none; animation: slideUp 0.3s ease; max-width: 90%; text-align: center; }
+    .toast-bottom.show { display: block; }
+    .toast-bottom.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .toast-bottom.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    .preview-img { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid #eee; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; color: #555; }
+    td .status-badge { display: inline-block; padding: 2px 10px; border-radius: 50px; font-size: 0.7rem; font-weight: 600; color: #fff; }
+    .filter-btn { padding: 6px 16px; border-radius: 50px; border: 2px solid #ddd; background: transparent; font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 0.8rem; color: #555; }
+    .filter-btn.active, .filter-btn:hover { border-color: #e94560; background: #e94560; color: #fff; }
+    .inline-flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .stat-card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+    .stat-card .num { font-size: 1.8rem; font-weight: 800; color: #e94560; }
+    .stat-card .label { font-size: 0.8rem; color: #888; margin-top: 4px; }
+    .stat-card .icon { font-size: 1.5rem; color: #ddd; margin-bottom: 6px; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+    .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; }
+    @media (max-width: 768px) {
+      .dash-body { flex-direction: column; }
+      .dash-sidebar { width: 100%; display: flex; overflow-x: auto; padding: 8px 0; }
+      .dash-sidebar .nav-item { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; padding: 8px 12px; }
+      .dash-sidebar .nav-item.active { border-left: none; border-bottom-color: #e94560; }
+      .dash-content { padding: 15px; }
+      .form-row, .form-row-3 { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <h2>Admin <span>Dashboard</span></h2>
+    <p>Full Admin Panel — Supabase</p>
+    <div class="error" id="loginError">Incorrect password</div>
+    <input type="password" id="loginPassword" placeholder="Enter admin password" autofocus>
+    <button class="btn btn-primary" onclick="handleLogin()" style="width:100%;">Login</button>
+    <br><br>
+    <a href="index.html" style="color:#888;font-size:0.85rem;">&larr; Back to Store</a>
+  </div>
+</div>
+
+<div class="dashboard" id="dashboard">
+  <div class="dash-header">
+    <h2>Admin <span>Dashboard</span></h2>
+    <div class="admin-info">
+      <span>Logged in as Admin</span>
+      <button class="logout-btn" onclick="handleLogout()">Logout</button>
+    </div>
+  </div>
+  <div class="dash-body">
+    <div class="dash-sidebar">
+      <div class="nav-item active" data-tab="analytics"><i class="fas fa-chart-bar"></i> Analytics</div>
+      <div class="nav-item" data-tab="hero"><i class="fas fa-home"></i> Hero</div>
+      <div class="nav-item" data-tab="about"><i class="fas fa-info-circle"></i> About</div>
+      <div class="nav-item" data-tab="products"><i class="fas fa-box"></i> Products</div>
+      <div class="nav-item" data-tab="categories"><i class="fas fa-tags"></i> Categories</div>
+      <div class="nav-item" data-tab="testimonials"><i class="fas fa-quote-right"></i> Testimonials</div>
+      <div class="nav-item" data-tab="contact"><i class="fas fa-address-card"></i> Contact</div>
+      <div class="nav-item" data-tab="orders"><i class="fas fa-truck"></i> Orders</div>
+      <div class="nav-item" data-tab="reviews"><i class="fas fa-star"></i> Reviews</div>
+      <div class="nav-item" data-tab="returns"><i class="fas fa-undo"></i> Returns</div>
+      <div class="nav-item" data-tab="coupons"><i class="fas fa-percent"></i> Coupons</div>
+      <div class="nav-item" data-tab="customers"><i class="fas fa-users"></i> Customers</div>
+      <div class="nav-item" data-tab="messages"><i class="fas fa-envelope"></i> Messages</div>
+      <div class="nav-item" data-tab="subscribers"><i class="fas fa-bell"></i> Subscribers</div>
+      <div class="nav-item" data-tab="settings"><i class="fas fa-cog"></i> Settings</div>
+    </div>
+    <div class="dash-content">
+      <div id="msgBox" class="msg"></div>
+      <div id="toastBottom" class="toast-bottom"></div>
+
+      <!-- ANALYTICS -->
+      <div class="tab-content active" id="tab-analytics">
+        <h3>Dashboard Analytics</h3>
+        <div class="stat-grid" id="analyticsStats"></div>
+        <div class="card"><h4>Recent Orders</h4><div id="recentOrdersList"></div></div>
+        <div class="card"><h4>Low Stock Alerts</h4><div id="lowStockList"></div></div>
+      </div>
+
+      <!-- HERO -->
+      <div class="tab-content" id="tab-hero">
+        <h3>Hero Section</h3>
+        <div class="card">
+          <div class="form-group"><label>Heading</label><input type="text" id="heroHeading"></div>
+          <div class="form-group"><label>Subtext</label><textarea id="heroSubtext" rows="3"></textarea></div>
+          <button class="btn btn-primary" onclick="saveHero()">Save Hero</button>
+        </div>
+      </div>
+
+      <!-- ABOUT -->
+      <div class="tab-content" id="tab-about">
+        <h3>About Section</h3>
+        <div class="card">
+          <div class="form-group"><label>Section Title</label><input type="text" id="aboutTitle"></div>
+          <div class="form-group"><label>Heading</label><input type="text" id="aboutHeading"></div>
+          <div class="form-group"><label>Description 1</label><textarea id="aboutDesc1" rows="3"></textarea></div>
+          <div class="form-group"><label>Description 2</label><textarea id="aboutDesc2" rows="3"></textarea></div>
+          <div class="form-group"><label>Features (comma separated)</label><input type="text" id="aboutFeatures"></div>
+          <button class="btn btn-primary" onclick="saveAbout()">Save About</button>
+        </div>
+      </div>
+
+      <!-- PRODUCTS -->
+      <div class="tab-content" id="tab-products">
+        <h3>Products</h3>
+        <div class="card">
+          <h4 id="formTitle">Add Product</h4>
+          <input type="hidden" id="editProductId" value="">
+          <div class="form-row">
+            <div class="form-group"><label>Product Name *</label><input type="text" id="prodName"></div>
+            <div class="form-group"><label>Category *</label>
+              <select id="prodCategory"><option value="">Select</option><option value="clothes">Clothes</option><option value="men">Men</option><option value="women">Women</option><option value="kids">Kids</option><option value="accessories">Accessories</option><option value="stationery">Stationery</option><option value="cosmetics">Cosmetics</option><option value="cylinder">Cylinder</option></select>
+            </div>
+          </div>
+          <div class="form-row-3">
+            <div class="form-group"><label>Price (Rs.)</label><input type="text" id="prodPrice" placeholder="e.g. 899"></div>
+            <div class="form-group"><label>Compare Price</label><input type="text" id="prodCompare" placeholder="Original price"></div>
+            <div class="form-group"><label>Stock</label><input type="number" id="prodStock" value="100"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Brand</label><input type="text" id="prodBrand"></div>
+            <div class="form-group"><label>SKU</label><input type="text" id="prodSku"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Sizes (comma separated)</label><input type="text" id="prodSizes"></div>
+            <div class="form-group"><label>Colors (comma separated)</label><input type="text" id="prodColors"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Material</label><input type="text" id="prodMaterial"></div>
+            <div class="form-group"><label>Subcategory</label><input type="text" id="prodSubcategory"></div>
+          </div>
+          <div class="form-group"><label>Description</label><textarea id="prodDesc" rows="2"></textarea></div>
+          <div class="form-group"><label>Product Image</label><input type="file" id="prodImageFile" accept="image/*" onchange="previewProdImage(event)"><div id="prodImagePreview" style="margin-top:6px;display:none;"></div></div>
+          <div class="form-group"><label>Or Image URL</label><input type="text" id="prodImage" placeholder="https://..."></div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="prodFeatured"> Featured</label>
+            <label><input type="checkbox" id="prodNew"> New Arrival</label>
+            <label><input type="checkbox" id="prodBestSeller"> Best Seller</label>
+            <label><input type="checkbox" id="prodTrending"> Trending</label>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-success" onclick="saveProduct()"><i class="fas fa-save"></i> Save Product</button>
+            <button class="btn btn-primary" onclick="resetForm()" style="display:none;" id="cancelBtn">Cancel Edit</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="inline-flex" style="margin-bottom:10px;">
+            <button class="filter-btn active" onclick="filterProducts('all')">All</button>
+            <button class="filter-btn" onclick="filterProducts('clothes')">Clothes</button>
+            <button class="filter-btn" onclick="filterProducts('stationery')">Stationery</button>
+            <button class="filter-btn" onclick="filterProducts('cosmetics')">Cosmetics</button>
+            <button class="filter-btn" onclick="filterProducts('cylinder')">Cylinder</button>
+          </div>
+          <div id="productList"><p style="color:#888;">Loading...</p></div>
+        </div>
+      </div>
+
+      <!-- CATEGORIES -->
+      <div class="tab-content" id="tab-categories">
+        <h3>Categories</h3>
+        <div class="card">
+          <div class="form-row">
+            <div class="form-group"><label>Name</label><input type="text" id="catName"></div>
+            <div class="form-group"><label>Slug</label><input type="text" id="catSlug"></div>
+          </div>
+          <button class="btn btn-success" onclick="addCategory()">Add Category</button>
+        </div>
+        <div class="card"><div id="categoriesList"></div></div>
+      </div>
+
+      <!-- TESTIMONIALS -->
+      <div class="tab-content" id="tab-testimonials">
+        <h3>Testimonials</h3>
+        <div class="card">
+          <div class="form-row">
+            <div class="form-group"><label>Name</label><input type="text" id="testName"></div>
+            <div class="form-group"><label>Label</label><input type="text" id="testLabel" value="Customer"></div>
+          </div>
+          <div class="form-group"><label>Text</label><textarea id="testText" rows="3"></textarea></div>
+          <div class="form-group"><label>Stars (1-5)</label><input type="number" id="testStars" value="5" min="1" max="5"></div>
+          <button class="btn btn-success" onclick="addTestimonial()">Add Testimonial</button>
+        </div>
+        <div class="card"><div id="testimonialList"></div></div>
+      </div>
+
+      <!-- CONTACT -->
+      <div class="tab-content" id="tab-contact">
+        <h3>Contact Information</h3>
+        <div class="card">
+          <div class="form-group"><label>Address</label><input type="text" id="contactAddress"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Phone</label><input type="text" id="contactPhone"></div>
+            <div class="form-group"><label>WhatsApp</label><input type="text" id="contactWhatsapp"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Email</label><input type="text" id="contactEmail"></div>
+            <div class="form-group"><label>Hours</label><input type="text" id="contactHours"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Latitude</label><input type="text" id="mapLat" value="28.0340872"></div>
+            <div class="form-group"><label>Longitude</label><input type="text" id="mapLng" value="83.4126681"></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveContact()">Save Contact</button>
+        </div>
+      </div>
+
+      <!-- ORDERS -->
+      <div class="tab-content" id="tab-orders">
+        <h3>Orders</h3>
+        <div class="card">
+          <div class="inline-flex" style="margin-bottom:12px;">
+            <button class="filter-btn active" onclick="filterOrders('all')">All</button>
+            <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
+            <button class="filter-btn" onclick="filterOrders('processing')">Processing</button>
+            <button class="filter-btn" onclick="filterOrders('shipped')">Shipped</button>
+            <button class="filter-btn" onclick="filterOrders('delivered')">Delivered</button>
+            <button class="filter-btn" onclick="filterOrders('cancelled')">Cancelled</button>
+          </div>
+          <div id="ordersList"></div>
+        </div>
+      </div>
+
+      <!-- REVIEWS -->
+      <div class="tab-content" id="tab-reviews">
+        <h3>Product Reviews</h3>
+        <div class="card">
+          <div class="inline-flex" style="margin-bottom:12px;">
+            <button class="filter-btn active" onclick="filterReviews('')">All</button>
+            <button class="filter-btn" onclick="filterReviews('pending')">Pending</button>
+            <button class="filter-btn" onclick="filterReviews('approved')">Approved</button>
+          </div>
+          <div id="reviewsList"></div>
+        </div>
+      </div>
+
+      <!-- RETURNS -->
+      <div class="tab-content" id="tab-returns">
+        <h3>Return Requests</h3>
+        <div class="card"><div id="returnsList"></div></div>
+      </div>
+
+      <!-- COUPONS -->
+      <div class="tab-content" id="tab-coupons">
+        <h3>Coupons</h3>
+        <div class="card">
+          <div class="form-row">
+            <div class="form-group"><label>Code</label><input type="text" id="couponCode"></div>
+            <div class="form-group"><label>Type</label><select id="couponType"><option value="percentage">Percentage</option><option value="fixed">Fixed</option></select></div>
+          </div>
+          <div class="form-row-3">
+            <div class="form-group"><label>Value</label><input type="number" id="couponValue" step="0.01"></div>
+            <div class="form-group"><label>Min Order</label><input type="number" id="couponMin" step="0.01"></div>
+            <div class="form-group"><label>Max Discount</label><input type="number" id="couponMaxDiscount" step="0.01"></div>
+          </div>
+          <button class="btn btn-success" onclick="addCoupon()">Add Coupon</button>
+        </div>
+        <div class="card"><div id="couponsList"></div></div>
+      </div>
+
+      <!-- CUSTOMERS -->
+      <div class="tab-content" id="tab-customers">
+        <h3>Customers</h3>
+        <div class="card"><div id="customersList"></div></div>
+      </div>
+
+      <!-- MESSAGES -->
+      <div class="tab-content" id="tab-messages">
+        <h3>Messages</h3>
+        <div class="card">
+          <div class="inline-flex" style="margin-bottom:10px;">
+            <button class="filter-btn active" onclick="filterMessages('all')">All</button>
+            <button class="filter-btn" onclick="filterMessages('unread')">Unread</button>
+          </div>
+          <div id="messagesList"></div>
+        </div>
+      </div>
+
+      <!-- SUBSCRIBERS -->
+      <div class="tab-content" id="tab-subscribers">
+        <h3>Subscribers</h3>
+        <div class="card"><div id="subscribersList"></div></div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="tab-content" id="tab-settings">
+        <h3>Settings</h3>
+        <div class="card">
+          <div class="form-row">
+            <div class="form-group"><label>Store Name</label><input type="text" id="storeName"></div>
+            <div class="form-group"><label>Tagline</label><input type="text" id="storeTagline"></div>
+          </div>
+          <div class="form-row-3">
+            <div class="form-group"><label>Currency</label><input type="text" id="storeCurrency" value="Rs. "></div>
+            <div class="form-group"><label>Free Shipping Threshold</label><input type="number" id="freeShippingThreshold" value="2000"></div>
+            <div class="form-group"><label>Shipping Fee</label><input type="number" id="shippingFee" value="100"></div>
+          </div>
+          <div class="form-group"><label>WhatsApp Number</label><input type="text" id="whatsappNumber"></div>
+          <div class="form-group"><label>Admin Password</label><input type="text" id="adminPasswordInput"></div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin + '/api';
+
+const PW_KEY = 'admin_dashboard_pw';
+let allProducts = [];
+let allOrders = [];
+let currentProdFilter = 'all';
+let currentOrderFilter = 'all';
+
+function getPw() { return localStorage.getItem(PW_KEY) || 'admin123'; }
+function setPw(p) { localStorage.setItem(PW_KEY, p); }
+
+function showMsg(msg, type) {
+  const box = document.getElementById('msgBox');
+  box.textContent = msg;
+  box.className = 'msg ' + type;
+  const toast = document.getElementById('toastBottom');
+  toast.textContent = msg;
+  toast.className = 'toast-bottom ' + type + ' show';
+  setTimeout(() => { box.className = 'msg'; toast.className = 'toast-bottom'; }, 4000);
+}
+
+function escape(t) {
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+async function api(url, opts = {}) {
+  const res = await fetch(API + url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const data = await res.json();
+  if (!res.ok) { showMsg('Error: ' + (data.error || 'Request failed'), 'error'); throw new Error(data.error); }
+  return data;
+}
+
+function handleLogin() {
+  const pw = document.getElementById('loginPassword').value;
+  if (pw === getPw()) {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadAllTabs();
+  } else { document.getElementById('loginError').style.display = 'block'; }
+}
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+
+function handleLogout() {
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('tab-' + item.dataset.tab).classList.add('active');
+    const fns = { analytics: loadAnalytics, hero: loadHero, about: loadAbout, categories: loadCategories, testimonials: loadTestimonials, contact: loadContact, reviews: loadReviews, returns: loadReturns, coupons: loadCoupons, customers: loadCustomers, subscribers: loadSubscribers, messages: loadMessages };
+    if (fns[item.dataset.tab]) fns[item.dataset.tab]();
+  });
+});
+
+(async function() {
+  if (localStorage.getItem(PW_KEY)) { document.getElementById('loginPage').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; await loadAllTabs(); }
+})();
+
+async function loadAllTabs() {
+  await Promise.all([loadHero(), loadAbout(), loadProducts(), loadTestimonials(), loadContact(), loadOrders(), loadSettings(), loadAnalytics(), loadCategories(), loadReviews(), loadReturns(), loadCoupons(), loadCustomers(), loadMessages(), loadSubscribers()]);
+}
+
+// SETTINGS
+async function loadSettings() {
+  try { const data = await api('/settings'); const s = Array.isArray(data) ? data[0] : data; if (s) { document.getElementById('storeName').value = s.store_name || ''; document.getElementById('storeTagline').value = s.store_tagline || ''; document.getElementById('storeCurrency').value = s.currency || 'Rs. '; document.getElementById('freeShippingThreshold').value = s.free_shipping_threshold || 2000; document.getElementById('shippingFee').value = s.shipping_fee || 100; document.getElementById('whatsappNumber').value = s.whatsapp_number || ''; } } catch {}
+  document.getElementById('adminPasswordInput').value = getPw();
+}
+async function saveSettings() {
+  const pw = document.getElementById('adminPasswordInput').value.trim();
+  if (pw.length < 4) { showMsg('Password at least 4 chars.', 'error'); return; }
+  setPw(pw);
+  await api('/settings', { method: 'PUT', body: JSON.stringify({ id: 1, store_name: document.getElementById('storeName').value, store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value, free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000, shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100, whatsapp_number: document.getElementById('whatsappNumber').value }) });
+  showMsg('Settings saved!', 'success');
+}
+
+// HERO
+async function loadHero() {
+  try { const data = await api('/hero'); const h = Array.isArray(data) ? data[0] : data; if (h) { document.getElementById('heroHeading').value = h.heading || ''; document.getElementById('heroSubtext').value = h.subtext || ''; } } catch {}
+}
+async function saveHero() {
+  await api('/hero', { method: 'PUT', body: JSON.stringify({ id: 1, heading: document.getElementById('heroHeading').value, subtext: document.getElementById('heroSubtext').value }) });
+  showMsg('Hero updated!', 'success');
+}
+
+// ABOUT
+async function loadAbout() {
+  try { const data = await api('/about'); const a = Array.isArray(data) ? data[0] : data; if (a) { document.getElementById('aboutTitle').value = a.title || ''; document.getElementById('aboutHeading').value = a.heading || ''; document.getElementById('aboutDesc1').value = a.desc1 || ''; document.getElementById('aboutDesc2').value = a.desc2 || ''; document.getElementById('aboutFeatures').value = a.features || ''; } } catch {}
+}
+async function saveAbout() {
+  await api('/about', { method: 'PUT', body: JSON.stringify({ id: 1, title: document.getElementById('aboutTitle').value, heading: document.getElementById('aboutHeading').value, desc1: document.getElementById('aboutDesc1').value, desc2: document.getElementById('aboutDesc2').value, features: document.getElementById('aboutFeatures').value }) });
+  showMsg('About updated!', 'success');
+}
+
+// CONTACT
+async function loadContact() {
+  try { const data = await api('/contact'); const c = Array.isArray(data) ? data[0] : data; if (c) { document.getElementById('contactAddress').value = c.address || ''; document.getElementById('contactPhone').value = c.phone || ''; document.getElementById('contactEmail').value = c.email || ''; document.getElementById('contactHours').value = c.hours || ''; document.getElementById('contactWhatsapp').value = c.whatsapp || ''; document.getElementById('mapLat').value = c.lat || '28.0340872'; document.getElementById('mapLng').value = c.lng || '83.4126681'; } } catch {}
+}
+async function saveContact() {
+  await api('/contact', { method: 'PUT', body: JSON.stringify({ id: 1, address: document.getElementById('contactAddress').value, phone: document.getElementById('contactPhone').value, email: document.getElementById('contactEmail').value, hours: document.getElementById('contactHours').value, whatsapp: document.getElementById('contactWhatsapp').value, lat: document.getElementById('mapLat').value, lng: document.getElementById('mapLng').value }) });
+  showMsg('Contact saved!', 'success');
+}
+
+// PRODUCTS
+function previewProdImage(e) {
+  const file = e.target.files[0];
+  if (!file) { document.getElementById('prodImagePreview').style.display = 'none'; return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const div = document.getElementById('prodImagePreview');
+    div.innerHTML = '<img src="' + ev.target.result + '" style="width:100%;max-height:200px;border-radius:8px;border:1px solid #ddd;object-fit:cover;">';
+    div.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveProduct() {
+  const id = document.getElementById('editProductId').value;
+  const name = document.getElementById('prodName').value.trim();
+  if (!name) { showMsg('Product name is required', 'error'); return; }
+
+  let imageUrl = document.getElementById('prodImage').value.trim();
+  const fileInput = document.getElementById('prodImageFile');
+  if (fileInput.files && fileInput.files[0]) {
+    showMsg('Uploading image...', 'success');
+    const file = fileInput.files[0];
+    const dataUrl = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsDataURL(file); });
+    try {
+      const res = await fetch(API + '/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, data: dataUrl }) });
+      const d = await res.json();
+      if (d.url) imageUrl = d.url; else { showMsg('Upload failed: ' + (d.error || 'unknown'), 'error'); return; }
+    } catch (e) { showMsg('Upload error', 'error'); return; }
+  }
+
+  const payload = {
+    name, category: document.getElementById('prodCategory').value, subcategory: document.getElementById('prodSubcategory').value,
+    description: document.getElementById('prodDesc').value, price: parseFloat(document.getElementById('prodPrice').value) || 0,
+    compare_price: parseFloat(document.getElementById('prodCompare').value) || 0, image_url: imageUrl,
+    sizes: document.getElementById('prodSizes').value, colors: document.getElementById('prodColors').value,
+    material: document.getElementById('prodMaterial').value, brand: document.getElementById('prodBrand').value,
+    sku: document.getElementById('prodSku').value, stock: parseInt(document.getElementById('prodStock').value) || 100,
+    is_featured: document.getElementById('prodFeatured').checked ? 1 : 0, is_new: document.getElementById('prodNew').checked ? 1 : 0,
+    is_best_seller: document.getElementById('prodBestSeller').checked ? 1 : 0, is_trending: document.getElementById('prodTrending').checked ? 1 : 0, status: 'active'
+  };
+  try {
+    if (id) await api('/products/' + id, { method: 'PUT', body: JSON.stringify(payload) });
+    else await api('/products', { method: 'POST', body: JSON.stringify(payload) });
+    showMsg(id ? 'Product updated!' : 'Product added!', 'success');
+    resetForm(); await loadProducts();
+  } catch {}
+}
+
+function resetForm() {
+  document.getElementById('editProductId').value = '';
+  ['prodName','prodDesc','prodPrice','prodCompare','prodBrand','prodSku','prodSizes','prodColors','prodMaterial'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('prodStock').value = '100';
+  document.getElementById('prodSubcategory').value = '';
+  document.getElementById('prodFeatured').checked = false;
+  document.getElementById('prodNew').checked = false;
+  document.getElementById('prodBestSeller').checked = false;
+  document.getElementById('prodTrending').checked = false;
+  document.getElementById('prodImage').value = '';
+  document.getElementById('prodImageFile').value = '';
+  document.getElementById('prodImagePreview').style.display = 'none';
+  document.getElementById('formTitle').textContent = 'Add Product';
+  document.getElementById('cancelBtn').style.display = 'none';
+}
+
+function editProduct(id) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('editProductId').value = p.id;
+  document.getElementById('prodName').value = p.name || '';
+  document.getElementById('prodCategory').value = p.category || '';
+  document.getElementById('prodDesc').value = p.description || '';
+  document.getElementById('prodPrice').value = p.price || '';
+  document.getElementById('prodCompare').value = p.compare_price || '';
+  document.getElementById('prodBrand').value = p.brand || '';
+  document.getElementById('prodSku').value = p.sku || '';
+  document.getElementById('prodSizes').value = p.sizes || '';
+  document.getElementById('prodColors').value = p.colors || '';
+  document.getElementById('prodMaterial').value = p.material || '';
+  document.getElementById('prodStock').value = p.stock || 100;
+  document.getElementById('prodSubcategory').value = p.subcategory || '';
+  document.getElementById('prodFeatured').checked = !!p.is_featured;
+  document.getElementById('prodNew').checked = !!p.is_new;
+  document.getElementById('prodBestSeller').checked = !!p.is_best_seller;
+  document.getElementById('prodTrending').checked = !!p.is_trending;
+  document.getElementById('prodImage').value = p.image_url || '';
+  document.getElementById('prodImageFile').value = '';
+  const preview = document.getElementById('prodImagePreview');
+  if (p.image_url) { preview.innerHTML = '<img src="' + p.image_url + '" style="width:100%;max-height:200px;border-radius:8px;border:1px solid #ddd;object-fit:cover;">'; preview.style.display = 'block'; }
+  else preview.style.display = 'none';
+  document.getElementById('formTitle').textContent = 'Edit Product';
+  document.getElementById('cancelBtn').style.display = '';
+  document.querySelector('[data-tab="products"]').click();
+}
+
+async function loadProducts() {
+  try { allProducts = await api('/products'); renderFilteredProducts(); } catch { document.getElementById('productList').innerHTML = '<p style="color:#e74c3c;">Error</p>'; }
+}
+
+function renderFilteredProducts() {
+  const filtered = currentProdFilter === 'all' ? allProducts : allProducts.filter(p => p.category === currentProdFilter);
+  const list = document.getElementById('productList');
+  if (!filtered.length) { list.innerHTML = '<p style="color:#888;">No products.</p>'; return; }
+  list.innerHTML = filtered.map(p => '<div class="list-item">' + (p.image_url ? '<img src="' + p.image_url + '" class="preview-img" onerror="this.style.display=\'none\'">' : '') + '<div class="info"><h5>' + escape(p.name) + '</h5><p>' + (p.category || '') + ' | Rs. ' + (p.price || 0) + ' | Stock: ' + (p.stock || 0) + '</p></div><div class="actions"><button class="btn btn-primary btn-sm" onclick="editProduct(\'' + p.id + '\')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
+}
+
+function filterProducts(filter) {
+  currentProdFilter = filter;
+  document.querySelectorAll('#tab-products .filter-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === filter || (filter === 'all' && b.textContent.trim().toLowerCase() === 'all')));
+  renderFilteredProducts();
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Delete?')) return;
+  try { await api('/products/' + id, { method: 'DELETE' }); showMsg('Deleted.', 'success'); await loadProducts(); } catch {}
+}
+
+// CATEGORIES
+async function loadCategories() {
+  try { const data = await api('/categories'); const list = document.getElementById('categoriesList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">No categories.</p>'; return; } list.innerHTML = data.map(c => '<div class="list-item"><div class="info"><h5>' + escape(c.name) + '</h5><p>Slug: ' + c.slug + '</p></div><div class="actions"><button class="btn btn-danger btn-sm" onclick="deleteCategory(\'' + c.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+}
+async function addCategory() {
+  const name = document.getElementById('catName').value.trim();
+  const slug = document.getElementById('catSlug').value.trim().toLowerCase().replace(/\s+/g, '-');
+  if (!name || !slug) { showMsg('Name and slug required', 'error'); return; }
+  try { await api('/categories', { method: 'POST', body: JSON.stringify({ name, slug }) }); showMsg('Added!', 'success'); document.getElementById('catName').value = ''; document.getElementById('catSlug').value = ''; loadCategories(); } catch {}
+}
+async function deleteCategory(id) {
+  if (!confirm('Delete?')) return;
+  try { await api('/categories/' + id, { method: 'DELETE' }); loadCategories(); } catch {}
+}
+
+// TESTIMONIALS
+async function loadTestimonials() {
+  try { const data = await api('/testimonials'); const list = document.getElementById('testimonialList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; } list.innerHTML = data.map(t => '<div class="list-item"><div class="info"><h5>' + escape(t.name) + ' (' + '★'.repeat(t.stars) + '☆'.repeat(5 - t.stars) + ')</h5><p>' + escape((t.text || '').substring(0, 80)) + '</p></div><div class="actions"><button class="btn btn-danger btn-sm" onclick="deleteTestimonial(\'' + t.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+}
+async function addTestimonial() {
+  const name = document.getElementById('testName').value.trim();
+  const text = document.getElementById('testText').value.trim();
+  if (!name || !text) { showMsg('Name and text required', 'error'); return; }
+  try { await api('/testimonials', { method: 'POST', body: JSON.stringify({ name, label: document.getElementById('testLabel').value || 'Customer', text, stars: parseInt(document.getElementById('testStars').value) || 5 }) }); showMsg('Added!', 'success'); document.getElementById('testName').value = ''; document.getElementById('testText').value = ''; loadTestimonials(); } catch {}
+}
+async function deleteTestimonial(id) {
+  if (!confirm('Delete?')) return;
+  try { await api('/testimonials/' + id, { method: 'DELETE' }); loadTestimonials(); } catch {}
+}
+
+// ORDERS
+async function loadOrders() {
+  try { allOrders = await api('/orders'); renderFilteredOrders(); } catch {}
+}
+function renderFilteredOrders() {
+  const filtered = currentOrderFilter === 'all' ? allOrders : allOrders.filter(o => o.status === currentOrderFilter);
+  const list = document.getElementById('ordersList');
+  if (!filtered.length) { list.innerHTML = '<p style="color:#888;">No orders.</p>'; return; }
+  const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
+  list.innerHTML = filtered.map(o => '<div class="list-item" style="flex-direction:column;align-items:stretch;"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;"><div class="info"><h5>#' + o.id.substring(0, 8) + ' - ' + escape(o.customer_name) + '</h5><p style="font-size:0.8rem;color:#888;">' + (o.customer_phone || '') + ' | ' + (o.total_amount || '0') + ' | ' + (o.created_at || '').substring(0, 10) + '</p></div><span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + o.status + '</span></div><div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">' + ['pending','processing','shipped','delivered','cancelled'].map(s => '<button class="btn btn-sm ' + (s === o.status ? 'btn-primary' : '') + '" style="' + (s === o.status ? '' : 'background:#eee;color:#555;') + '" onclick="updateOrderStatus(\'' + o.id + '\',\'' + s + '\')">' + s + '</button>').join('') + '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\'' + o.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
+}
+function filterOrders(filter) {
+  currentOrderFilter = filter;
+  document.querySelectorAll('#tab-orders .filter-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === filter || (filter === 'all' && b.textContent.trim().toLowerCase() === 'all')));
+  renderFilteredOrders();
+}
+async function updateOrderStatus(id, status) {
+  try { await api('/orders/' + id, { method: 'PUT', body: JSON.stringify({ status }) }); loadOrders(); showMsg('Updated.', 'success'); } catch {}
+}
+async function deleteOrder(id) {
+  if (!confirm('Delete order?')) return;
+  try { await api('/orders/' + id, { method: 'DELETE' }); loadOrders(); showMsg('Deleted.', 'success'); } catch {}
+}
+
+// REVIEWS
+async function loadReviews(statusFilter) {
+  try { const url = statusFilter ? '/reviews/' + statusFilter : '/reviews'; let data = await api(url); if (!Array.isArray(data)) data = []; const list = document.getElementById('reviewsList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">No reviews.</p>'; return; }
+  list.innerHTML = data.map(r => '<div class="list-item"><div class="info"><h5>' + escape(r.customer_name || '') + ' <span style="color:#ffc107;">' + '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) + '</span></h5><p>' + escape((r.comment || '').substring(0, 80)) + '</p><p style="font-size:0.75rem;color:#888;">Status: ' + r.status + '</p></div><div class="actions">' + (r.status !== 'approved' ? '<button class="btn btn-success btn-sm" onclick="updateReviewStatus(\'' + r.id + '\',\'approved\')">Approve</button>' : '') + (r.status !== 'rejected' ? '<button class="btn btn-warning btn-sm" onclick="updateReviewStatus(\'' + r.id + '\',\'rejected\')">Reject</button>' : '') + '<button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+}
+function filterReviews(status) {
+  document.querySelectorAll('#tab-reviews .filter-btn').forEach(b => b.classList.toggle('active', (status === '' && b.textContent.trim() === 'All') || b.textContent.trim().toLowerCase() === status));
+  loadReviews(status || undefined);
+}
+async function updateReviewStatus(id, status) {
+  try { await api('/reviews/' + id, { method: 'PUT', body: JSON.stringify({ status }) }); loadReviews(); showMsg('Updated.', 'success'); } catch {}
+}
+async function deleteReview(id) {
+  if (!confirm('Delete?')) return;
+  try { await api('/reviews/' + id, { method: 'DELETE' }); loadReviews(); } catch {}
+}
+
+// RETURNS
+async function loadReturns() {
+  try { const data = await api('/return_requests'); const list = document.getElementById('returnsList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
+  const colors = { pending: '#f39c12', approved: '#27ae60', rejected: '#e74c3c', refunded: '#3498db' };
+  list.innerHTML = data.map(r => '<div class="list-item" style="flex-direction:column;align-items:stretch;"><div class="info"><h5>' + escape(r.customer_name) + ' <small>' + escape(r.customer_phone || '') + '</small></h5><p>Reason: ' + escape(r.reason || '') + (r.details ? ' | ' + escape(r.details) : '') + '</p><p style="font-size:0.75rem;">Status: <span class="status-badge" style="background:' + (colors[r.status] || '#888') + ';">' + r.status + '</span></p></div><div class="actions" style="margin-top:6px;"><button class="btn btn-success btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'approved\')">Approve</button><button class="btn btn-warning btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'refunded\')">Refunded</button><button class="btn btn-danger btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'rejected\')">Reject</button><button class="btn btn-danger btn-sm" onclick="deleteReturn(\'' + r.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+}
+async function updateReturnStatus(id, status) {
+  try { await api('/return_requests/' + id, { method: 'PUT', body: JSON.stringify({ status }) }); loadReturns(); showMsg('Updated.', 'success'); } catch {}
+}
+async function deleteReturn(id) {
+  if (!confirm('Delete?')) return;
+  try { await api('/return_requests/' + id, { method: 'DELETE' }); loadReturns(); } catch {}
+}
+
+// COUPONS
+async function loadCoupons() {
+  try { const data = await api('/coupons'); const list = document.getElementById('couponsList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
+  list.innerHTML = data.map(c => '<div class="list-item"><div class="info"><h5>' + escape(c.code) + ' <span style="color:#e94560;">(' + c.discount_value + (c.discount_type === 'percentage' ? '%' : ' Rs.') + ' off)</span></h5><p>Used: ' + (c.used_count || 0) + '/' + (c.max_uses || '∞') + ' | Min: Rs. ' + (c.min_order_amount || 0) + ' | Active: ' + (c.is_active ? 'Yes' : 'No') + '</p></div><div class="actions"><button class="btn btn-sm ' + (c.is_active ? 'btn-warning' : 'btn-success') + '" onclick="toggleCoupon(\'' + c.id + '\',' + (c.is_active ? 0 : 1) + ')">' + (c.is_active ? 'Disable' : 'Enable') + '</button><button class="btn btn-danger btn-sm" onclick="deleteCoupon(\'' + c.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+}
+async function addCoupon() {
+  const code = document.getElementById('couponCode').value.trim();
+  const val = parseFloat(document.getElementById('couponValue').value);
+  if (!code || !val) { showMsg('Code and value required', 'error'); return; }
+  try { await api('/coupons', { method: 'POST', body: JSON.stringify({ code: code.toUpperCase(), description: '', discount_type: document.getElementById('couponType').value, discount_value: val, min_order_amount: parseFloat(document.getElementById('couponMin').value) || 0, max_discount_amount: parseFloat(document.getElementById('couponMaxDiscount').value) || 0, max_uses: 100 }) }); showMsg('Added!', 'success'); document.getElementById('couponCode').value = ''; loadCoupons(); } catch {}
+}
+async function toggleCoupon(id, active) {
+  try { await api('/coupons/' + id, { method: 'PUT', body: JSON.stringify({ is_active: active }) }); loadCoupons(); } catch {}
+}
+async function deleteCoupon(id) {
+  if (!confirm('Delete?')) return;
+  try { await api('/coupons/' + id, { method: 'DELETE' }); loadCoupons(); } catch {}
+}
+
+// CUSTOMERS
+async function loadCustomers() {
+  try { const data = await api('/customers'); const list = document.getElementById('customersList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
+  list.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Orders</th><th>Spent</th><th>Since</th></tr></thead><tbody>' + data.map(c => '<tr><td>' + escape(c.name) + '</td><td>' + escape(c.phone || '') + '</td><td>' + escape(c.email || '') + '</td><td>' + (c.total_orders || 0) + '</td><td>' + (c.total_spent || '0') + '</td><td>' + (c.created_at || '').substring(0, 10) + '</td></tr>').join('') + '</tbody></table></div>'; } catch {}
+}
+
+// MESSAGES
+async function loadMessages(filter) {
+  try { const url = filter === 'unread' ? '/messages?is_read=0' : '/messages'; const data = await api(url); const list = document.getElementById('messagesList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">No messages.</p>'; return; }
+  list.innerHTML = data.map(m => '<div class="list-item"><div class="info"><h5>' + escape(m.name) + ' <small style="font-weight:normal;color:#888;">&lt;' + escape(m.email) + '&gt;</small>' + (m.is_read ? '' : ' <span style="background:#27ae60;color:#fff;padding:1px 8px;border-radius:50px;font-size:0.6rem;">NEW</span>') + '</h5><p style="font-weight:500;">' + escape(m.subject || '(No subject)') + '</p><p style="color:#888;font-size:0.8rem;">' + escape(m.message) + '</p><small style="color:#aaa;">' + (m.created_at || '') + '</small></div><div class="actions">' + (!m.is_read ? '<button class="btn btn-primary btn-sm" onclick="markRead(\'' + m.id + '\')">Read</button>' : '') + '<button class="btn btn-danger btn-sm" onclick="deleteMessage(\'' + m.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+}
+function filterMessages(filter) {
+  document.querySelectorAll('#tab-messages .filter-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === filter));
+  loadMessages(filter);
+}
+async function markRead(id) {
+  try { await api('/messages/' + id, { method: 'PUT', body: JSON.stringify({ is_read: 1 }) }); loadMessages(); } catch {}
+}
+async function deleteMessage(id) {
+  if (!confirm('Delete?')) return;
+  try { await api('/messages/' + id, { method: 'DELETE' }); loadMessages(); } catch {}
+}
+
+// SUBSCRIBERS
+async function loadSubscribers() {
+  try { const data = await api('/subscribers'); const list = document.getElementById('subscribersList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
+  list.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Email</th><th>Subscribed</th><th>Action</th></tr></thead><tbody>' + data.map(s => '<tr><td>' + escape(s.email) + '</td><td>' + (s.subscribed_at || '').substring(0, 10) + '</td><td><button class="btn btn-danger btn-sm" onclick="deleteSubscriber(\'' + s.id + '\')"><i class="fas fa-trash"></i></button></td></tr>').join('') + '</tbody></table></div>'; } catch {}
+}
+async function deleteSubscriber(id) {
+  if (!confirm('Delete?')) return;
+  try { await api('/subscribers/' + id, { method: 'DELETE' }); loadSubscribers(); } catch {}
+}
+
+// ANALYTICS
+async function loadAnalytics() {
+  try {
+    const data = await api('/analytics');
+    document.getElementById('analyticsStats').innerHTML = `
+      <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="num">${data.totalProducts || 0}</div><div class="label">Total Products</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="num">${data.totalOrders || 0}</div><div class="label">Total Orders</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-bell"></i></div><div class="num">${data.totalSubs || 0}</div><div class="label">Subscribers</div></div>`;
+    const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
+    document.getElementById('recentOrdersList').innerHTML = !data.recentOrders?.length ? '<p style="color:#888;">No recent orders.</p>' :
+      '<div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead><tbody>' +
+      data.recentOrders.map(o => '<tr><td>' + o.id.substring(0, 8) + '</td><td>' + escape(o.customer_name) + '</td><td>' + (o.total_amount || '0') + '</td><td><span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + o.status + '</span></td><td>' + (o.created_at || '').substring(0, 10) + '</td></tr>').join('') + '</tbody></table></div>';
+    document.getElementById('lowStockList').innerHTML = !data.lowStock?.length ? '<p style="color:#888;">No low stock alerts.</p>' :
+      '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody>' +
+      data.lowStock.map(p => '<tr><td>' + escape(p.name) + '</td><td style="color:#e74c3c;font-weight:600;">' + p.stock + '</td></tr>').join('') + '</tbody></table></div>';
+  } catch {}
+}
+</script>
+</body>
+</html>
