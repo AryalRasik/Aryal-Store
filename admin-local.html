@@ -442,7 +442,7 @@ async function supaFetch(table, params) {
   let url = SUPABASE_URL + '/rest/v1/' + table + '?select=*';
   if (params) for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') url += '&' + k + '=' + encodeURIComponent(v);
   const res = await fetch(url, { headers: SB_HEADERS });
-  if (!res.ok) throw new Error(res.statusText);
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.status), 'error'); throw new Error(e.message || res.status); }
   return res.json();
 }
 
@@ -454,7 +454,7 @@ async function supaInsert(table, data) {
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
     method: 'POST', headers: { ...SB_HEADERS, Prefer: 'return=representation' }, body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error(res.statusText);
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.status), 'error'); throw new Error(e.message || res.status); }
   return res.json();
 }
 
@@ -462,7 +462,7 @@ async function supaUpdate(table, id, data) {
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
     method: 'PATCH', headers: { ...SB_HEADERS, Prefer: 'return=representation' }, body: JSON.stringify(data)
   });
-  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Update Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.status), 'error'); throw new Error(e.message || res.status); }
   return res.json();
 }
 
@@ -470,7 +470,7 @@ async function supaDelete(table, id) {
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
     method: 'DELETE', headers: { ...SB_HEADERS, Prefer: 'return=representation' }
   });
-  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Delete Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.status), 'error'); throw new Error(e.message || res.status); }
   return res.json();
 }
 
