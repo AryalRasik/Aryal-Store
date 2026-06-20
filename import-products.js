@@ -86,7 +86,54 @@ async function importAll() {
     console.log('  Imported:', p.name);
   }
 
-  // === 2. STATIONERY ===
+  // === 2. COSMETICS - Beauty & Personal Care ===
+  const cosmeticsItems = data.filter(p => p.category === 'Beauty & Personal Care');
+  const COSMETICS_ICONS = {
+    'Skincare': 'fas fa-spa',
+    'Hair Care': 'fas fa-cut',
+    'Makeup': 'fas fa-paint-brush',
+    'Fragrances': 'fas fa-tint',
+    'Grooming': 'fas fa-razor',
+    "Men's Grooming Products": 'fas fa-razor',
+    'Bath & Body': 'fas fa-bath',
+    'Nail Care': 'fas fa-hand-paper',
+    'Health & Wellness Products': 'fas fa-heartbeat',
+  };
+  const COSMETICS_GRADIENTS = [
+    'linear-gradient(135deg, #e91e63, #f06292)',
+    'linear-gradient(135deg, #9c27b0, #ba68c8)',
+    'linear-gradient(135deg, #ff5722, #ff8a65)',
+    'linear-gradient(135deg, #009688, #4db6ac)',
+    'linear-gradient(135deg, #795548, #a1887f)',
+    'linear-gradient(135deg, #607d8b, #90a4ae)',
+    'linear-gradient(135deg, #e94560, #ff6b81)',
+    'linear-gradient(135deg, #673ab7, #9575cd)',
+    'linear-gradient(135deg, #3f51b5, #7986cb)',
+    'linear-gradient(135deg, #ff9800, #ffb74d)',
+  ];
+
+  console.log('\n--- Importing Cosmetics ---');
+  for (const [i, p] of cosmeticsItems.entries()) {
+    let imageUrl = '';
+    try {
+      const ext = path.extname(new URL(p.image).pathname) || '.jpg';
+      const filename = 'cosmetics_' + Date.now() + '_' + i + ext;
+      imageUrl = await downloadImage(p.image, filename);
+      console.log('  Downloaded:', p.name);
+    } catch (e) {
+      console.log('  No image for:', p.name);
+    }
+    const icon = COSMETICS_ICONS[p.subCategory] || 'fas fa-spa';
+    const gradient = COSMETICS_GRADIENTS[i % COSMETICS_GRADIENTS.length];
+    const priceNPR = Math.round(p.priceCents * 1.3);
+    run(
+      'INSERT INTO products (name, category, desc, price, icon, gradient, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [p.name, 'cosmetics', p.description, 'Rs. ' + priceNPR, icon, gradient, imageUrl]
+    );
+    console.log('  Imported:', p.name);
+  }
+
+  // === 3. STATIONERY ===
   const stationeryProducts = [
     {
       name: 'Premium Notebook Set',
