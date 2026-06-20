@@ -125,7 +125,7 @@
       <div class="nav-item" data-tab="categories"><i class="fas fa-tags"></i> Categories</div>
       <div class="nav-item" data-tab="testimonials"><i class="fas fa-quote-right"></i> Testimonials</div>
       <div class="nav-item" data-tab="contact"><i class="fas fa-address-card"></i> Contact</div>
-      <div class="nav-item" data-tab="orders"><i class="fas fa-truck"></i> Orders</div>
+      <div class="nav-item" data-tab="orders"><i class="fas fa-truck"></i> Orders <span id="orderBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:50px;padding:1px 8px;font-size:0.65rem;margin-left:6px;">0</span></div>
       <div class="nav-item" data-tab="reviews"><i class="fas fa-star"></i> Reviews</div>
       <div class="nav-item" data-tab="returns"><i class="fas fa-undo"></i> Returns</div>
       <div class="nav-item" data-tab="coupons"><i class="fas fa-percent"></i> Coupons</div>
@@ -591,6 +591,8 @@ async function saveProduct() {
     brand: document.getElementById('prodBrand').value,
     sku: document.getElementById('prodSku').value,
     stock: parseInt(document.getElementById('prodStock').value) || 100,
+    icon: 'fas fa-box',
+    gradient: 'linear-gradient(135deg, #e94560, #d63851)',
     is_featured: document.getElementById('prodFeatured').checked ? 1 : 0,
     is_new: document.getElementById('prodNew').checked ? 1 : 0,
     is_best_seller: document.getElementById('prodBestSeller').checked ? 1 : 0,

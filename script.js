@@ -1,71 +1,46 @@
-// 1. Initialize the Supabase Client
-const supabaseUrl = 'https://srlejludttajosnrfkca.supabase.co'
-const supabaseAnonKey = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ'
+// =========================================================
+// Aryal Store - Frontend Script
+// =========================================================
+// Core functionality is inlined in index.html.
+// This file provides supplementary helpers and is loaded
+// after the inline script completes initialization.
+// =========================================================
 
-const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey)
+const SUPABASE_URL = 'https://srlejludttajosnrfkca.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
 
-// 2. Fetch products from your Supabase table
-async function loadProducts() {
-  const { data, error } = await supabase
-    .from('products') // Your exact Supabase table name
-    .select('*')
-
-  if (error) {
-    console.error("Error fetching data from Supabase:", error.message)
-    return
+async function supaFetch(table, params) {
+  let url = SUPABASE_URL + '/rest/v1/' + table + '?select=*';
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && v !== '') url += '&' + k + '=' + encodeURIComponent(v);
+    }
   }
-
-  console.log("✅ Successfully connected! Your product details:", data)
-  
-  // Your code to display 'data' on your webpage goes here
+  return fetch(url, { headers: { apikey: SUPABASE_KEY } }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
 }
 
-// Run the function when the page loads
-loadProducts()
+async function supaSingle(table, params) {
+  return supaFetch(table, params).then(d => d[0] || null);
+}
 
-// =========================================================
-// YOUR ORIGINAL WEBSITE LOGIC (Kept exactly as it was)
-// =========================================================
-const hamburger = document.getElementById('hamburger');
-const navMenu = document.getElementById('navMenu');
-const navLinks = document.querySelectorAll('.nav-link');
+async function supaInsert(table, data) {
+  return fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Prefer: 'return=representation' },
+    body: JSON.stringify(data)
+  }).then(r => r.json());
+}
 
-hamburger.addEventListener('click', () => {
-  navMenu.classList.toggle('active');
-  hamburger.classList.toggle('active');
-});
+async function supaUpdate(table, id, data) {
+  return fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+    body: JSON.stringify(data)
+  }).then(r => r.json());
+}
 
-navLinks.forEach(link => {
-  link.addEventListener('click', () => {
-    navMenu.classList.remove('active');
-  });
-});
+async function supaDelete(table, id) {
+  return fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE', headers: { apikey: SUPABASE_KEY }
+  }).then(r => r.json());
+}
 
-const sections = document.querySelectorAll('section[id]');
-window.addEventListener('scroll', () => {
-  let current = '';
-  sections.forEach(section => {
-    const sectionTop = section.offsetTop - 100;
-    if (scrollY >= sectionTop) {
-      current = section.getAttribute('id');
-    }
-  });
-  navLinks.forEach(link => {
-    link.classList.remove('active');
-    if (link.getAttribute('href') === `#${current}`) {
-      link.classList.add('active');
-    }
-  });
-});
-
-document.getElementById('contactForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  alert('Thank you for reaching out! We will get back to you soon.');
-  this.reset();
-});
-
-document.querySelector('.newsletter-form').addEventListener('submit', function(e) {
-  e.preventDefault();
-  alert('Thank you for subscribing to our newsletter!');
-  this.reset();
-});
+console.log('Aryal Store script.js loaded');
