@@ -427,8 +427,8 @@
 </div>
 
 <script>
-const API_BASE = window.location.origin.startsWith('file') ? 'http://localhost:3000' : window.location.origin;
-let token = localStorage.getItem('aryal_admin_token');
+const SUPABASE_URL = 'https://srlejludttajosnrfkca.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
 let allProducts = [];
 let currentProdFilter = 'all';
 let allOrders = [];
@@ -436,8 +436,42 @@ let currentOrderFilter = 'all';
 let mapInitialized = false;
 let clickMap, clickMarker;
 
-function getAuthHeaders() {
-  return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+const SB_HEADERS = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY };
+
+async function supaFetch(table, params) {
+  let url = SUPABASE_URL + '/rest/v1/' + table + '?select=*';
+  if (params) for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') url += '&' + k + '=' + encodeURIComponent(v);
+  const res = await fetch(url, { headers: SB_HEADERS });
+  if (!res.ok) throw new Error(res.statusText);
+  return res.json();
+}
+
+async function supaSingle(table, params) {
+  return supaFetch(table, { ...params, limit: '1' }).then(d => d[0] || null);
+}
+
+async function supaInsert(table, data) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    method: 'POST', headers: { ...SB_HEADERS, Prefer: 'return=representation' }, body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(res.statusText);
+  return res.json();
+}
+
+async function supaUpdate(table, id, data) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'PATCH', headers: { ...SB_HEADERS, Prefer: 'return=representation' }, body: JSON.stringify(data)
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Update Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+  return res.json();
+}
+
+async function supaDelete(table, id) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE', headers: { ...SB_HEADERS, Prefer: 'return=representation' }
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Delete Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+  return res.json();
 }
 
 function showMsg(msg, type) {
@@ -447,25 +481,14 @@ function showMsg(msg, type) {
   setTimeout(() => { box.className = 'msg'; }, 4000);
 }
 
-async function handleLogin() {
+function handleLogin() {
   const pw = document.getElementById('loginPassword').value;
-  try {
-    const res = await fetch(API_BASE + '/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      token = data.token;
-      localStorage.setItem('aryal_admin_token', token);
-      document.getElementById('loginPage').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-      loadAllTabs();
-    } else {
-      document.getElementById('loginError').style.display = 'block';
-    }
-  } catch {
+  const storedPw = localStorage.getItem('admin_local_pw') || 'admin123';
+  if (pw === storedPw) {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadAllTabs();
+  } else {
     document.getElementById('loginError').style.display = 'block';
   }
 }
@@ -473,8 +496,6 @@ async function handleLogin() {
 document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
 
 function handleLogout() {
-  token = null;
-  localStorage.removeItem('aryal_admin_token');
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loginPassword').value = '';
@@ -510,83 +531,62 @@ async function loadAllTabs() {
 // ANALYTICS
 async function loadAnalytics() {
   try {
-    const res = await fetch(API_BASE + '/api/analytics/summary', { headers: getAuthHeaders() });
-    if (res.ok) {
-      const d = await res.json();
-      document.getElementById('analyticsStats').innerHTML = `
-        <div class="stat-card"><div class="icon"><i class="fas fa-eye"></i></div><div class="num">${d.todayViews}</div><div class="label">Today's Views</div></div>
-        <div class="stat-card"><div class="icon"><i class="fas fa-shopping-bag"></i></div><div class="num">${d.todayOrders}</div><div class="label">Today's Orders</div></div>
-        <div class="stat-card"><div class="icon"><i class="fas fa-rupee-sign"></i></div><div class="num">Rs. ${Math.round(d.todayRevenue).toLocaleString()}</div><div class="label">Today's Revenue</div></div>
-        <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="num">${d.totalProducts}</div><div class="label">Total Products</div></div>
-        <div class="stat-card"><div class="icon"><i class="fas fa-users"></i></div><div class="num">${d.totalCustomers}</div><div class="label">Customers</div></div>
-        <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="num">${d.totalOrders}</div><div class="label">Total Orders</div></div>
-        <div class="stat-card"><div class="icon"><i class="fas fa-bell"></i></div><div class="num">${d.totalSubscribers}</div><div class="label">Subscribers</div></div>
-        <div class="stat-card"><div class="icon"><i class="fas fa-envelope"></i></div><div class="num">${d.totalMessages}</div><div class="label">Messages</div></div>
-      `;
-      if (d.topProducts && d.topProducts.length) {
-        document.getElementById('topProductsList').innerHTML = '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Sold</th><th>Price</th><th>Rating</th></tr></thead><tbody>' +
-          d.topProducts.map(p => '<tr><td>' + p.name + '</td><td>' + (p.sold_count || 0) + '</td><td>' + (p.price || '') + '</td><td>' + (p.rating || 0) + '</td></tr>').join('') + '</tbody></table></div>';
-      }
-      if (d.recentOrders && d.recentOrders.length) {
-        const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
-        document.getElementById('recentOrdersList').innerHTML = '<div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead><tbody>' +
-          d.recentOrders.map(o => '<tr><td>' + o.id + '</td><td>' + o.customer_name + '</td><td>' + (o.total_amount || '') + '</td><td><span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + o.status + '</span></td><td>' + (o.created_at || '') + '</td></tr>').join('') + '</tbody></table></div>';
-      }
-      if (d.lowStock && d.lowStock.length) {
-        document.getElementById('lowStockList').innerHTML = '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody>' +
-          d.lowStock.map(p => '<tr><td>' + p.name + '</td><td style="color:#e74c3c;font-weight:600;">' + p.stock_count + '</td></tr>').join('') + '</tbody></table></div>';
-      } else {
-        document.getElementById('lowStockList').innerHTML = '<p style="color:#888;">No low stock alerts.</p>';
-      }
+    const [prods, orders, subs, msgs] = await Promise.all([
+      supaFetch('products', { select: 'id,stock,name,sold_count,price,rating' }),
+      supaFetch('orders', { order: 'created_at.desc', limit: '5' }),
+      supaFetch('subscribers', { select: 'id' }),
+      supaFetch('messages', { select: 'id' })
+    ]);
+    document.getElementById('analyticsStats').innerHTML = `
+      <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="num">${prods.length}</div><div class="label">Total Products</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-users"></i></div><div class="num">0</div><div class="label">Customers</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="num">${orders.length}</div><div class="label">Total Orders</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-bell"></i></div><div class="num">${subs.length}</div><div class="label">Subscribers</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-envelope"></i></div><div class="num">${msgs.length}</div><div class="label">Messages</div></div>
+    `;
+    const topProds = prods.filter(p => p.sold_count > 0).sort((a, b) => b.sold_count - a.sold_count).slice(0, 5);
+    if (topProds.length) {
+      document.getElementById('topProductsList').innerHTML = '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Sold</th><th>Price</th><th>Rating</th></tr></thead><tbody>' +
+        topProds.map(p => '<tr><td>' + p.name + '</td><td>' + (p.sold_count || 0) + '</td><td>Rs. ' + (p.price || 0) + '</td><td>' + (p.rating || 0) + '</td></tr>').join('') + '</tbody></table></div>';
     }
+    const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
+    document.getElementById('recentOrdersList').innerHTML = !orders.length ? '<p style="color:#888;">No recent orders.</p>' :
+      '<div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead><tbody>' +
+      orders.map(o => '<tr><td>' + (o.id || '').substring(0, 8) + '</td><td>' + (o.customer_name || '') + '</td><td>' + (o.total_amount || '') + '</td><td><span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + (o.status || '') + '</span></td><td>' + (o.created_at || '').substring(0, 10) + '</td></tr>').join('') + '</tbody></table></div>';
+    const lowStock = prods.filter(p => (p.stock || 0) < 20);
+    document.getElementById('lowStockList').innerHTML = !lowStock.length ? '<p style="color:#888;">No low stock alerts.</p>' :
+      '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody>' +
+      lowStock.map(p => '<tr><td>' + p.name + '</td><td style="color:#e74c3c;font-weight:600;">' + (p.stock || 0) + '</td></tr>').join('') + '</tbody></table></div>';
   } catch {}
 }
 
 // HERO
 async function loadHero() {
   try {
-    const res = await fetch(API_BASE + '/api/hero');
-    if (res.ok) {
-      const h = await res.json();
-      document.getElementById('heroHeading').value = h.heading || '';
-      document.getElementById('heroSubtext').value = h.subtext || '';
-    }
+    const h = await supaSingle('hero');
+    if (h) { document.getElementById('heroHeading').value = h.heading || ''; document.getElementById('heroSubtext').value = h.subtext || ''; }
   } catch {}
 }
 
 async function saveHero() {
   try {
-    const res = await fetch(API_BASE + '/api/hero', { method: 'PUT', headers: getAuthHeaders(),
-      body: JSON.stringify({ heading: document.getElementById('heroHeading').value, subtext: document.getElementById('heroSubtext').value }) });
-    if (res.ok) showMsg('Hero updated!', 'success');
-    else showMsg('Failed.', 'error');
+    await supaUpdate('hero', 1, { heading: document.getElementById('heroHeading').value, subtext: document.getElementById('heroSubtext').value });
+    showMsg('Hero updated!', 'success');
   } catch { showMsg('Connection error.', 'error'); }
 }
 
 // ABOUT
 async function loadAbout() {
   try {
-    const res = await fetch(API_BASE + '/api/about');
-    if (res.ok) {
-      const a = await res.json();
-      document.getElementById('aboutTitle').value = a.title || '';
-      document.getElementById('aboutHeading').value = a.heading || '';
-      document.getElementById('aboutDesc1').value = a.desc1 || '';
-      document.getElementById('aboutDesc2').value = a.desc2 || '';
-      document.getElementById('aboutFeatures').value = a.features || '';
-    }
+    const a = await supaSingle('about');
+    if (a) { document.getElementById('aboutTitle').value = a.title || ''; document.getElementById('aboutHeading').value = a.heading || ''; document.getElementById('aboutDesc1').value = a.desc1 || ''; document.getElementById('aboutDesc2').value = a.desc2 || ''; document.getElementById('aboutFeatures').value = a.features || ''; }
   } catch {}
 }
 
 async function saveAbout() {
   try {
-    const res = await fetch(API_BASE + '/api/about', { method: 'PUT', headers: getAuthHeaders(),
-      body: JSON.stringify({
-        title: document.getElementById('aboutTitle').value, heading: document.getElementById('aboutHeading').value,
-        desc1: document.getElementById('aboutDesc1').value, desc2: document.getElementById('aboutDesc2').value,
-        features: document.getElementById('aboutFeatures').value }) });
-    if (res.ok) showMsg('About updated!', 'success');
-    else showMsg('Failed.', 'error');
+    await supaUpdate('about', 1, { title: document.getElementById('aboutTitle').value, heading: document.getElementById('aboutHeading').value, desc1: document.getElementById('aboutDesc1').value, desc2: document.getElementById('aboutDesc2').value, features: document.getElementById('aboutFeatures').value });
+    showMsg('About updated!', 'success');
   } catch { showMsg('Connection error.', 'error'); }
 }
 
@@ -597,55 +597,31 @@ async function saveProduct() {
   const category = document.getElementById('prodCategory').value;
   if (!name) { showMsg('Product name is required', 'error'); return; }
 
-  let imageUrl = document.getElementById('prodImage').dataset.currentImage || '';
-  const fileInput = document.getElementById('prodImage');
-  if (fileInput.files && fileInput.files[0]) {
-    const fd = new FormData();
-    fd.append('file', fileInput.files[0]);
-    try {
-      const upRes = await fetch(API_BASE + '/api/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
-      if (upRes.ok) imageUrl = (await upRes.json()).url;
-      else { showMsg('Upload failed', 'error'); return; }
-    } catch { showMsg('Upload error', 'error'); return; }
-  }
-
+  let imageUrl = document.getElementById('prodImage').dataset.currentImage || document.getElementById('prodImage').value;
   const payload = {
-    name, category,
-    subcategory: document.getElementById('prodSubcategory').value,
-    desc: document.getElementById('prodDesc').value,
-    price: 'Rs. ' + document.getElementById('prodPrice').value,
-    compare_price: document.getElementById('prodCompare').value ? 'Rs. ' + document.getElementById('prodCompare').value : '',
-    icon: document.getElementById('prodIcon').value,
-    gradient: document.getElementById('prodGradient').value,
-    image: imageUrl,
-    sizes: document.getElementById('prodSizes').value,
+    name, category, description: document.getElementById('prodDesc').value,
+    price: parseFloat(document.getElementById('prodPrice').value) || 0,
+    compare_price: parseFloat(document.getElementById('prodCompare').value) || 0,
+    image_url: imageUrl, sizes: document.getElementById('prodSizes').value,
     colors: document.getElementById('prodColors').value,
     material: document.getElementById('prodMaterial').value,
-    care_instructions: document.getElementById('prodCare').value,
-    fit_info: document.getElementById('prodFit').value,
     brand: document.getElementById('prodBrand').value,
     sku: document.getElementById('prodSku').value,
-    video_url: document.getElementById('prodVideo').value,
-    stock_count: parseInt(document.getElementById('prodStock').value) || 100,
-    is_featured: document.getElementById('prodFeatured').checked,
-    is_new: document.getElementById('prodNew').checked,
-    is_best_seller: document.getElementById('prodBestSeller').checked,
-    is_trending: document.getElementById('prodTrending').checked,
+    stock: parseInt(document.getElementById('prodStock').value) || 100,
+    is_featured: document.getElementById('prodFeatured').checked ? 1 : 0,
+    is_new: document.getElementById('prodNew').checked ? 1 : 0,
+    is_best_seller: document.getElementById('prodBestSeller').checked ? 1 : 0,
+    is_trending: document.getElementById('prodTrending').checked ? 1 : 0,
     status: 'active'
   };
 
   try {
-    const url = id ? API_BASE + '/api/products/' + id : API_BASE + '/api/products';
-    const method = id ? 'PUT' : 'POST';
-    const res = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
-    if (res.ok) {
-      showMsg(id ? 'Product updated!' : 'Product added!', 'success');
-      resetProductForm();
-      await loadProducts();
-    } else {
-      showMsg('Failed to save product.', 'error');
-    }
-  } catch { showMsg('Connection error.', 'error'); }
+    if (id) await supaUpdate('products', id, payload);
+    else await supaInsert('products', payload);
+    showMsg(id ? 'Product updated!' : 'Product added!', 'success');
+    resetProductForm();
+    await loadProducts();
+  } catch (e) { showMsg(e.message, 'error'); }
 }
 
 function resetProductForm() {
@@ -705,11 +681,8 @@ function editProduct(id) {
 
 async function loadProducts() {
   try {
-    const res = await fetch(API_BASE + '/api/products');
-    if (res.ok) {
-      allProducts = await res.json();
-      renderFilteredProducts();
-    }
+    allProducts = await supaFetch('products');
+    renderFilteredProducts();
   } catch {}
 }
 
@@ -728,11 +701,11 @@ function renderProductList(prods) {
   const list = document.getElementById('productList');
   if (!prods || !prods.length) { list.innerHTML = '<p style="color:#888;">No products.</p>'; return; }
   list.innerHTML = prods.map(p => '<div class="list-item">' +
-    (p.image ? '<img src="' + API_BASE + p.image + '" class="preview-img">' : '') +
-    '<div class="info"><h5>' + p.name + '</h5><p>' + (p.category || '') + ' | ' + (p.price || '') + ' | Stock: ' + (p.stock_count || 0) + ' | Sold: ' + (p.sold_count || 0) + '</p></div>' +
+    (p.image_url ? '<img src="' + p.image_url + '" class="preview-img">' : '') +
+    '<div class="info"><h5>' + p.name + '</h5><p>' + (p.category || '') + ' | Rs. ' + (p.price || 0) + ' | Stock: ' + (p.stock || 0) + '</p></div>' +
     '<div class="actions">' +
-    '<button class="btn btn-primary btn-sm" onclick="editProduct(' + p.id + ')"><i class="fas fa-edit"></i></button>' +
-    '<button class="btn btn-danger btn-sm" onclick="deleteProduct(' + p.id + ')"><i class="fas fa-trash"></i></button>' +
+    '<button class="btn btn-primary btn-sm" onclick="editProduct(\'' + p.id + '\')"><i class="fas fa-edit"></i></button>' +
+    '<button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.id + '\')"><i class="fas fa-trash"></i></button>' +
     '</div></div>').join('');
 }
 
@@ -751,21 +724,18 @@ function previewProductImage(e) {
 async function deleteProduct(id) {
   if (!confirm('Delete this product?')) return;
   try {
-    const res = await fetch(API_BASE + '/api/products/' + id, { method: 'DELETE', headers: getAuthHeaders() });
-    if (res.ok) { await loadProducts(); showMsg('Product deleted.', 'success'); }
-    else showMsg('Failed.', 'error');
+    await supaDelete('products', id);
+    await loadProducts();
+    showMsg('Product deleted.', 'success');
   } catch { showMsg('Connection error.', 'error'); }
 }
 
 // CATEGORIES
 async function loadCategories() {
   try {
-    const res = await fetch(API_BASE + '/api/categories');
-    if (res.ok) {
-      const cats = await res.json();
-      document.getElementById('categoriesList').innerHTML = !cats.length ? '<p style="color:#888;">No categories.</p>' :
-        cats.map(c => '<div class="list-item"><div class="info"><h5>' + c.name + '</h5><p>Slug: ' + c.slug + '</p></div><div class="actions"><button class="btn btn-danger btn-sm" onclick="deleteCategory(' + c.id + ')"><i class="fas fa-trash"></i></button></div></div>').join('');
-    }
+    const cats = await supaFetch('categories');
+    document.getElementById('categoriesList').innerHTML = !cats.length ? '<p style="color:#888;">No categories.</p>' :
+      cats.map(c => '<div class="list-item"><div class="info"><h5>' + c.name + '</h5><p>Slug: ' + c.slug + '</p></div><div class="actions"><button class="btn btn-danger btn-sm" onclick="deleteCategory(\'' + c.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
   } catch {}
 }
 
@@ -774,21 +744,23 @@ async function addCategory() {
   const slug = document.getElementById('catSlug').value.trim().toLowerCase().replace(/\s+/g, '-');
   if (!name || !slug) { showMsg('Name and slug required', 'error'); return; }
   try {
-    const res = await fetch(API_BASE + '/api/categories', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ name, slug }) });
-    if (res.ok) { showMsg('Category added!', 'success'); document.getElementById('catName').value = ''; document.getElementById('catSlug').value = ''; loadCategories(); }
+    await supaInsert('categories', { name, slug });
+    showMsg('Category added!', 'success');
+    document.getElementById('catName').value = '';
+    document.getElementById('catSlug').value = '';
+    loadCategories();
   } catch {}
 }
 
 async function deleteCategory(id) {
   if (!confirm('Delete?')) return;
-  try { await fetch(API_BASE + '/api/categories/' + id, { method: 'DELETE', headers: getAuthHeaders() }); loadCategories(); } catch {}
+  try { await supaDelete('categories', id); loadCategories(); } catch {}
 }
 
 // TESTIMONIALS
 async function loadTestimonials() {
   try {
-    const res = await fetch(API_BASE + '/api/testimonials');
-    if (res.ok) renderTestimonialList(await res.json());
+    renderTestimonialList(await supaFetch('testimonials'));
   } catch {}
 }
 
@@ -805,15 +777,18 @@ async function addTestimonial() {
   const stars = parseInt(document.getElementById('testStars').value) || 5;
   if (!name || !text) { showMsg('Name and text required', 'error'); return; }
   try {
-    const res = await fetch(API_BASE + '/api/testimonials', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ name, label, text, stars }) });
-    if (res.ok) { showMsg('Testimonial added!', 'success'); document.getElementById('testName').value = ''; document.getElementById('testText').value = ''; loadTestimonials(); }
+    await supaInsert('testimonials', { name, label, text, stars });
+    showMsg('Testimonial added!', 'success');
+    document.getElementById('testName').value = '';
+    document.getElementById('testText').value = '';
+    loadTestimonials();
   } catch {}
 }
 
 async function deleteTestimonial(id) {
   if (!confirm('Delete?')) return;
   try {
-    await fetch(API_BASE + '/api/testimonials/' + id, { method: 'DELETE', headers: getAuthHeaders() });
+    await supaDelete('testimonials', id);
     loadTestimonials();
     showMsg('Deleted.', 'success');
   } catch {}
@@ -822,9 +797,8 @@ async function deleteTestimonial(id) {
 // CONTACT
 async function loadContact() {
   try {
-    const res = await fetch(API_BASE + '/api/contact');
-    if (res.ok) {
-      const c = await res.json();
+    const c = await supaSingle('contact');
+    if (c) {
       document.getElementById('contactAddress').value = c.address || '';
       document.getElementById('contactPhone').value = c.phone || '';
       document.getElementById('contactEmail').value = c.email || '';
@@ -839,14 +813,13 @@ async function loadContact() {
 
 async function saveContact() {
   try {
-    const res = await fetch(API_BASE + '/api/contact', { method: 'PUT', headers: getAuthHeaders(),
-      body: JSON.stringify({
-        address: document.getElementById('contactAddress').value, phone: document.getElementById('contactPhone').value,
-        email: document.getElementById('contactEmail').value, hours: document.getElementById('contactHours').value,
-        whatsapp: document.getElementById('contactWhatsapp').value,
-        lat: document.getElementById('mapLat').value, lng: document.getElementById('mapLng').value }) });
-    if (res.ok) showMsg('Contact updated!', 'success');
-    else showMsg('Failed.', 'error');
+    await supaUpdate('contact', 1, {
+      address: document.getElementById('contactAddress').value, phone: document.getElementById('contactPhone').value,
+      email: document.getElementById('contactEmail').value, hours: document.getElementById('contactHours').value,
+      whatsapp: document.getElementById('contactWhatsapp').value,
+      lat: document.getElementById('mapLat').value, lng: document.getElementById('mapLng').value
+    });
+    showMsg('Contact updated!', 'success');
   } catch { showMsg('Connection error.', 'error'); }
 }
 
@@ -885,18 +858,16 @@ async function saveMapLocation() {
   const lng = document.getElementById('mapLng').value.trim();
   if (!lat || !lng || isNaN(lat) || isNaN(lng)) { showMsg('Valid coordinates required', 'error'); return; }
   try {
-    const res = await fetch(API_BASE + '/api/contact', { method: 'PUT', headers: getAuthHeaders(),
-      body: JSON.stringify({ lat, lng, address: document.getElementById('contactAddress').value, phone: document.getElementById('contactPhone').value,
-        email: document.getElementById('contactEmail').value, hours: document.getElementById('contactHours').value }) });
-    if (res.ok) showMsg('Map saved!', 'success');
+    await supaUpdate('contact', 1, { lat, lng, address: document.getElementById('contactAddress').value, phone: document.getElementById('contactPhone').value, email: document.getElementById('contactEmail').value, hours: document.getElementById('contactHours').value });
+    showMsg('Map saved!', 'success');
   } catch {}
 }
 
 // ORDERS
 async function loadOrders() {
   try {
-    const res = await fetch(API_BASE + '/api/orders', { headers: getAuthHeaders() });
-    if (res.ok) { allOrders = await res.json(); renderFilteredOrders(); }
+    allOrders = await supaFetch('orders');
+    renderFilteredOrders();
   } catch {}
 }
 
@@ -933,30 +904,28 @@ function renderOrdersList(orders) {
 
 async function updateOrderStatus(id, status) {
   try {
-    const res = await fetch(API_BASE + '/api/orders/' + id + '/status', { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status }) });
-    if (res.ok) { loadOrders(); showMsg('Order #' + id + ' -> ' + status, 'success'); }
+    await supaUpdate('orders', id, { status });
+    loadOrders();
+    showMsg('Order #' + id.substring(0, 8) + ' -> ' + status, 'success');
   } catch {}
 }
 
 async function deleteOrder(id) {
-  if (!confirm('Delete order #' + id + '?')) return;
-  try { await fetch(API_BASE + '/api/orders/' + id, { method: 'DELETE', headers: getAuthHeaders() }); loadOrders(); showMsg('Deleted.', 'success'); } catch {}
+  if (!confirm('Delete order?')) return;
+  try { await supaDelete('orders', id); loadOrders(); showMsg('Deleted.', 'success'); } catch {}
 }
 
 // REVIEWS
 async function loadReviews(status) {
   try {
-    const url = status ? API_BASE + '/api/reviews?status=' + status : API_BASE + '/api/reviews';
-    const res = await fetch(url, { headers: getAuthHeaders() });
-    if (res.ok) {
-      const reviews = await res.json();
-      document.getElementById('reviewsList').innerHTML = !reviews.length ? '<p style="color:#888;">No reviews.</p>' :
-        reviews.map(r => '<div class="list-item"><div class="info"><h5>' + (r.customer_name || '') + ' on ' + (r.product_name || '') + ' <span style="color:#ffc107;">' + '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) + '</span></h5><p>' + (r.title || '') + ' - ' + (r.comment || '').substring(0, 80) + '</p><p style="font-size:0.75rem;color:#888;">Status: ' + r.status + ' | ' + (r.created_at || '') + '</p></div>' +
-        '<div class="actions">' +
-        (r.status !== 'approved' ? '<button class="btn btn-success btn-sm" onclick="approveReview(' + r.id + ')">Approve</button>' : '') +
-        (r.status !== 'rejected' ? '<button class="btn btn-warning btn-sm" onclick="rejectReview(' + r.id + ')">Reject</button>' : '') +
-        '<button class="btn btn-danger btn-sm" onclick="deleteReview(' + r.id + ')"><i class="fas fa-trash"></i></button></div></div>').join('');
-    }
+    const params = status ? { status: 'eq.' + status, order: 'created_at.desc' } : { order: 'created_at.desc' };
+    const reviews = await supaFetch('reviews', params);
+    document.getElementById('reviewsList').innerHTML = !reviews.length ? '<p style="color:#888;">No reviews.</p>' :
+      reviews.map(r => '<div class="list-item"><div class="info"><h5>' + (r.customer_name || '') + ' <span style="color:#ffc107;">' + '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) + '</span></h5><p>' + (r.title || '') + ' - ' + (r.comment || '').substring(0, 80) + '</p><p style="font-size:0.75rem;color:#888;">Status: ' + r.status + ' | ' + (r.created_at || '') + '</p></div>' +
+      '<div class="actions">' +
+      (r.status !== 'approved' ? '<button class="btn btn-success btn-sm" onclick="approveReview(\'' + r.id + '\')">Approve</button>' : '') +
+      (r.status !== 'rejected' ? '<button class="btn btn-warning btn-sm" onclick="rejectReview(\'' + r.id + '\')">Reject</button>' : '') +
+      '<button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
   } catch {}
 }
 
@@ -966,52 +935,46 @@ function filterReviews(status) {
 }
 
 async function approveReview(id) {
-  try { await fetch(API_BASE + '/api/reviews/' + id + '/status', { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status: 'approved' }) }); loadReviews(); showMsg('Review approved!', 'success'); } catch {}
+  try { await supaUpdate('reviews', id, { status: 'approved' }); loadReviews(); showMsg('Review approved!', 'success'); } catch {}
 }
 async function rejectReview(id) {
-  try { await fetch(API_BASE + '/api/reviews/' + id + '/status', { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status: 'rejected' }) }); loadReviews(); showMsg('Review rejected.', 'info'); } catch {}
+  try { await supaUpdate('reviews', id, { status: 'rejected' }); loadReviews(); showMsg('Review rejected.', 'info'); } catch {}
 }
 async function deleteReview(id) {
   if (!confirm('Delete?')) return;
-  try { await fetch(API_BASE + '/api/reviews/' + id, { method: 'DELETE', headers: getAuthHeaders() }); loadReviews(); showMsg('Deleted.', 'success'); } catch {}
+  try { await supaDelete('reviews', id); loadReviews(); showMsg('Deleted.', 'success'); } catch {}
 }
 
 // RETURNS
 async function loadReturns() {
   try {
-    const res = await fetch(API_BASE + '/api/return-requests', { headers: getAuthHeaders() });
-    if (res.ok) {
-      const reqs = await res.json();
-      const colors = { pending: '#f39c12', approved: '#27ae60', rejected: '#e74c3c', refunded: '#3498db' };
-      document.getElementById('returnsList').innerHTML = !reqs.length ? '<p style="color:#888;">No return requests.</p>' :
-        reqs.map(r => '<div class="list-item" style="flex-direction:column;align-items:stretch;"><div class="info"><h5>#' + r.order_id + ' - ' + r.customer_name + ' <small>' + r.customer_phone + '</small></h5><p>Reason: ' + (r.reason || '') + (r.details ? ' | ' + r.details : '') + '</p><p style="font-size:0.75rem;">Status: <span class="status-badge" style="background:' + (colors[r.status] || '#888') + ';">' + r.status + '</span></p></div>' +
-        '<div class="actions" style="margin-top:6px;">' +
-        '<button class="btn btn-success btn-sm" onclick="updateReturnStatus(' + r.id + ',\'approved\')">Approve</button>' +
-        '<button class="btn btn-warning btn-sm" onclick="updateReturnStatus(' + r.id + ',\'refunded\')">Refunded</button>' +
-        '<button class="btn btn-danger btn-sm" onclick="updateReturnStatus(' + r.id + ',\'rejected\')">Reject</button>' +
-        '<button class="btn btn-danger btn-sm" onclick="deleteReturn(' + r.id + ')"><i class="fas fa-trash"></i></button></div></div>').join('');
-    }
+    const reqs = await supaFetch('return_requests');
+    const colors = { pending: '#f39c12', approved: '#27ae60', rejected: '#e74c3c', refunded: '#3498db' };
+    document.getElementById('returnsList').innerHTML = !reqs.length ? '<p style="color:#888;">No return requests.</p>' :
+      reqs.map(r => '<div class="list-item" style="flex-direction:column;align-items:stretch;"><div class="info"><h5>' + (r.order_id || '').substring(0, 8) + ' - ' + r.customer_name + ' <small>' + r.customer_phone + '</small></h5><p>Reason: ' + (r.reason || '') + (r.details ? ' | ' + r.details : '') + '</p><p style="font-size:0.75rem;">Status: <span class="status-badge" style="background:' + (colors[r.status] || '#888') + ';">' + r.status + '</span></p></div>' +
+      '<div class="actions" style="margin-top:6px;">' +
+      '<button class="btn btn-success btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'approved\')">Approve</button>' +
+      '<button class="btn btn-warning btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'refunded\')">Refunded</button>' +
+      '<button class="btn btn-danger btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'rejected\')">Reject</button>' +
+      '<button class="btn btn-danger btn-sm" onclick="deleteReturn(\'' + r.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
   } catch {}
 }
 
 async function updateReturnStatus(id, status) {
-  try { await fetch(API_BASE + '/api/return-requests/' + id + '/status', { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ status }) }); loadReturns(); showMsg('Updated.', 'success'); } catch {}
+  try { await supaUpdate('return_requests', id, { status }); loadReturns(); showMsg('Updated.', 'success'); } catch {}
 }
 async function deleteReturn(id) {
   if (!confirm('Delete?')) return;
-  try { await fetch(API_BASE + '/api/return-requests/' + id, { method: 'DELETE', headers: getAuthHeaders() }); loadReturns(); showMsg('Deleted.', 'success'); } catch {}
+  try { await supaDelete('return_requests', id); loadReturns(); showMsg('Deleted.', 'success'); } catch {}
 }
 
 // COUPONS
 async function loadCoupons() {
   try {
-    const res = await fetch(API_BASE + '/api/coupons', { headers: getAuthHeaders() });
-    if (res.ok) {
-      const coupons = await res.json();
-      document.getElementById('couponsList').innerHTML = !coupons.length ? '<p style="color:#888;">No coupons.</p>' :
-        coupons.map(c => '<div class="list-item"><div class="info"><h5>' + c.code + ' <span style="color:#e94560;">(' + c.discount_value + (c.discount_type === 'percentage' ? '%' : ' Rs.') + ' off)</span></h5><p>Used: ' + (c.used_count || 0) + '/' + (c.max_uses || '∞') + ' | Min: Rs. ' + (c.min_order_amount || 0) + ' | Active: ' + (c.is_active ? 'Yes' : 'No') + (c.expires_at ? ' | Expires: ' + c.expires_at : '') + '</p></div>' +
-        '<div class="actions"><button class="btn btn-sm ' + (c.is_active ? 'btn-warning' : 'btn-success') + '" onclick="toggleCoupon(' + c.id + ',' + (c.is_active ? 0 : 1) + ')">' + (c.is_active ? 'Disable' : 'Enable') + '</button><button class="btn btn-danger btn-sm" onclick="deleteCoupon(' + c.id + ')"><i class="fas fa-trash"></i></button></div></div>').join('');
-    }
+    const coupons = await supaFetch('coupons');
+    document.getElementById('couponsList').innerHTML = !coupons.length ? '<p style="color:#888;">No coupons.</p>' :
+      coupons.map(c => '<div class="list-item"><div class="info"><h5>' + c.code + ' <span style="color:#e94560;">(' + c.discount_value + (c.discount_type === 'percentage' ? '%' : ' Rs.') + ' off)</span></h5><p>Used: ' + (c.used_count || 0) + '/' + (c.max_uses || '∞') + ' | Min: Rs. ' + (c.min_order_amount || 0) + ' | Active: ' + (c.is_active ? 'Yes' : 'No') + (c.expires_at ? ' | Expires: ' + c.expires_at : '') + '</p></div>' +
+      '<div class="actions"><button class="btn btn-sm ' + (c.is_active ? 'btn-warning' : 'btn-success') + '" onclick="toggleCoupon(\'' + c.id + '\',' + (c.is_active ? 0 : 1) + ')">' + (c.is_active ? 'Disable' : 'Enable') + '</button><button class="btn btn-danger btn-sm" onclick="deleteCoupon(\'' + c.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
   } catch {}
 }
 
@@ -1020,58 +983,53 @@ async function addCoupon() {
   const val = parseFloat(document.getElementById('couponValue').value);
   if (!code || !val) { showMsg('Code and value required', 'error'); return; }
   try {
-    const res = await fetch(API_BASE + '/api/coupons', { method: 'POST', headers: getAuthHeaders(),
-      body: JSON.stringify({
-        code, description: document.getElementById('couponDesc').value,
-        discount_type: document.getElementById('couponType').value, discount_value: val,
-        min_order_amount: parseFloat(document.getElementById('couponMin').value) || 0,
-        max_discount_amount: parseFloat(document.getElementById('couponMaxDiscount').value) || 0,
-        max_uses: parseInt(document.getElementById('couponMaxUses').value) || 100,
-        expires_at: document.getElementById('couponExpires').value || null
-      }) });
-    if (res.ok) { showMsg('Coupon added!', 'success'); loadCoupons(); document.getElementById('couponCode').value = ''; }
+    await supaInsert('coupons', {
+      code: code.toUpperCase(), description: document.getElementById('couponDesc').value,
+      discount_type: document.getElementById('couponType').value, discount_value: val,
+      min_order_amount: parseFloat(document.getElementById('couponMin').value) || 0,
+      max_discount_amount: parseFloat(document.getElementById('couponMaxDiscount').value) || 0,
+      max_uses: parseInt(document.getElementById('couponMaxUses').value) || 100,
+      expires_at: document.getElementById('couponExpires').value || null
+    });
+    showMsg('Coupon added!', 'success');
+    loadCoupons();
+    document.getElementById('couponCode').value = '';
   } catch {}
 }
 
 async function toggleCoupon(id, active) {
   try {
-    await fetch(API_BASE + '/api/coupons/' + id, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({ is_active: active }) });
+    await supaUpdate('coupons', id, { is_active: active });
     loadCoupons();
   } catch {}
 }
 
 async function deleteCoupon(id) {
   if (!confirm('Delete?')) return;
-  try { await fetch(API_BASE + '/api/coupons/' + id, { method: 'DELETE', headers: getAuthHeaders() }); loadCoupons(); } catch {}
+  try { await supaDelete('coupons', id); loadCoupons(); } catch {}
 }
 
 // CUSTOMERS
 async function loadCustomers() {
   try {
-    const res = await fetch(API_BASE + '/api/customers', { headers: getAuthHeaders() });
-    if (res.ok) {
-      const customers = await res.json();
-      document.getElementById('customersList').innerHTML = !customers.length ? '<p style="color:#888;">No customers yet.</p>' :
-        '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Orders</th><th>Total Spent</th><th>Since</th></tr></thead><tbody>' +
-        customers.map(c => '<tr><td>' + (c.name || '') + '</td><td>' + (c.phone || '') + '</td><td>' + (c.email || '') + '</td><td>' + (c.total_orders || 0) + '</td><td>' + (c.total_spent || '0') + '</td><td>' + (c.created_at || '') + '</td></tr>').join('') +
-        '</tbody></table></div>';
-    }
+    const customers = await supaFetch('customers');
+    document.getElementById('customersList').innerHTML = !customers.length ? '<p style="color:#888;">No customers yet.</p>' :
+      '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Orders</th><th>Total Spent</th><th>Since</th></tr></thead><tbody>' +
+      customers.map(c => '<tr><td>' + (c.name || '') + '</td><td>' + (c.phone || '') + '</td><td>' + (c.email || '') + '</td><td>' + (c.total_orders || 0) + '</td><td>' + (c.total_spent || '0') + '</td><td>' + (c.created_at || '').substring(0, 10) + '</td></tr>').join('') +
+      '</tbody></table></div>';
   } catch {}
 }
 
 // MESSAGES
 async function loadMessages(filter) {
   try {
-    const url = filter === 'unread' ? API_BASE + '/api/messages?is_read=0' : API_BASE + '/api/messages';
-    const res = await fetch(url, { headers: getAuthHeaders() });
-    if (res.ok) {
-      const msgs = await res.json();
-      document.getElementById('messagesList').innerHTML = !msgs.length ? '<p style="color:#888;">No messages.</p>' :
-        msgs.map(m => '<div class="list-item"><div class="info"><h5>' + m.name + ' <small style="font-weight:normal;color:#888;">&lt;' + m.email + '&gt;</small> ' + (m.is_read ? '' : '<span class="badge badge-new" style="font-size:0.6rem;">NEW</span>') + '</h5><p style="font-weight:500;">' + (m.subject || '(No subject)') + '</p><p style="color:#888;font-size:0.8rem;">' + m.message + '</p><small style="color:#aaa;">' + (m.created_at || '') + '</small></div>' +
-        '<div class="actions">' +
-        (!m.is_read ? '<button class="btn btn-primary btn-sm" onclick="markRead(' + m.id + ')">Read</button>' : '') +
-        '<button class="btn btn-danger btn-sm" onclick="deleteMessage(' + m.id + ')"><i class="fas fa-trash"></i></button></div></div>').join('');
-    }
+    const params = filter === 'unread' ? { is_read: 'eq.0' } : {};
+    const msgs = await supaFetch('messages', params);
+    document.getElementById('messagesList').innerHTML = !msgs.length ? '<p style="color:#888;">No messages.</p>' :
+      msgs.map(m => '<div class="list-item"><div class="info"><h5>' + m.name + ' <small style="font-weight:normal;color:#888;">&lt;' + m.email + '&gt;</small> ' + (m.is_read ? '' : '<span class="badge badge-new" style="font-size:0.6rem;">NEW</span>') + '</h5><p style="font-weight:500;">' + (m.subject || '(No subject)') + '</p><p style="color:#888;font-size:0.8rem;">' + m.message + '</p><small style="color:#aaa;">' + (m.created_at || '') + '</small></div>' +
+      '<div class="actions">' +
+      (!m.is_read ? '<button class="btn btn-primary btn-sm" onclick="markRead(\'' + m.id + '\')">Read</button>' : '') +
+      '<button class="btn btn-danger btn-sm" onclick="deleteMessage(\'' + m.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
   } catch {}
 }
 
@@ -1081,40 +1039,36 @@ function filterMessages(filter) {
 }
 
 async function markRead(id) {
-  try { await fetch(API_BASE + '/api/messages/' + id + '/read', { method: 'PUT', headers: getAuthHeaders() }); loadMessages(); } catch {}
+  try { await supaUpdate('messages', id, { is_read: 1 }); loadMessages(); } catch {}
 }
 
 async function deleteMessage(id) {
   if (!confirm('Delete?')) return;
-  try { await fetch(API_BASE + '/api/messages/' + id, { method: 'DELETE', headers: getAuthHeaders() }); loadMessages(); showMsg('Deleted.', 'success'); } catch {}
+  try { await supaDelete('messages', id); loadMessages(); showMsg('Deleted.', 'success'); } catch {}
 }
 
 // SUBSCRIBERS
 async function loadSubscribers() {
   try {
-    const res = await fetch(API_BASE + '/api/subscribers', { headers: getAuthHeaders() });
-    if (res.ok) {
-      const subs = await res.json();
-      document.getElementById('subscribersList').innerHTML = !subs.length ? '<p style="color:#888;">No subscribers.</p>' :
-        '<div class="table-wrap"><table><thead><tr><th>Email</th><th>Subscribed</th><th>Action</th></tr></thead><tbody>' +
-        subs.map(s => '<tr><td>' + s.email + '</td><td>' + (s.subscribed_at || '') + '</td><td><button class="btn btn-danger btn-sm" onclick="deleteSubscriber(' + s.id + ')"><i class="fas fa-trash"></i></button></td></tr>').join('') +
-        '</tbody></table></div>';
-    }
+    const subs = await supaFetch('subscribers');
+    document.getElementById('subscribersList').innerHTML = !subs.length ? '<p style="color:#888;">No subscribers.</p>' :
+      '<div class="table-wrap"><table><thead><tr><th>Email</th><th>Subscribed</th><th>Action</th></tr></thead><tbody>' +
+      subs.map(s => '<tr><td>' + s.email + '</td><td>' + (s.subscribed_at || '').substring(0, 10) + '</td><td><button class="btn btn-danger btn-sm" onclick="deleteSubscriber(\'' + s.id + '\')"><i class="fas fa-trash"></i></button></td></tr>').join('') +
+      '</tbody></table></div>';
   } catch {}
 }
 
 async function deleteSubscriber(id) {
   if (!confirm('Delete?')) return;
-  try { await fetch(API_BASE + '/api/subscribers/' + id, { method: 'DELETE', headers: getAuthHeaders() }); loadSubscribers(); } catch {}
+  try { await supaDelete('subscribers', id); loadSubscribers(); } catch {}
 }
 
 // SETTINGS
 async function loadSettings() {
   try {
-    const res = await fetch(API_BASE + '/api/settings', { headers: getAuthHeaders() });
-    if (res.ok) {
-      const s = await res.json();
-      document.getElementById('adminPassword').value = s.admin_password || 'admin123';
+    const s = await supaSingle('settings');
+    if (s) {
+      document.getElementById('adminPassword').value = localStorage.getItem('admin_local_pw') || 'admin123';
       document.getElementById('storeName').value = s.store_name || 'Aryal Store';
       document.getElementById('storeTagline').value = s.store_tagline || '';
       document.getElementById('storeCurrency').value = s.currency || 'Rs. ';
@@ -1128,58 +1082,36 @@ async function loadSettings() {
 async function saveSettings() {
   const pw = document.getElementById('adminPassword').value.trim();
   if (pw.length < 4) { showMsg('Password must be at least 4 characters.', 'error'); return; }
+  localStorage.setItem('admin_local_pw', pw);
   try {
-    const res = await fetch(API_BASE + '/api/settings', { method: 'PUT', headers: getAuthHeaders(),
-      body: JSON.stringify({
-        admin_password: pw, store_name: document.getElementById('storeName').value,
-        store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value,
-        free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000,
-        shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100,
-        whatsapp_number: document.getElementById('whatsappNumber').value
-      }) });
-    if (res.ok) showMsg('Settings saved!', 'success');
+    await supaUpdate('settings', 1, {
+      store_name: document.getElementById('storeName').value,
+      store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value,
+      free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000,
+      shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100,
+      whatsapp_number: document.getElementById('whatsappNumber').value
+    });
+    showMsg('Settings saved!', 'success');
   } catch { showMsg('Connection error.', 'error'); }
 }
 
-// DATA
+// DATA (export/reset not available with Supabase anon key - use Supabase dashboard)
 async function exportData() {
-  try {
-    const res = await fetch(API_BASE + '/api/data/export', { method: 'POST', headers: getAuthHeaders() });
-    if (res.ok) {
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'aryal-store-backup.json';
-      a.click();
-      showMsg('Data exported!', 'success');
-    }
-  } catch {}
+  showMsg('Export via Supabase Dashboard: go to https://supabase.com/dashboard/project/srlejludttajosnrfkca', 'info');
 }
 
 async function resetData() {
-  if (!confirm('This will delete ALL data! Continue?')) return;
-  if (!confirm('This cannot be undone. Are you sure?')) return;
-  try {
-    const res = await fetch(API_BASE + '/api/data/reset', { method: 'POST', headers: getAuthHeaders() });
-    if (res.ok) { await loadAllTabs(); showMsg('Data reset to defaults.', 'success'); }
-  } catch {}
+  showMsg('Reset via Supabase Dashboard: go to the SQL Editor to truncate tables.', 'info');
 }
 
 // INIT
 (async function() {
-  if (token) {
-    try {
-      const res = await fetch(API_BASE + '/api/hero');
-      if (res.ok) {
-        document.getElementById('loginPage').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        await loadAllTabs();
-        initClickMap();
-      } else {
-        localStorage.removeItem('aryal_admin_token');
-      }
-    } catch {}
+  const storedPw = localStorage.getItem('admin_local_pw');
+  if (storedPw) {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    await loadAllTabs();
+    initClickMap();
   }
 })();
 </script>

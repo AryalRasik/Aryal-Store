@@ -1,9 +1,6 @@
 
 <!DOCTYPE html>
 <html lang="en">
-<script type="module" src="script.js"></script>
-<script src="script.js"></script>
-<script type="module" src="script.js"></script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -822,13 +819,73 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-const API_BASE = 'https://aryal-store-backend-1.onrender.com';
+const SUPABASE_URL = 'https://srlejludttajosnrfkca.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
 const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+function supaFetch(table, params) {
+  let url = SUPABASE_URL + '/rest/v1/' + table + '?select=*';
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && v !== '') url += '&' + k + '=' + encodeURIComponent(v);
+    }
+  }
+  return fetch(url, { headers: { apikey: SUPABASE_KEY } }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+}
+
+function supaSingle(table, params) {
+  return supaFetch(table, params).then(d => d[0] || null);
+}
+
+function supaInsert(table, data) {
+  return fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Prefer: 'return=representation' },
+    body: JSON.stringify(data)
+  }).then(r => r.json());
+}
+
+function supaUpdate(table, id, data) {
+  return fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+    body: JSON.stringify(data)
+  }).then(r => r.json());
+}
+
+function supaDelete(table, id) {
+  return fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE', headers: { apikey: SUPABASE_KEY }
+  }).then(r => r.json());
+}
+
+function supaDeleteBy(table, field, value) {
+  return fetch(SUPABASE_URL + '/rest/v1/' + table + '?' + field + '=eq.' + encodeURIComponent(value), {
+    method: 'DELETE', headers: { apikey: SUPABASE_KEY }
+  }).then(r => r.json());
+}
 
 function imgUrl(url) {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return API_BASE + url;
+  return url;
+}
+
+function mapProduct(p) {
+  const catIcons = { clothes: 'fas fa-tshirt', cosmetics: 'fas fa-spa', stationery: 'fas fa-book', cylinder: 'fas fa-burn' };
+  const catGrads = { clothes: 'linear-gradient(135deg, #2c3e50, #3498db)', cosmetics: 'linear-gradient(135deg, #e91e63, #f06292)', stationery: 'linear-gradient(135deg, #1a5276, #2e86c1)', cylinder: 'linear-gradient(135deg, #d35400, #e67e22)' };
+  return {
+    id: p.id, name: p.name, desc: p.description || '', description: p.description || '',
+    price: 'Rs. ' + (p.price || 0), compare_price: p.compare_price ? 'Rs. ' + p.compare_price : '',
+    image: p.image_url || '', category: p.category || '',
+    icon: p.icon || catIcons[p.category] || 'fas fa-box',
+    gradient: p.gradient || catGrads[p.category] || 'linear-gradient(135deg, #e94560, #d63851)',
+    rating: p.rating || 0, review_count: p.review_count || 0,
+    stock_count: p.stock != null ? p.stock : 100,
+    is_new: p.is_new || 0, is_featured: p.is_featured || 0,
+    is_best_seller: p.is_best_seller || 0, is_trending: p.is_trending || 0,
+    sizes: p.sizes || '', colors: p.colors || '', brand: p.brand || '',
+    material: p.material || '', status: p.status || 'active',
+    images_list: p.image_url ? [{ image_url: p.image_url, is_primary: 1 }] : []
+  };
 }
 
 let allProducts = [];
@@ -1015,34 +1072,25 @@ async function placeOrder() {
   btn.textContent = 'Placing Order...';
 
   try {
-    const res = await fetch(API_BASE + '/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customer_name: name,
-        customer_phone: phone,
-        customer_email: email,
-        customer_address: address,
-        payment_method: selectedPayment,
-        notes: notes,
-        items: cart.map(i => ({ product_id: i.id, product_name: i.name, quantity: i.qty, unit_price: i.price, size: i.size, color: i.color })),
-        total_amount: 'Rs. ' + total.toLocaleString(),
-        subtotal: 'Rs. ' + subtotal.toLocaleString(),
-        discount: 'Rs. ' + couponDiscount.toLocaleString(),
-        coupon_code: appliedCoupon || ''
-      })
-    });
-
-    if (res.ok) {
-      cart = []; couponDiscount = 0; appliedCoupon = null;
-      saveCart();
-      closeCart();
-      toast('Order placed successfully! We will contact you soon.', 'success');
-    } else {
-      const data = await res.json();
-      errEl.textContent = data.error || 'Failed to place order.';
-      errEl.style.display = 'block';
-    }
+    const orderData = {
+      customer_name: name,
+      customer_phone: phone,
+      customer_email: email,
+      customer_address: address,
+      payment_method: selectedPayment,
+      notes: notes,
+      total_amount: total,
+      subtotal: subtotal,
+      discount: couponDiscount,
+      coupon_code: appliedCoupon || '',
+      status: 'pending',
+      items: cart.map(i => ({ product_id: i.id, product_name: i.name, quantity: i.qty, unit_price: i.price, size: i.size, color: i.color }))
+    };
+    await supaInsert('orders', orderData);
+    cart = []; couponDiscount = 0; appliedCoupon = null;
+    saveCart();
+    closeCart();
+    toast('Order placed successfully! We will contact you soon.', 'success');
   } catch {
     errEl.textContent = 'Network error. Please try again.';
     errEl.style.display = 'block';
@@ -1057,23 +1105,18 @@ async function applyCoupon() {
   if (!code) { toast('Enter a coupon code', 'error'); return; }
   const subtotal = cart.reduce((s, i) => s + (parseInt(i.price.replace(/[^0-9]/g, '')) || 0) * i.qty, 0);
   try {
-    const res = await fetch(API_BASE + '/api/coupons/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, order_total: 'Rs. ' + subtotal })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      couponDiscount = data.discount;
-      appliedCoupon = data.coupon;
-      document.getElementById('couponApplied').textContent = 'Coupon applied! You saved Rs. ' + data.discount.toLocaleString();
+    const coupons = await supaFetch('coupons', { code: 'eq.' + encodeURIComponent(code), is_active: 'eq.true' });
+    if (coupons && coupons.length) {
+      const c = coupons[0];
+      couponDiscount = c.discount_value || 0;
+      appliedCoupon = c.code;
+      document.getElementById('couponApplied').textContent = 'Coupon applied! You saved Rs. ' + couponDiscount.toLocaleString();
       document.getElementById('couponApplied').style.display = '';
       document.getElementById('couponInput').value = '';
       toast('Coupon applied!', 'success');
       updateCartFinancials();
     } else {
-      const data = await res.json();
-      toast(data.error || 'Invalid coupon', 'error');
+      toast('Invalid or expired coupon', 'error');
     }
   } catch {
     toast('Failed to validate coupon', 'error');
@@ -1091,18 +1134,16 @@ document.getElementById('searchInput').addEventListener('input', async function(
   const suggest = document.getElementById('searchSuggestions');
   if (q.length < 2) { suggest.classList.remove('show'); return; }
   try {
-    const res = await fetch(API_BASE + '/api/products/search?q=' + encodeURIComponent(q));
-    if (res.ok) {
-      const data = await res.json();
-      if (data.length) {
-        suggest.innerHTML = data.map(p => '<div class="suggestion-item" onclick="selectSuggestion(' + p.id + ')">' +
-          (p.image ? '<img src="' + imgUrl(p.image) + '">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#999;"><i class="fas fa-box"></i></div>') +
-          '<div class="info"><h5>' + p.name + '</h5><p>' + (p.price || '') + '</p></div></div>'
-        ).join('');
-        suggest.classList.add('show');
-      } else {
-        suggest.classList.remove('show');
-      }
+    const data = await supaFetch('products', { name: 'ilike.*' + encodeURIComponent(q) + '*', order: 'name.asc' });
+    if (data.length) {
+      const mapped = data.map(mapProduct);
+      suggest.innerHTML = mapped.map(p => '<div class="suggestion-item" onclick="selectSuggestion(' + p.id + ')">' +
+        (p.image ? '<img src="' + imgUrl(p.image) + '">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#999;"><i class="fas fa-box"></i></div>') +
+        '<div class="info"><h5>' + p.name + '</h5><p>' + (p.price || '') + '</p></div></div>'
+      ).join('');
+      suggest.classList.add('show');
+    } else {
+      suggest.classList.remove('show');
     }
   } catch {}
 });
@@ -1143,26 +1184,16 @@ function clearFilters() {
 
 async function loadProducts(params) {
   try {
-    let url = API_BASE + '/api/products?';
-    const p = params || {};
-    if (currentFilter && currentFilter !== 'all') p.category = currentFilter;
-    if (currentSort) p.sort = currentSort;
-    const brand = document.getElementById('filterBrand').value;
-    const minPrice = document.getElementById('filterMinPrice').value;
-    const maxPrice = document.getElementById('filterMaxPrice').value;
-    const material = document.getElementById('filterMaterial').value;
-    if (brand) p.brand = brand;
-    if (minPrice) p.min_price = minPrice;
-    if (maxPrice) p.max_price = maxPrice;
-    if (material) p.material = material;
-
-    url += new URLSearchParams(p).toString();
-    const res = await fetch(url);
-    if (res.ok) {
-      const prods = await res.json();
-      allProducts = prods;
-      renderProducts(prods);
+    let filters = {};
+    if (params && params.search) filters.name = 'ilike.*' + encodeURIComponent(params.search) + '*';
+    if (currentFilter && currentFilter !== 'all') filters.category = 'eq.' + currentFilter;
+    if (currentSort) {
+      const sortMap = { price_asc: 'price.asc', price_desc: 'price.desc', name_asc: 'name.asc', name_desc: 'name.desc', newest: 'created_at.desc', rating: 'rating.desc' };
+      filters.order = sortMap[currentSort] || 'created_at.desc';
     }
+    const prods = await supaFetch('products', filters);
+    allProducts = prods.map(mapProduct);
+    renderProducts(allProducts);
   } catch {}
 }
 
@@ -1213,12 +1244,14 @@ async function viewProduct(id) {
   const p = findProduct(id);
   if (!p) return;
   try {
-    const res = await fetch(API_BASE + '/api/products/' + id);
-    if (res.ok) {
-      const full = await res.json();
-      currentModalProduct = full;
-      showProductModal(full);
-      fetch(API_BASE + '/api/recently-viewed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_id: id }) });
+    const full = await supaSingle('products', { id: 'eq.' + encodeURIComponent(id) });
+    if (full) {
+      const mapped = mapProduct(full);
+      currentModalProduct = mapped;
+      showProductModal(mapped);
+      const rv = JSON.parse(localStorage.getItem('aryal_recently_viewed') || '[]');
+      const upd = [id, ...rv.filter(x => x !== id)].slice(0, 10);
+      localStorage.setItem('aryal_recently_viewed', JSON.stringify(upd));
       loadRecommendations(id);
     } else {
       currentModalProduct = p;
@@ -1342,7 +1375,7 @@ function toggleZoom(el) {
 
 function playVideo(url) {
   const main = document.getElementById('mainImage');
-  main.innerHTML = '<video controls autoplay style="width:100%;height:100%;object-fit:contain;background:#000;"><source src="' + (url.startsWith('http') ? url : API_BASE + url) + '" type="video/mp4"></video>';
+  main.innerHTML = '<video controls autoplay style="width:100%;height:100%;object-fit:contain;background:#000;"><source src="' + imgUrl(url) + '" type="video/mp4"></video>';
   main.className = 'main-image';
 }
 
@@ -1371,49 +1404,42 @@ function closeProductModal() {
 
 async function loadRecommendations(id) {
   try {
-    const res = await fetch(API_BASE + '/api/recommendations/' + id);
-    if (res.ok) {
-      const recs = await res.json();
-      if (recs && recs.length) {
-        document.getElementById('recommendationsRow').style.display = '';
-        document.getElementById('recScroll').innerHTML = recs.map(r =>
-          '<div class="rec-item" onclick="viewProduct(' + r.id + ')">' +
-          (r.image ? '<img src="' + imgUrl(r.image) + '" loading="lazy">' : '<div style="width:100%;height:120px;background:' + (r.gradient || '#eee') + ';border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;"><i class="' + (r.icon || 'fas fa-box') + '"></i></div>') +
-          '<h5>' + r.name + '</h5>' +
-          '<p>' + (r.price || '') + '</p></div>'
-        ).join('');
-      }
+    const prod = findProduct(id);
+    if (!prod) return;
+    const recs = await supaFetch('products', { category: 'eq.' + encodeURIComponent(prod.category), id: 'neq.' + encodeURIComponent(id), order: 'created_at.desc' });
+    if (recs && recs.length) {
+      const mapped = recs.map(mapProduct).slice(0, 10);
+      document.getElementById('recommendationsRow').style.display = '';
+      document.getElementById('recScroll').innerHTML = mapped.map(r =>
+        '<div class="rec-item" onclick="viewProduct(' + r.id + ')">' +
+        (r.image ? '<img src="' + imgUrl(r.image) + '" loading="lazy">' : '<div style="width:100%;height:120px;background:' + (r.gradient || '#eee') + ';border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;"><i class="' + (r.icon || 'fas fa-box') + '"></i></div>') +
+        '<h5>' + r.name + '</h5>' +
+        '<p>' + (r.price || '') + '</p></div>'
+      ).join('');
     }
   } catch {}
 }
 
-// WISHLIST
-async function loadWishlist() {
-  try {
-    const res = await fetch(API_BASE + '/api/wishlist', { headers: { 'x-session-id': SESSION_ID } });
-    if (res.ok) {
-      wishlistItems = await res.json();
-      document.getElementById('wishlistCount').textContent = wishlistItems.length;
-    }
-  } catch {}
+// WISHLIST (localStorage)
+function loadWishlist() {
+  const ids = JSON.parse(localStorage.getItem('aryal_wishlist_ids') || '[]');
+  wishlistItems = allProducts.filter(p => ids.includes(p.id));
+  document.getElementById('wishlistCount').textContent = wishlistItems.length;
 }
 
-async function toggleWishlist(id) {
+function toggleWishlist(id) {
   const inWishlist = wishlistItems.some(w => w.id === id);
-  try {
-    if (inWishlist) {
-      await fetch(API_BASE + '/api/wishlist/' + id, { method: 'DELETE', headers: { 'x-session-id': SESSION_ID } });
-      wishlistItems = wishlistItems.filter(w => w.id !== id);
-      toast('Removed from wishlist', 'info');
-    } else {
-      await fetch(API_BASE + '/api/wishlist', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-id': SESSION_ID }, body: JSON.stringify({ product_id: id }) });
-      const p = findProduct(id);
-      if (p) wishlistItems.push(p);
-      toast('Added to wishlist!', 'success');
-    }
-    document.getElementById('wishlistCount').textContent = wishlistItems.length;
-    renderProducts(allProducts);
-  } catch {}
+  if (inWishlist) {
+    wishlistItems = wishlistItems.filter(w => w.id !== id);
+    toast('Removed from wishlist', 'info');
+  } else {
+    const p = findProduct(id);
+    if (p) wishlistItems.push(p);
+    toast('Added to wishlist!', 'success');
+  }
+  localStorage.setItem('aryal_wishlist_ids', JSON.stringify(wishlistItems.map(w => w.id)));
+  document.getElementById('wishlistCount').textContent = wishlistItems.length;
+  renderProducts(allProducts);
 }
 
 async function toggleWishlistFromModal() {
@@ -1476,17 +1502,9 @@ async function submitReview() {
   const comment = document.getElementById('reviewComment').value.trim();
   if (!name || !currentReviewRating) { toast('Please enter your name and rating', 'error'); return; }
   try {
-    const res = await fetch(API_BASE + '/api/reviews', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ product_id: currentModalProduct.id, customer_name: name, customer_email: email, rating: currentReviewRating, title, comment, size: selectedSize, color: selectedColor })
-    });
-    if (res.ok) {
-      toast('Review submitted! Awaiting approval.', 'success');
-      closeReviewModal();
-    } else {
-      toast('Failed to submit review', 'error');
-    }
+    await supaInsert('reviews', { product_id: currentModalProduct.id, customer_name: name, customer_email: email, rating: currentReviewRating, title, comment, size: selectedSize, color: selectedColor, status: 'pending' });
+    toast('Review submitted! Awaiting approval.', 'success');
+    closeReviewModal();
   } catch {
     toast('Network error', 'error');
   }
@@ -1495,20 +1513,17 @@ async function submitReview() {
 // SIZE CHART
 async function openSizeChart(category) {
   try {
-    const res = await fetch(API_BASE + '/api/size-chart/' + (category || 'clothes'));
-    if (res.ok) {
-      const sizes = await res.json();
-      const content = document.getElementById('sizeChartContent');
-      if (sizes && sizes.length) {
-        const keys = sizes[0].measurements ? Object.keys(JSON.parse(sizes[0].measurements)) : [];
-        content.innerHTML = '<table><thead><tr><th>Size</th>' + keys.map(k => '<th>' + k.charAt(0).toUpperCase() + k.slice(1) + '</th>').join('') + '</tr></thead><tbody>' +
-          sizes.map(s => {
-            const m = typeof s.measurements === 'string' ? JSON.parse(s.measurements) : s.measurements;
-            return '<tr><td><strong>' + s.size + '</strong></td>' + keys.map(k => '<td>' + (m[k] || '-') + '</td>').join('') + '</tr>';
-          }).join('') + '</tbody></table>';
-      } else {
-        content.innerHTML = '<p style="color:#888;">Size chart not available for this category.</p>';
-      }
+    const sizes = await supaFetch('size_chart', { category: 'eq.' + encodeURIComponent(category || 'clothes') });
+    const content = document.getElementById('sizeChartContent');
+    if (sizes && sizes.length) {
+      const keys = sizes[0].measurements ? Object.keys(JSON.parse(sizes[0].measurements)) : [];
+      content.innerHTML = '<table><thead><tr><th>Size</th>' + keys.map(k => '<th>' + k.charAt(0).toUpperCase() + k.slice(1) + '</th>').join('') + '</tr></thead><tbody>' +
+        sizes.map(s => {
+          const m = typeof s.measurements === 'string' ? JSON.parse(s.measurements) : s.measurements;
+          return '<tr><td><strong>' + s.size + '</strong></td>' + keys.map(k => '<td>' + (m[k] || '-') + '</td>').join('') + '</tr>';
+        }).join('') + '</tbody></table>';
+    } else {
+      content.innerHTML = '<p style="color:#888;">Size chart not available for this category.</p>';
     }
   } catch {}
   document.getElementById('sizeChartModal').classList.add('open');
@@ -1557,30 +1572,28 @@ async function trackOrder() {
   const phone = document.getElementById('trackPhone').value.trim();
   if (!phone) { toast('Enter your phone number', 'error'); return; }
   try {
-    const res = await fetch(API_BASE + '/api/orders?phone=' + encodeURIComponent(phone));
-    if (res.ok) {
-      const orders = await res.json();
-      const container = document.getElementById('trackResults');
-      if (!orders || !orders.length) {
-        container.innerHTML = '<p style="color:#888;">No orders found for this phone number.</p>';
-        return;
-      }
-      const statusColors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
-      container.innerHTML = orders.map(o => {
-        const steps = ['pending', 'processing', 'shipped', 'delivered'];
-        const currentIdx = steps.indexOf(o.status);
-        return '<div class="order-card">' +
-          '<div class="order-header"><h5>Order #' + o.id + '</h5><span class="status-badge" style="background:' + (statusColors[o.status] || '#888') + ';">' + o.status + '</span></div>' +
-          '<div class="order-body">' +
-          '<div><strong>Total:</strong> ' + (o.total_amount || '') + ' | <strong>Payment:</strong> ' + (o.payment_method || '') + '</div>' +
-          '<div class="item-list">' + (o.items || []).map(i => '<span>' + i.product_name + ' x' + i.quantity + '</span>').join('') + '</div>' +
-          '<div class="timeline">' + steps.map((s, i) =>
-            '<div class="step"><div class="dot ' + (i < currentIdx ? 'completed' : i === currentIdx ? 'current' : '') + '"></div>' + s + '</div>'
-          ).join('') + '</div>' +
-          (o.status === 'delivered' ? '<a class="return-btn" onclick="openReturnModal(' + o.id + ')">Request Return</a>' : '<span style="font-size:0.75rem;color:#999;">' + (o.created_at || '') + (o.notes ? ' | Note: ' + o.notes : '') + '</span>') +
-          '</div></div>';
-      }).join('');
+    const orders = await supaFetch('orders', { customer_phone: 'eq.' + encodeURIComponent(phone) });
+    const container = document.getElementById('trackResults');
+    if (!orders || !orders.length) {
+      container.innerHTML = '<p style="color:#888;">No orders found for this phone number.</p>';
+      return;
     }
+    const statusColors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
+    container.innerHTML = orders.map(o => {
+      const steps = ['pending', 'processing', 'shipped', 'delivered'];
+      const currentIdx = steps.indexOf(o.status);
+      const items = o.items || [];
+      return '<div class="order-card">' +
+        '<div class="order-header"><h5>Order #' + o.id.substring(0, 8) + '</h5><span class="status-badge" style="background:' + (statusColors[o.status] || '#888') + ';">' + o.status + '</span></div>' +
+        '<div class="order-body">' +
+        '<div><strong>Total:</strong> ' + (o.total_amount || '') + ' | <strong>Payment:</strong> ' + (o.payment_method || '') + '</div>' +
+        '<div class="item-list">' + (items || []).map(i => '<span>' + (i.product_name || '') + ' x' + (i.quantity || 0) + '</span>').join('') + '</div>' +
+        '<div class="timeline">' + steps.map((s, i) =>
+          '<div class="step"><div class="dot ' + (i < currentIdx ? 'completed' : i === currentIdx ? 'current' : '') + '"></div>' + s + '</div>'
+        ).join('') + '</div>' +
+        (o.status === 'delivered' ? '<a class="return-btn" onclick="openReturnModal(\'' + o.id + '\')">Request Return</a>' : '<span style="font-size:0.75rem;color:#999;">' + (o.created_at || '') + (o.notes ? ' | Note: ' + o.notes : '') + '</span>') +
+        '</div></div>';
+    }).join('');
   } catch {
     toast('Failed to fetch orders', 'error');
   }
@@ -1609,17 +1622,9 @@ async function submitReturnRequest() {
   const details = document.getElementById('returnDetails').value.trim();
   if (!order_id || !name || !phone) { toast('Please fill required fields', 'error'); return; }
   try {
-    const res = await fetch(API_BASE + '/api/return-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id: parseInt(order_id), customer_name: name, customer_phone: phone, customer_email: email, reason, details })
-    });
-    if (res.ok) {
-      toast('Return request submitted! We will contact you soon.', 'success');
-      closeReturnModal();
-    } else {
-      toast('Failed to submit return request', 'error');
-    }
+    await supaInsert('return_requests', { order_id, customer_name: name, customer_phone: phone, customer_email: email, reason, details, status: 'pending' });
+    toast('Return request submitted! We will contact you soon.', 'success');
+    closeReturnModal();
   } catch {
     toast('Network error', 'error');
   }
@@ -1631,19 +1636,11 @@ document.getElementById('newsletterForm').addEventListener('submit', async (e) =
   const email = document.getElementById('newsletterEmail').value.trim();
   if (!email) return;
   try {
-    const res = await fetch(API_BASE + '/api/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    if (res.ok) {
-      document.getElementById('newsletterMsg').innerHTML = '<span style="color:#27ae60;">Thank you for subscribing!</span>';
-      document.getElementById('newsletterEmail').value = '';
-    } else {
-      document.getElementById('newsletterMsg').innerHTML = '<span style="color:#e74c3c;">Failed to subscribe. Try again.</span>';
-    }
+    await supaInsert('subscribers', { email, subscribed_at: new Date().toISOString() });
+    document.getElementById('newsletterMsg').innerHTML = '<span style="color:#27ae60;">Thank you for subscribing!</span>';
+    document.getElementById('newsletterEmail').value = '';
   } catch {
-    document.getElementById('newsletterMsg').innerHTML = '<span style="color:#e74c3c;">Network error.</span>';
+    document.getElementById('newsletterMsg').innerHTML = '<span style="color:#e74c3c;">Failed to subscribe. Try again.</span>';
   }
 });
 
@@ -1662,19 +1659,10 @@ document.getElementById('contactForm').addEventListener('submit', async (e) => {
   document.getElementById('sendBtn').disabled = true;
   document.getElementById('sendBtn').textContent = 'Sending...';
   try {
-    const res = await fetch(API_BASE + '/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, subject, message })
-    });
-    if (res.ok) {
-      status.style.display = 'block'; status.style.color = '#27ae60';
-      status.textContent = 'Thank you! Your message has been sent.';
-      document.getElementById('contactForm').reset();
-    } else {
-      status.style.display = 'block'; status.style.color = '#e74c3c';
-      status.textContent = 'Failed to send. Try again.';
-    }
+    await supaInsert('messages', { name, email, subject, message, created_at: new Date().toISOString() });
+    status.style.display = 'block'; status.style.color = '#27ae60';
+    status.textContent = 'Thank you! Your message has been sent.';
+    document.getElementById('contactForm').reset();
   } catch {
     status.style.display = 'block'; status.style.color = '#e74c3c'; status.textContent = 'Network error.';
   }
@@ -1685,80 +1673,66 @@ document.getElementById('contactForm').addEventListener('submit', async (e) => {
 // LOAD CONTENT
 async function loadDynamicContent() {
   try {
-    const heroRes = await fetch(API_BASE + '/api/hero');
-    if (heroRes.ok) {
-      const hero = await heroRes.json();
-      if (hero && hero.heading) {
-        document.getElementById('heroHeading').innerHTML = hero.heading.replace('Aryal Store', '<span>Aryal Store</span>');
-      }
-      if (hero && hero.subtext) document.getElementById('heroSubtext').textContent = hero.subtext;
+    const hero = await supaSingle('hero');
+    if (hero && hero.heading) {
+      document.getElementById('heroHeading').innerHTML = hero.heading.replace('Aryal Store', '<span>Aryal Store</span>');
+    }
+    if (hero && hero.subtext) document.getElementById('heroSubtext').textContent = hero.subtext;
+  } catch {}
+  try {
+    const a = await supaSingle('about');
+    if (a && a.title) document.getElementById('aboutTitle').textContent = a.title;
+    if (a && a.heading) document.getElementById('aboutHeading').textContent = a.heading;
+    if (a && a.desc1) document.getElementById('aboutDesc1').textContent = a.desc1;
+    if (a && a.desc2) document.getElementById('aboutDesc2').innerHTML = a.desc2;
+    if (a && a.features) {
+      document.getElementById('aboutFeatures').innerHTML = a.features.split(',').map(f =>
+        '<div class="feature-item"><i class="fas fa-check-circle"></i> ' + f.trim() + '</div>'
+      ).join('');
     }
   } catch {}
   try {
-    const aboutRes = await fetch(API_BASE + '/api/about');
-    if (aboutRes.ok) {
-      const a = await aboutRes.json();
-      if (a.title) document.getElementById('aboutTitle').textContent = a.title;
-      if (a.heading) document.getElementById('aboutHeading').textContent = a.heading;
-      if (a.desc1) document.getElementById('aboutDesc1').textContent = a.desc1;
-      if (a.desc2) document.getElementById('aboutDesc2').innerHTML = a.desc2;
-      if (a.features) {
-        document.getElementById('aboutFeatures').innerHTML = a.features.split(',').map(f =>
-          '<div class="feature-item"><i class="fas fa-check-circle"></i> ' + f.trim() + '</div>'
-        ).join('');
-      }
+    const c = await supaSingle('contact');
+    if (c && c.address) document.getElementById('contactAddress').textContent = c.address;
+    if (c && c.phone) document.getElementById('contactPhone').textContent = c.phone;
+    if (c && c.email) document.getElementById('contactEmail').textContent = c.email;
+    if (c && c.hours) document.getElementById('contactHours').textContent = c.hours;
+    const lat = (c && c.lat) || '28.0340872';
+    const lng = (c && c.lng) || '83.4126681';
+    document.getElementById('mapIframe').src = 'https://maps.google.com/maps?q=' + lat + ',' + lng + '+(Aryal+Store)&z=15&output=embed';
+    document.getElementById('mapLink').href = 'https://www.google.com/maps/place/Aryal+Store/@' + lat + ',' + lng + ',15z';
+    if (c && c.whatsapp) {
+      document.getElementById('whatsappBtn').onclick = function() { window.open('https://wa.me/' + c.whatsapp.replace(/[^0-9]/g, ''), '_blank'); };
     }
   } catch {}
   try {
-    const contactRes = await fetch(API_BASE + '/api/contact');
-    if (contactRes.ok) {
-      const c = await contactRes.json();
-      if (c.address) document.getElementById('contactAddress').textContent = c.address;
-      if (c.phone) document.getElementById('contactPhone').textContent = c.phone;
-      if (c.email) document.getElementById('contactEmail').textContent = c.email;
-      if (c.hours) document.getElementById('contactHours').textContent = c.hours;
-      const lat = c.lat || '28.0340872';
-      const lng = c.lng || '83.4126681';
-      document.getElementById('mapIframe').src = 'https://maps.google.com/maps?q=' + lat + ',' + lng + '+(Aryal+Store)&z=15&output=embed';
-      document.getElementById('mapLink').href = 'https://www.google.com/maps/place/Aryal+Store/@' + lat + ',' + lng + ',15z';
-      if (c.whatsapp) {
-        document.getElementById('whatsappBtn').onclick = function() { window.open('https://wa.me/' + c.whatsapp.replace(/[^0-9]/g, ''), '_blank'); };
-      }
-    }
-  } catch {}
-  try {
-    const settingsRes = await fetch(API_BASE + '/api/settings', { headers: { 'Authorization': 'Bearer dummy' } }).catch(() => null);
-    if (settingsRes && settingsRes.ok) {
-      const s = await settingsRes.json();
-      window._freeShippingThreshold = s.free_shipping_threshold || 2000;
-    }
+    const s = await supaSingle('settings');
+    if (s) window._freeShippingThreshold = s.free_shipping_threshold || 2000;
   } catch {}
 }
 
 async function loadShowcaseSections() {
   const sections = [
-    { url: '/api/products/featured', id: 'featuredRow' },
-    { url: '/api/products/best-sellers', id: 'bestSellerRow' },
-    { url: '/api/products/new-arrivals', id: 'newArrivalsRow' }
+    { filter: { is_featured: 'eq.1', order: 'created_at.desc' }, id: 'featuredRow' },
+    { filter: { is_best_seller: 'eq.1', order: 'created_at.desc' }, id: 'bestSellerRow' },
+    { filter: { is_new: 'eq.1', order: 'created_at.desc' }, id: 'newArrivalsRow' }
   ];
   for (const sec of sections) {
     try {
-      const res = await fetch(API_BASE + sec.url);
-      if (res.ok) {
-        const prods = await res.json();
-        const container = document.getElementById(sec.id);
-        if (container && prods.length) {
-          container.innerHTML = prods.map(p =>
-            '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;" onclick="viewProduct(' + p.id + ')">' +
-            '<div class="product-img" style="height:160px;background:' + (p.gradient || '#e94560') + ';">' +
-            (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
-            '</div>' +
-            '<div class="product-body" style="padding:12px;">' +
-            '<div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">' + p.name + '</div>' +
-            '<div style="color:#e94560;font-weight:700;font-size:0.95rem;">' + (p.price || '') + '</div>' +
-            '</div></div>'
-          ).join('');
-        }
+      const prods = await supaFetch('products', sec.filter);
+      const container = document.getElementById(sec.id);
+      if (container && prods.length) {
+        const mapped = prods.slice(0, 8).map(mapProduct);
+        container.innerHTML = mapped.map(p =>
+          '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;" onclick="viewProduct(' + p.id + ')">' +
+          '<div class="product-img" style="height:160px;background:' + (p.gradient || '#e94560') + ';">' +
+          (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
+          '</div>' +
+          '<div class="product-body" style="padding:12px;">' +
+          '<div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">' + p.name + '</div>' +
+          '<div style="color:#e94560;font-weight:700;font-size:0.95rem;">' + (p.price || '') + '</div>' +
+          '</div></div>'
+        ).join('');
       }
     } catch {}
   }
@@ -1782,21 +1756,14 @@ function renderTestimonials(tests) {
   loadShowcaseSections();
 
   try {
-    const prodRes = await fetch(API_BASE + '/api/products');
-    if (prodRes.ok) {
-      allProducts = await prodRes.json();
-      renderProducts(allProducts);
-    }
+    const products = await supaFetch('products', { order: 'created_at.desc' });
+    allProducts = (products || []).map(mapProduct);
+    renderProducts(allProducts);
   } catch {}
 
   try {
-    const testRes = await fetch(API_BASE + '/api/testimonials');
-    if (testRes.ok) renderTestimonials(await testRes.json());
-  } catch {}
-
-  // Track pageview
-  try {
-    await fetch(API_BASE + '/api/analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page_url: window.location.pathname, page_title: document.title, session_id: SESSION_ID }), signal: AbortSignal.timeout(2000) });
+    const tests = await supaFetch('testimonials');
+    if (tests && tests.length) renderTestimonials(tests);
   } catch {}
 })();
 

@@ -374,7 +374,8 @@
 </div>
 
 <script>
-const API = window.location.origin + '/api';
+const SUPABASE_URL = 'https://srlejludttajosnrfkca.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
 
 const PW_KEY = 'admin_dashboard_pw';
 let allProducts = [];
@@ -401,11 +402,80 @@ function escape(t) {
   return d.innerHTML;
 }
 
+// Supabase helpers
+async function supaFetch(table, params) {
+  let url = SUPABASE_URL + '/rest/v1/' + table + '?select=*';
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined && v !== null && v !== '') url += '&' + k + '=' + encodeURIComponent(v);
+    }
+  }
+  const res = await fetch(url, { headers: { apikey: SUPABASE_KEY } });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+  return res.json();
+}
+
+async function supaSingle(table, params) {
+  return supaFetch(table, { ...params, limit: '1' }).then(d => d[0] || null);
+}
+
+async function supaInsert(table, data) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Prefer: 'return=representation' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+  return res.json();
+}
+
+async function supaUpdate(table, id, data) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Prefer: 'return=representation' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+  return res.json();
+}
+
+async function supaDelete(table, id) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE', headers: { apikey: SUPABASE_KEY, Prefer: 'return=representation' }
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+  return res.json();
+}
+
+async function supaDelete(table, id) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE', headers: { apikey: SUPABASE_KEY }
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
+}
+
+// Mimic old api() interface using Supabase
 async function api(url, opts = {}) {
-  const res = await fetch(API + url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  const data = await res.json();
-  if (!res.ok) { showMsg('Error: ' + (data.error || 'Request failed'), 'error'); throw new Error(data.error); }
-  return data;
+  const method = opts.method || 'GET';
+  const parts = url.split('/').filter(Boolean);
+  const table = parts[0];
+  const id = parts[1];
+  const queryStr = parts[2] || '';
+
+  if (method === 'GET' && !id) {
+    if (['hero', 'about', 'contact', 'settings'].includes(table)) return supaSingle(table);
+    if (queryStr) {
+      const params = {};
+      queryStr.split('&').forEach(p => { const [k, v] = p.split('='); if (k === 'is_read') params[k] = 'eq.' + v; });
+      return supaFetch(table, params);
+    }
+    return supaFetch(table);
+  }
+  if (method === 'GET' && id) {
+    return supaSingle(table, { id: 'eq.' + encodeURIComponent(id) });
+  }
+  if (method === 'POST') return supaInsert(table, JSON.parse(opts.body));
+  if (method === 'PUT') return supaUpdate(table, id, JSON.parse(opts.body));
+  if (method === 'DELETE') return supaDelete(table, id);
+  throw new Error('Unsupported: ' + method + ' ' + url);
 }
 
 function handleLogin() {
@@ -505,32 +575,36 @@ async function saveProduct() {
   let imageUrl = document.getElementById('prodImage').value.trim();
   const fileInput = document.getElementById('prodImageFile');
   if (fileInput.files && fileInput.files[0]) {
-    showMsg('Uploading image...', 'success');
-    const file = fileInput.files[0];
-    const dataUrl = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsDataURL(file); });
-    try {
-      const res = await fetch(API + '/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, data: dataUrl }) });
-      const d = await res.json();
-      if (d.url) imageUrl = d.url; else { showMsg('Upload failed: ' + (d.error || 'unknown'), 'error'); return; }
-    } catch (e) { showMsg('Upload error', 'error'); return; }
+    showMsg('Upload via direct URL only. Paste an image URL above or use the file for local preview.', 'info');
+    // Image upload is disabled; use a direct URL instead
   }
 
   const payload = {
-    name, category: document.getElementById('prodCategory').value, subcategory: document.getElementById('prodSubcategory').value,
-    description: document.getElementById('prodDesc').value, price: parseFloat(document.getElementById('prodPrice').value) || 0,
-    compare_price: parseFloat(document.getElementById('prodCompare').value) || 0, image_url: imageUrl,
-    sizes: document.getElementById('prodSizes').value, colors: document.getElementById('prodColors').value,
-    material: document.getElementById('prodMaterial').value, brand: document.getElementById('prodBrand').value,
-    sku: document.getElementById('prodSku').value, stock: parseInt(document.getElementById('prodStock').value) || 100,
-    is_featured: document.getElementById('prodFeatured').checked ? 1 : 0, is_new: document.getElementById('prodNew').checked ? 1 : 0,
-    is_best_seller: document.getElementById('prodBestSeller').checked ? 1 : 0, is_trending: document.getElementById('prodTrending').checked ? 1 : 0, status: 'active'
+    name, category: document.getElementById('prodCategory').value,
+    subcategory: document.getElementById('prodSubcategory').value,
+    description: document.getElementById('prodDesc').value,
+    price: parseFloat(document.getElementById('prodPrice').value) || 0,
+    compare_price: parseFloat(document.getElementById('prodCompare').value) || 0,
+    image_url: imageUrl, sizes: document.getElementById('prodSizes').value,
+    colors: document.getElementById('prodColors').value,
+    material: document.getElementById('prodMaterial').value,
+    brand: document.getElementById('prodBrand').value,
+    sku: document.getElementById('prodSku').value,
+    stock: parseInt(document.getElementById('prodStock').value) || 100,
+    is_featured: document.getElementById('prodFeatured').checked ? 1 : 0,
+    is_new: document.getElementById('prodNew').checked ? 1 : 0,
+    is_best_seller: document.getElementById('prodBestSeller').checked ? 1 : 0,
+    is_trending: document.getElementById('prodTrending').checked ? 1 : 0,
+    status: 'active'
   };
   try {
     if (id) await api('/products/' + id, { method: 'PUT', body: JSON.stringify(payload) });
     else await api('/products', { method: 'POST', body: JSON.stringify(payload) });
     showMsg(id ? 'Product updated!' : 'Product added!', 'success');
     resetForm(); await loadProducts();
-  } catch {}
+  } catch (e) {
+    showMsg('Failed: ' + e.message, 'error');
+  }
 }
 
 function resetForm() {
@@ -741,18 +815,25 @@ async function deleteSubscriber(id) {
 // ANALYTICS
 async function loadAnalytics() {
   try {
-    const data = await api('/analytics');
+    const [prods, orders, subs] = await Promise.all([
+      supaFetch('products', { select: 'id,stock,name' }),
+      supaFetch('orders', { order: 'created_at.desc', limit: '5' }),
+      supaFetch('subscribers', { select: 'id' })
+    ]);
+    const totalProducts = prods.length || 0;
+    const totalSubs = subs.length || 0;
     document.getElementById('analyticsStats').innerHTML = `
-      <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="num">${data.totalProducts || 0}</div><div class="label">Total Products</div></div>
-      <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="num">${data.totalOrders || 0}</div><div class="label">Total Orders</div></div>
-      <div class="stat-card"><div class="icon"><i class="fas fa-bell"></i></div><div class="num">${data.totalSubs || 0}</div><div class="label">Subscribers</div></div>`;
+      <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="num">${totalProducts}</div><div class="label">Total Products</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="num">${orders.length}</div><div class="label">Total Orders</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-bell"></i></div><div class="num">${totalSubs}</div><div class="label">Subscribers</div></div>`;
     const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
-    document.getElementById('recentOrdersList').innerHTML = !data.recentOrders?.length ? '<p style="color:#888;">No recent orders.</p>' :
+    document.getElementById('recentOrdersList').innerHTML = !orders.length ? '<p style="color:#888;">No recent orders.</p>' :
       '<div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead><tbody>' +
-      data.recentOrders.map(o => '<tr><td>' + o.id.substring(0, 8) + '</td><td>' + escape(o.customer_name) + '</td><td>' + (o.total_amount || '0') + '</td><td><span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + o.status + '</span></td><td>' + (o.created_at || '').substring(0, 10) + '</td></tr>').join('') + '</tbody></table></div>';
-    document.getElementById('lowStockList').innerHTML = !data.lowStock?.length ? '<p style="color:#888;">No low stock alerts.</p>' :
+      orders.map(o => '<tr><td>' + (o.id || '').substring(0, 8) + '</td><td>' + escape(o.customer_name || '') + '</td><td>' + (o.total_amount || '0') + '</td><td><span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + (o.status || '') + '</span></td><td>' + (o.created_at || '').substring(0, 10) + '</td></tr>').join('') + '</tbody></table></div>';
+    const lowStock = prods.filter(p => (p.stock || 0) < 20);
+    document.getElementById('lowStockList').innerHTML = !lowStock.length ? '<p style="color:#888;">No low stock alerts.</p>' :
       '<div class="table-wrap"><table><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody>' +
-      data.lowStock.map(p => '<tr><td>' + escape(p.name) + '</td><td style="color:#e74c3c;font-weight:600;">' + p.stock + '</td></tr>').join('') + '</tbody></table></div>';
+      lowStock.map(p => '<tr><td>' + escape(p.name) + '</td><td style="color:#e74c3c;font-weight:600;">' + (p.stock || 0) + '</td></tr>').join('') + '</tbody></table></div>';
   } catch {}
 }
 </script>
