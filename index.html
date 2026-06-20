@@ -1218,7 +1218,7 @@ function renderProducts(prods) {
     const stockLow = p.stock_count != null && p.stock_count < 20;
     return '<div class="product-card" data-id="' + p.id + '">' +
       '<div class="badge-row">' + badges.join('') + '</div>' +
-      '<button class="wishlist-btn ' + (inWishlist ? 'active' : '') + '" onclick="toggleWishlist(' + p.id + ')"><i class="' + (inWishlist ? 'fas' : 'far') + ' fa-heart"></i></button>' +
+      '<button class="wishlist-btn ' + (inWishlist ? 'active' : '') + '" onclick="toggleWishlist(\'' + p.id + '\')"><i class="' + (inWishlist ? 'fas' : 'far') + ' fa-heart"></i></button>' +
       '<div class="product-img" style="background:' + (p.gradient || '#e94560') + ';">' +
         (p.image ? '<img src="' + imgUrl(p.image) + '" alt="' + p.name + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
         (p.stock_count != null && p.stock_count < 100 ? '<div class="stock-bar"><div class="fill ' + (stockLow ? 'low' : '') + '" style="width:' + stockPct + '%"></div></div>' : '') +
@@ -1233,8 +1233,8 @@ function renderProducts(prods) {
         '</div>' +
         (p.stock_count != null && p.stock_count < 10 ? '<div style="font-size:0.75rem;color:#e74c3c;margin-bottom:6px;"><i class="fas fa-exclamation-circle"></i> Only ' + p.stock_count + ' left</div>' : '') +
         '<div class="actions">' +
-          '<button class="btn btn-primary btn-sm" onclick="addToCart(' + p.id + ')"><i class="fas fa-shopping-bag"></i> Add</button>' +
-          '<button class="btn btn-dark btn-sm" onclick="viewProduct(' + p.id + ')"><i class="fas fa-eye"></i></button>' +
+          '<button class="btn btn-primary btn-sm" onclick="addToCart(\'' + p.id + '\')"><i class="fas fa-shopping-bag"></i> Add</button>' +
+          '<button class="btn btn-dark btn-sm" onclick="viewProduct(\'' + p.id + '\')"><i class="fas fa-eye"></i></button>' +
         '</div>' +
       '</div></div>';
   }).join('');
@@ -1411,7 +1411,7 @@ async function loadRecommendations(id) {
       const mapped = recs.map(mapProduct).slice(0, 10);
       document.getElementById('recommendationsRow').style.display = '';
       document.getElementById('recScroll').innerHTML = mapped.map(r =>
-        '<div class="rec-item" onclick="viewProduct(' + r.id + ')">' +
+        '<div class="rec-item" onclick="viewProduct(\'' + r.id + '\')">' +
         (r.image ? '<img src="' + imgUrl(r.image) + '" loading="lazy">' : '<div style="width:100%;height:120px;background:' + (r.gradient || '#eee') + ';border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;"><i class="' + (r.icon || 'fas fa-box') + '"></i></div>') +
         '<h5>' + r.name + '</h5>' +
         '<p>' + (r.price || '') + '</p></div>'
@@ -1460,9 +1460,9 @@ function openWishlist() {
     content.innerHTML = '<div style="display:grid;gap:10px;">' + wishlistItems.map(p =>
       '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;">' +
       (p.image ? '<img src="' + imgUrl(p.image) + '" style="width:50px;height:50px;border-radius:8px;object-fit:cover;">' : '<div style="width:50px;height:50px;border-radius:8px;background:' + (p.gradient || '#eee') + ';display:flex;align-items:center;justify-content:center;color:#fff;"><i class="' + (p.icon || 'fas fa-box') + '"></i></div>') +
-      '<div style="flex:1;cursor:pointer;" onclick="viewProduct(' + p.id + ');closeWishlist();"><h5 style="font-size:0.9rem;">' + p.name + '</h5><span style="color:#e94560;font-weight:600;">' + (p.price || '') + '</span></div>' +
-      '<button class="btn btn-primary btn-sm" onclick="addToCart(' + p.id + ');toast(\'' + p.name + ' added to cart!\',\'success\');">Add</button>' +
-      '<button class="btn btn-sm" style="background:#fee;color:#e74c3c;" onclick="toggleWishlist(' + p.id + ');openWishlist();"><i class="fas fa-trash"></i></button></div>'
+      '<div style="flex:1;cursor:pointer;" onclick="viewProduct(\'' + p.id + '\');closeWishlist();"><h5 style="font-size:0.9rem;">' + p.name + '</h5><span style="color:#e94560;font-weight:600;">' + (p.price || '') + '</span></div>' +
+      '<button class="btn btn-primary btn-sm" onclick="addToCart(\'' + p.id + '\');toast(\'' + p.name + ' added to cart!\',\'success\');">Add</button>' +
+      '<button class="btn btn-sm" style="background:#fee;color:#e74c3c;" onclick="toggleWishlist(\'' + p.id + '\');openWishlist();"><i class="fas fa-trash"></i></button></div>'
     ).join('') + '</div>';
   }
   modal.classList.add('open');
@@ -1724,7 +1724,7 @@ async function loadShowcaseSections() {
       if (container && prods.length) {
         const mapped = prods.slice(0, 8).map(mapProduct);
         container.innerHTML = mapped.map(p =>
-          '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;" onclick="viewProduct(' + p.id + ')">' +
+          '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')">' +
           '<div class="product-img" style="height:160px;background:' + (p.gradient || '#e94560') + ';">' +
           (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
           '</div>' +
