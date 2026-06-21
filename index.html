@@ -91,16 +91,13 @@
     .category-card h4 { font-size: 1rem; font-weight: 700; position: relative; z-index: 1; margin-bottom: 4px; }
     .category-card p { font-size: 0.78rem; opacity: 0.85; position: relative; z-index: 1; }
 
-    .about { background: #f8f9fa; }
-    .about-content { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
-    .about-text h3 { font-size: 1.8rem; margin-bottom: 20px; color: #1a1a2e; }
-    .about-text p { color: #666; margin-bottom: 15px; font-size: 1.05rem; }
-    .about-text .features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
-    .about-text .features .feature-item { display: flex; align-items: center; gap: 10px; font-weight: 500; }
-    .about-text .features .feature-item i { color: #e94560; }
-    .about-image { background: linear-gradient(135deg, #e94560, #0f3460); border-radius: 20px; padding: 60px 40px; text-align: center; color: #fff; }
-    .about-image i { font-size: 4rem; margin-bottom: 20px; }
-    .about-image h4 { font-size: 1.5rem; margin-bottom: 10px; }
+    .about { background: #fff; padding: 30px 0 !important; border-bottom: 1px solid #f0f0f0; }
+    .about-badges { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+    .about-badge { display: flex; align-items: center; gap: 12px; padding: 16px 12px; background: #f8f9fa; border-radius: 12px; transition: all 0.3s; }
+    .about-badge:hover { background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.06); transform: translateY(-2px); }
+    .about-badge .ab-icon { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #e94560, #d63851); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.2rem; flex-shrink: 0; }
+    .about-badge .ab-text h4 { font-size: 0.82rem; color: #1a1a2e; margin-bottom: 2px; font-weight: 700; }
+    .about-badge .ab-text p { font-size: 0.72rem; color: #888; margin: 0; }
 
     .product-showcase { padding: 60px 0; }
     .product-showcase.bg-light { background: #f8f9fa; }
@@ -166,15 +163,34 @@
     .product-card .product-body .actions .btn { flex: 1; padding: 9px 12px; font-size: 0.8rem; text-align: center; }
 
     .testimonials { background: #f8f9fa; }
-    .testimonial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; }
-    .testimonial-card { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 3px 15px rgba(0,0,0,0.05); transition: all 0.3s; }
-    .testimonial-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-    .testimonial-card .stars { color: #ffc107; margin-bottom: 12px; font-size: 0.9rem; }
-    .testimonial-card p { color: #666; font-style: italic; margin-bottom: 18px; font-size: 0.95rem; }
-    .testimonial-card .customer { display: flex; align-items: center; gap: 12px; }
-    .testimonial-card .customer .avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #e94560, #0f3460); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1rem; }
-    .testimonial-card .customer .info h5 { font-size: 0.95rem; color: #1a1a2e; }
-    .testimonial-card .customer .info span { font-size: 0.8rem; color: #999; }
+    .testimonial-layout { display: grid; grid-template-columns: 280px 1fr; gap: 28px; align-items: start; }
+    .testimonial-summary { background: #fff; border-radius: 14px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); position: sticky; top: 90px; }
+    .ts-header { text-align: center; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid #f0f0f0; }
+    .ts-big-rating { font-size: 2.8rem; font-weight: 800; color: #1a1a2e; line-height: 1; }
+    .ts-stars { color: #ffc107; font-size: 1rem; margin: 6px 0 4px; }
+    .ts-count { font-size: 0.78rem; color: #888; }
+    .ts-bars { display: flex; flex-direction: column; gap: 5px; }
+    .ts-bar-row { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; }
+    .ts-bar-label { min-width: 8px; font-weight: 600; color: #555; }
+    .ts-bar-star { color: #ffc107; font-size: 0.65rem; }
+    .ts-bar-track { flex: 1; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+    .ts-bar-fill { height: 100%; background: #ffc107; border-radius: 3px; transition: width 0.6s; }
+    .ts-bar-pct { min-width: 28px; text-align: right; color: #888; }
+    .testimonial-scroll { overflow-x: auto; padding-bottom: 6px; }
+    .testimonial-scroll::-webkit-scrollbar { height: 4px; }
+    .testimonial-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+    .testimonial-grid { display: flex; gap: 16px; }
+    .testimonial-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); transition: all 0.3s; min-width: 280px; max-width: 280px; flex-shrink: 0; }
+    .testimonial-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+    .testimonial-card .tc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .testimonial-card .tc-header .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #e94560, #0f3460); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+    .testimonial-card .tc-header .tc-info h5 { font-size: 0.85rem; color: #1a1a2e; font-weight: 600; }
+    .testimonial-card .tc-header .tc-info .tc-meta { font-size: 0.7rem; color: #999; display: flex; align-items: center; gap: 4px; }
+    .testimonial-card .tc-header .tc-info .tc-meta .verified { color: #27ae60; font-size: 0.65rem; }
+    .testimonial-card .tc-stars { color: #ffc107; font-size: 0.78rem; margin-bottom: 6px; }
+    .testimonial-card .tc-stars .star-empty { color: #ddd; }
+    .testimonial-card p { color: #555; font-size: 0.85rem; line-height: 1.6; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .testimonial-card .tc-product { font-size: 0.72rem; color: #aaa; margin-top: 4px; }
 
     .newsletter-section { background: linear-gradient(135deg, #1a1a2e, #0f3460); color: #fff; text-align: center; padding: 60px 20px; }
     .newsletter-section h3 { font-size: 2rem; margin-bottom: 10px; }
@@ -429,7 +445,6 @@
       .hero p { font-size: 1.25rem; max-width: 750px; }
       .section-title { font-size: 2.5rem; }
       .product-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 30px; }
-      .testimonial-grid { grid-template-columns: repeat(3, 1fr); }
       .category-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 22px; }
     }
 
@@ -448,7 +463,8 @@
       .section-title { font-size: 2rem; margin-bottom: 30px; }
       .product-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
       .hero-stats { gap: 30px; }
-      .about-content { gap: 30px; }
+      .about-badges { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      .about-badge { padding: 12px 10px; }
       footer .footer-grid { grid-template-columns: repeat(2, 1fr); }
       .flash-sale-header h2 { font-size: 1.5rem; }
       .flash-card { min-width: 180px; max-width: 180px; }
@@ -465,6 +481,9 @@
       .category-grid { grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; }
       .category-card { min-height: 120px; padding: 20px 12px; }
       .category-card i { font-size: 1.8rem; }
+      .testimonial-layout { grid-template-columns: 1fr; gap: 16px; }
+      .testimonial-summary { position: static; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: center; padding: 16px; }
+      .ts-header { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
     }
 
     /* Mobile Phones & Small Tablets (max-width: 768px) */
@@ -493,12 +512,14 @@
       .hero-stat .num { font-size: 1.4rem; }
       .hero-stat .label { font-size: 0.75rem; }
 
-      .about-content { grid-template-columns: 1fr; gap: 30px; }
-      .about-text h3 { font-size: 1.3rem; }
-      .about-text p { font-size: 0.9rem; }
-      .about-text .features { grid-template-columns: 1fr; }
-      .about-image { padding: 30px 20px; }
-      .about-image i { font-size: 3rem; }
+      .about { padding: 20px 0 !important; }
+      .about-badges { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .about-badge { padding: 10px 8px; gap: 8px; }
+      .about-badge .ab-icon { width: 36px; height: 36px; font-size: 1rem; }
+      .about-badge .ab-text h4 { font-size: 0.75rem; }
+      .about-badge .ab-text p { font-size: 0.65rem; }
+      .testimonial-scroll { margin: 0 -16px; padding: 0 16px; }
+      .testimonial-card { min-width: 240px; max-width: 240px; padding: 14px; }
 
       .category-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
       .category-card { min-height: 100px; padding: 16px 8px; }
@@ -533,10 +554,6 @@
       .product-card .product-body .product-name { font-size: 0.85rem; }
       .product-card .product-body .price-row .current { font-size: 0.95rem; }
       .product-card .product-body .actions .btn { font-size: 0.7rem; padding: 7px 8px; }
-
-      .testimonial-grid { grid-template-columns: 1fr; gap: 15px; }
-      .testimonial-card { padding: 20px; }
-      .testimonial-card p { font-size: 0.88rem; }
 
       .newsletter-section { padding: 40px 16px; }
       .newsletter-section h3 { font-size: 1.4rem; }
@@ -593,11 +610,16 @@
       .hero-stat .num { font-size: 1.2rem; }
       .hero-stat .label { font-size: 0.7rem; }
 
-      .about-text h3 { font-size: 1.1rem; }
-      .about-text p { font-size: 0.85rem; }
-      .about-image { padding: 20px 16px; }
-      .about-image i { font-size: 2.5rem; }
-      .about-image h4 { font-size: 1.2rem; }
+      .about-badges { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+      .about-badge { padding: 8px 6px; gap: 6px; }
+      .about-badge .ab-icon { width: 30px; height: 30px; font-size: 0.85rem; border-radius: 8px; }
+      .about-badge .ab-text h4 { font-size: 0.7rem; }
+      .about-badge .ab-text p { display: none; }
+      .testimonial-summary { grid-template-columns: 1fr; gap: 10px; text-align: center; }
+      .ts-header { text-align: center; }
+      .ts-bars { max-width: 200px; margin: 0 auto; }
+      .testimonial-card { min-width: 200px; max-width: 200px; padding: 12px; }
+      .testimonial-card p { font-size: 0.78rem; }
 
       .category-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
       .category-card { min-height: 90px; padding: 12px 6px; }
@@ -654,6 +676,9 @@
       .category-card { min-height: 80px; padding: 10px 4px; }
       .category-card i { font-size: 1.1rem; }
       .category-card h4 { font-size: 0.7rem; }
+      .about-badges { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+      .about-badge .ab-icon { width: 24px; height: 24px; font-size: 0.7rem; }
+      .about-badge .ab-text h4 { font-size: 0.65rem; }
     }
 
     /* === FLASH SALE === */
@@ -876,18 +901,49 @@
 
 <section class="about" id="about">
   <div class="container">
-    <h2 class="section-title" id="aboutTitle">About Us</h2>
-    <div class="about-content">
-      <div class="about-text">
-        <h3 id="aboutHeading">Why Choose Aryal Store?</h3>
-        <p id="aboutDesc1">At Aryal Store, we are committed to providing our customers with top-quality products and exceptional service.</p>
-        <p id="aboutDesc2">We specialize in <strong>clothes, stationery, cosmetics, and LPG cylinder refills</strong>. Your satisfaction is our top priority.</p>
-        <div class="features" id="aboutFeatures"></div>
+    <h2 class="section-title" id="aboutTitle" style="display:none;">About Us</h2>
+    <div class="about-badges" id="aboutBadges">
+      <div class="about-badge">
+        <div class="ab-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="ab-text">
+          <h4>100% Authentic</h4>
+          <p>Genuine products guaranteed</p>
+        </div>
       </div>
-      <div class="about-image">
-        <i class="fas fa-store"></i>
-        <h4>Est. 2024</h4>
-        <p>Serving customers with pride and dedication.</p>
+      <div class="about-badge">
+        <div class="ab-icon"><i class="fas fa-undo-alt"></i></div>
+        <div class="ab-text">
+          <h4>Easy Returns</h4>
+          <p>7-day return policy</p>
+        </div>
+      </div>
+      <div class="about-badge">
+        <div class="ab-icon"><i class="fas fa-truck"></i></div>
+        <div class="ab-text">
+          <h4>Free Delivery</h4>
+          <p>On orders over Rs. 2,000</p>
+        </div>
+      </div>
+      <div class="about-badge">
+        <div class="ab-icon"><i class="fas fa-lock"></i></div>
+        <div class="ab-text">
+          <h4>Secure Payment</h4>
+          <p>COD & online options</p>
+        </div>
+      </div>
+      <div class="about-badge">
+        <div class="ab-icon"><i class="fas fa-headset"></i></div>
+        <div class="ab-text">
+          <h4>24/7 Support</h4>
+          <p>We're here to help</p>
+        </div>
+      </div>
+      <div class="about-badge">
+        <div class="ab-icon"><i class="fas fa-tag"></i></div>
+        <div class="ab-text">
+          <h4>Best Prices</h4>
+          <p>Unbeatable deals daily</p>
+        </div>
       </div>
     </div>
   </div>
@@ -1013,8 +1069,26 @@
 
 <section class="testimonials" id="testimonials">
   <div class="container">
-    <h2 class="section-title">What Our Customers Say</h2>
-    <div class="testimonial-grid" id="testimonialGrid"></div>
+    <h2 class="section-title">What Our <span style="color:#e94560;">Customers</span> Say</h2>
+    <div class="testimonial-layout">
+      <div class="testimonial-summary" id="testimonialSummary">
+        <div class="ts-header">
+          <div class="ts-big-rating">4.8</div>
+          <div class="ts-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+          <div class="ts-count">Based on 250+ reviews</div>
+        </div>
+        <div class="ts-bars">
+          <div class="ts-bar-row"><span class="ts-bar-label">5</span><i class="fas fa-star ts-bar-star"></i><div class="ts-bar-track"><div class="ts-bar-fill" style="width:78%"></div></div><span class="ts-bar-pct">78%</span></div>
+          <div class="ts-bar-row"><span class="ts-bar-label">4</span><i class="fas fa-star ts-bar-star"></i><div class="ts-bar-track"><div class="ts-bar-fill" style="width:14%"></div></div><span class="ts-bar-pct">14%</span></div>
+          <div class="ts-bar-row"><span class="ts-bar-label">3</span><i class="fas fa-star ts-bar-star"></i><div class="ts-bar-track"><div class="ts-bar-fill" style="width:5%"></div></div><span class="ts-bar-pct">5%</span></div>
+          <div class="ts-bar-row"><span class="ts-bar-label">2</span><i class="fas fa-star ts-bar-star"></i><div class="ts-bar-track"><div class="ts-bar-fill" style="width:2%"></div></div><span class="ts-bar-pct">2%</span></div>
+          <div class="ts-bar-row"><span class="ts-bar-label">1</span><i class="fas fa-star ts-bar-star"></i><div class="ts-bar-track"><div class="ts-bar-fill" style="width:1%"></div></div><span class="ts-bar-pct">1%</span></div>
+        </div>
+      </div>
+      <div class="testimonial-scroll" id="testimonialScroll">
+        <div class="testimonial-grid" id="testimonialGrid"></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -2472,14 +2546,9 @@ async function loadDynamicContent() {
   } catch {}
   try {
     const a = await supaSingle('about');
-    if (a && a.title) document.getElementById('aboutTitle').textContent = a.title;
-    if (a && a.heading) document.getElementById('aboutHeading').textContent = a.heading;
-    if (a && a.desc1) document.getElementById('aboutDesc1').textContent = a.desc1;
-    if (a && a.desc2) document.getElementById('aboutDesc2').innerHTML = a.desc2;
-    if (a && a.features) {
-      document.getElementById('aboutFeatures').innerHTML = a.features.split(',').map(f =>
-        '<div class="feature-item"><i class="fas fa-check-circle"></i> ' + f.trim() + '</div>'
-      ).join('');
+    if (a && a.title) {
+      const titleEl = document.getElementById('aboutTitle');
+      if (titleEl) { titleEl.textContent = a.title; titleEl.style.display = ''; }
     }
   } catch {}
   try {
@@ -2531,12 +2600,47 @@ async function loadShowcaseSections() {
 
 function renderTestimonials(tests) {
   const grid = document.getElementById('testimonialGrid');
-  if (!tests || !tests.length) return;
+  if (!tests || !tests.length) {
+    document.getElementById('testimonialSummary').style.display = 'none';
+    return;
+  }
   grid.innerHTML = tests.map(t => {
-    const stars = '&#9733;'.repeat(t.stars) + '&#9734;'.repeat(5 - t.stars);
-    const initial = t.name.split(' ').map(w => w[0]).join('').toUpperCase();
-    return '<div class="testimonial-card"><div class="stars">' + stars + '</div><p>"' + t.text + '"</p><div class="customer"><div class="avatar">' + initial + '</div><div class="info"><h5>' + t.name + '</h5><span>' + (t.label || 'Customer') + '</span></div></div></div>';
+    const fullStars = t.stars || 5;
+    let starsHtml = '';
+    for (let i = 1; i <= 5; i++) {
+      starsHtml += i <= fullStars ? '<i class="fas fa-star"></i>' : '<i class="fas fa-star star-empty"></i>';
+    }
+    const initial = (t.name || 'C').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const productRef = t.product_name ? ' on <strong>' + t.product_name + '</strong>' : '';
+    return '<div class="testimonial-card">' +
+      '<div class="tc-header">' +
+        '<div class="avatar">' + initial + '</div>' +
+        '<div class="tc-info">' +
+          '<h5>' + (t.name || 'Customer') + '</h5>' +
+          '<div class="tc-meta"><i class="fas fa-check-circle verified"></i> Verified Purchase' + (t.label ? ' &middot; ' + t.label : '') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tc-stars">' + starsHtml + '</div>' +
+      '<p>' + t.text + '</p>' +
+      (t.product_name ? '<div class="tc-product"><i class="fas fa-tag"></i> ' + t.product_name + '</div>' : '') +
+    '</div>';
   }).join('');
+  // Update summary stats from real data
+  const ratings = tests.map(t => t.stars || 5);
+  const avg = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) : 0;
+  document.querySelector('.ts-big-rating').textContent = avg.toFixed(1);
+  document.querySelector('.ts-count').textContent = 'Based on ' + ratings.length + ' review' + (ratings.length !== 1 ? 's' : '');
+  const dist = [0, 0, 0, 0, 0];
+  ratings.forEach(r => { if (r >= 1 && r <= 5) dist[5 - r]++; });
+  const barLabels = document.querySelectorAll('.ts-bar-row');
+  dist.forEach((count, i) => {
+    const pct = ratings.length ? Math.round((count / ratings.length) * 100) : 0;
+    const row = barLabels[i];
+    if (row) {
+      row.querySelector('.ts-bar-pct').textContent = pct + '%';
+      row.querySelector('.ts-bar-fill').style.width = pct + '%';
+    }
+  });
 }
 
 // --- ALSO BOUGHT RECOMMENDATIONS ---
