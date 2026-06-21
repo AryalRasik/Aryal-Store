@@ -365,7 +365,7 @@ app.post('/api/orders', (req, res) => {
     if (existing) {
       const c = queryOne('SELECT * FROM customers WHERE id = ?', [existing.id]);
       run('UPDATE customers SET total_orders = total_orders + 1, total_spent = ? WHERE id = ?',
-        [String(parseFloat(c.total_spent.replace(/[^0-9]/g, '') || '0') + parseFloat(total_amount.replace(/[^0-9]/g, ''))), existing.id]);
+        [String(parseFloat(String(c.total_spent || '').replace(/[^0-9]/g, '') || '0') + parseFloat(String(total_amount || '').replace(/[^0-9]/g, ''))), existing.id]);
     } else {
       run('INSERT INTO customers (name, email, phone, address, total_orders, total_spent) VALUES (?, ?, ?, ?, 1, ?)',
         [customer_name, customer_email || '', customer_phone, customer_address, total_amount]);
@@ -414,6 +414,8 @@ app.get('/api/orders/:id', (req, res) => {
 app.put('/api/orders/:id/status', authMiddleware, (req, res) => {
   const { status, note } = req.body;
   if (!status) return res.status(400).json({ error: 'Status is required' });
+  const validStatuses = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
+  if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' });
   run('UPDATE orders SET status = ? WHERE id = ?', [status, req.params.id]);
   run('INSERT INTO order_tracking (order_id, status, note) VALUES (?, ?, ?)', [req.params.id, status, note || 'Status updated to ' + status]);
   res.json({ success: true });
@@ -518,6 +520,33 @@ app.post('/api/reviews', (req, res) => {
   const stats = queryOne('SELECT AVG(rating) as avg_rating, COUNT(*) as cnt FROM reviews WHERE product_id = ? AND status = ?', [product_id, 'approved']);
   if (stats && stats.cnt > 0) {
     run('UPDATE products SET rating = ?, review_count = ? WHERE id = ?', [Math.round(stats.avg_rating * 10) / 10, stats.cnt, product_id]);
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/reviews/:id', (req, res) => {
+  const review = queryOne('SELECT * FROM reviews WHERE id = ?', [req.params.id]);
+  if (!review) return res.status(404).json({ error: 'Review not found' });
+  res.json(review);
+});
+
+app.put('/api/reviews/:id/update', (req, res) => {
+  const { customer_name, customer_email, rating, title, comment, size, color } = req.body;
+  if (!customer_name || !rating) return res.status(400).json({ error: 'Name and rating are required' });
+  run("UPDATE reviews SET customer_name=?, customer_email=?, rating=?, title=?, comment=?, size=?, color=?, status='pending' WHERE id=?",
+    [customer_name, customer_email || '', rating, title || '', comment || '', size || '', color || '', req.params.id]);
+  res.json({ success: true });
+});
+
+app.delete('/api/reviews/:id/remove', (req, res) => {
+  const review = queryOne('SELECT * FROM reviews WHERE id = ?', [req.params.id]);
+  if (!review) return res.status(404).json({ error: 'Review not found' });
+  run('DELETE FROM reviews WHERE id = ?', [req.params.id]);
+  const stats = queryOne('SELECT AVG(rating) as avg_rating, COUNT(*) as cnt FROM reviews WHERE product_id = ? AND status = ?', [review.product_id, 'approved']);
+  if (stats && stats.cnt > 0) {
+    run('UPDATE products SET rating = ?, review_count = ? WHERE id = ?', [Math.round(stats.avg_rating * 10) / 10, stats.cnt, review.product_id]);
+  } else {
+    run('UPDATE products SET rating = 0, review_count = 0 WHERE id = ?', [review.product_id]);
   }
   res.json({ success: true });
 });
@@ -649,6 +678,262 @@ app.get('/api/customers/:phone/orders', (req, res) => {
   res.json(orders);
 });
 
+// ========== SEARCH HISTORY & TRENDING ==========
+app.post('/api/search-history', (req, res) => {
+  const sessionId = getSessionId(req);
+  const { query } = req.body;
+  if (!query || !query.trim()) return res.json({ success: true });
+  const q = query.trim().toLowerCase();
+  run('INSERT INTO search_history (session_id, query) VALUES (?, ?)', [sessionId, q]);
+  run('INSERT INTO trending_searches (query, count, last_searched) VALUES (?, 1, CURRENT_TIMESTAMP) ON CONFLICT(query) DO UPDATE SET count = count + 1, last_searched = CURRENT_TIMESTAMP', [q]);
+  run('DELETE FROM search_history WHERE id NOT IN (SELECT id FROM (SELECT id FROM search_history WHERE session_id = ? ORDER BY created_at DESC LIMIT 20))', [sessionId]);
+  res.json({ success: true });
+});
+
+app.get('/api/search-history', (req, res) => {
+  const sessionId = getSessionId(req);
+  const history = queryAll('SELECT query FROM search_history WHERE session_id = ? ORDER BY created_at DESC LIMIT 10', [sessionId]);
+  res.json(history.map(h => h.query));
+});
+
+app.delete('/api/search-history', (req, res) => {
+  const sessionId = getSessionId(req);
+  const { query } = req.body;
+  if (query) {
+    run('DELETE FROM search_history WHERE session_id = ? AND query = ?', [sessionId, query]);
+  } else {
+    run('DELETE FROM search_history WHERE session_id = ?', [sessionId]);
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/trending-searches', (req, res) => {
+  const trending = queryAll('SELECT query, count FROM trending_searches ORDER BY count DESC LIMIT 10');
+  res.json(trending);
+});
+
+app.get('/api/products/search/fuzzy', (req, res) => {
+  const q = (req.query.q || '').trim().toLowerCase();
+  if (!q || q.length < 2) return res.json([]);
+  // Typo-tolerant search using SQLite LIKE with character-level flexibility
+  const products = queryAll(
+    `SELECT id, name, price, image, category, stock_count FROM products 
+     WHERE status = 'active' AND (
+       LOWER(name) LIKE ? OR LOWER(name) LIKE ? OR LOWER(name) LIKE ? OR
+       LOWER(desc) LIKE ? OR LOWER(category) LIKE ?
+     ) ORDER BY sold_count DESC LIMIT 10`,
+    [`%${q}%`, `%${q.slice(0,-1)}%`, `%${q}%`, `%${q}%`, `%${q}%`]
+  );
+  res.json(products);
+});
+
+// ========== FLASH SALES ==========
+app.get('/api/flash-sales/active', (req, res) => {
+  const sales = queryAll(
+    `SELECT fs.*, fsp.product_id, fsp.sale_price, fsp.max_quantity, fsp.sold_count,
+            p.name as product_name, p.price as original_price, p.image, p.stock_count
+     FROM flash_sales fs
+     JOIN flash_sale_products fsp ON fs.id = fsp.flash_sale_id
+     JOIN products p ON fsp.product_id = p.id
+     WHERE fs.is_active = 1 AND datetime('now') BETWEEN fs.start_time AND fs.end_time
+     ORDER BY fs.end_time ASC`
+  );
+  res.json(sales);
+});
+
+app.get('/api/flash-sales', authMiddleware, (req, res) => {
+  const sales = queryAll('SELECT * FROM flash_sales ORDER BY created_at DESC');
+  for (const sale of sales) {
+    sale.products = queryAll(
+      'SELECT fsp.*, p.name as product_name, p.price as original_price, p.image FROM flash_sale_products fsp JOIN products p ON fsp.product_id = p.id WHERE fsp.flash_sale_id = ?',
+      [sale.id]
+    );
+  }
+  res.json(sales);
+});
+
+app.post('/api/flash-sales', authMiddleware, (req, res) => {
+  const { title, description, start_time, end_time, discount_type, discount_value, product_ids } = req.body;
+  if (!title || !start_time || !end_time) return res.status(400).json({ error: 'Title, start and end time required' });
+  run('INSERT INTO flash_sales (title, description, start_time, end_time, discount_type, discount_value) VALUES (?, ?, ?, ?, ?, ?)',
+    [title, description || '', start_time, end_time, discount_type || 'percentage', discount_value || 0]);
+  const sale = queryOne('SELECT * FROM flash_sales ORDER BY id DESC LIMIT 1');
+  if (product_ids && product_ids.length) {
+    for (const pid of product_ids) {
+      const p = queryOne('SELECT price FROM products WHERE id = ?', [pid]);
+      if (p) {
+        const origPrice = parseFloat(p.price.replace(/[^0-9.]/g, ''));
+        let salePrice = origPrice;
+        if (discount_type === 'percentage') salePrice = origPrice * (1 - discount_value / 100);
+        else salePrice = Math.max(0, origPrice - discount_value);
+        run('INSERT INTO flash_sale_products (flash_sale_id, product_id, sale_price) VALUES (?, ?, ?)',
+          [sale.id, pid, 'Rs. ' + salePrice.toFixed(0)]);
+      }
+    }
+  }
+  res.json(sale);
+});
+
+app.put('/api/flash-sales/:id', authMiddleware, (req, res) => {
+  const { title, description, start_time, end_time, discount_type, discount_value, is_active } = req.body;
+  run('UPDATE flash_sales SET title=?, description=?, start_time=?, end_time=?, discount_type=?, discount_value=?, is_active=? WHERE id=?',
+    [title, description, start_time, end_time, discount_type, discount_value, is_active ? 1 : 0, req.params.id]);
+  res.json({ success: true });
+});
+
+app.delete('/api/flash-sales/:id', authMiddleware, (req, res) => {
+  run('DELETE FROM flash_sale_products WHERE flash_sale_id = ?', [req.params.id]);
+  run('DELETE FROM flash_sales WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+
+// ========== NOTIFICATIONS ==========
+app.get('/api/notifications', (req, res) => {
+  const sessionId = getSessionId(req);
+  const notifs = queryAll('SELECT * FROM notifications WHERE session_id = ? ORDER BY created_at DESC LIMIT 50', [sessionId]);
+  res.json(notifs);
+});
+
+app.post('/api/notifications', (req, res) => {
+  const sessionId = getSessionId(req);
+  const { type, title, message, link } = req.body;
+  if (!title || !message) return res.status(400).json({ error: 'Title and message required' });
+  run('INSERT INTO notifications (session_id, type, title, message, link) VALUES (?, ?, ?, ?, ?)',
+    [sessionId, type || 'order', title, message, link || '']);
+  res.json({ success: true });
+});
+
+app.post('/api/notifications/read-all', (req, res) => {
+  const sessionId = getSessionId(req);
+  run('UPDATE notifications SET is_read = 1 WHERE session_id = ?', [sessionId]);
+  res.json({ success: true });
+});
+
+app.put('/api/notifications/:id/read', (req, res) => {
+  run('UPDATE notifications SET is_read = 1 WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+
+app.delete('/api/notifications/:id', (req, res) => {
+  run('DELETE FROM notifications WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+
+// ========== SAVED ADDRESSES ==========
+app.get('/api/addresses', (req, res) => {
+  const sessionId = getSessionId(req);
+  const addresses = queryAll('SELECT * FROM saved_addresses WHERE session_id = ? ORDER BY is_default DESC, created_at DESC', [sessionId]);
+  res.json(addresses);
+});
+
+app.post('/api/addresses', (req, res) => {
+  const sessionId = getSessionId(req);
+  const { label, full_name, phone, address, city, state, zip_code, country, is_default } = req.body;
+  if (!full_name || !phone || !address) return res.status(400).json({ error: 'Name, phone and address required' });
+  if (is_default) {
+    run('UPDATE saved_addresses SET is_default = 0 WHERE session_id = ?', [sessionId]);
+  }
+  run('INSERT INTO saved_addresses (session_id, label, full_name, phone, address, city, state, zip_code, country, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [sessionId, label || 'Home', full_name, phone, address, city || '', state || '', zip_code || '', country || 'Nepal', is_default ? 1 : 0]);
+  res.json({ success: true });
+});
+
+app.put('/api/addresses/:id', (req, res) => {
+  const sessionId = getSessionId(req);
+  const { label, full_name, phone, address, city, state, zip_code, country, is_default } = req.body;
+  if (is_default) {
+    run('UPDATE saved_addresses SET is_default = 0 WHERE session_id = ?', [sessionId]);
+  }
+  run('UPDATE saved_addresses SET label=?, full_name=?, phone=?, address=?, city=?, state=?, zip_code=?, country=?, is_default=? WHERE id=? AND session_id=?',
+    [label, full_name, phone, address, city, state, zip_code, country, is_default ? 1 : 0, req.params.id, sessionId]);
+  res.json({ success: true });
+});
+
+app.delete('/api/addresses/:id', (req, res) => {
+  const sessionId = getSessionId(req);
+  run('DELETE FROM saved_addresses WHERE id = ? AND session_id = ?', [req.params.id, sessionId]);
+  res.json({ success: true });
+});
+
+// ========== ORDER HISTORY & REORDER ==========
+app.get('/api/orders/by-phone/:phone', (req, res) => {
+  const orders = queryAll('SELECT * FROM orders WHERE customer_phone = ? ORDER BY id DESC', [req.params.phone]);
+  for (const order of orders) {
+    order.items = queryAll('SELECT * FROM order_items WHERE order_id = ?', [order.id]);
+    order.tracking = queryAll('SELECT * FROM order_tracking WHERE order_id = ? ORDER BY created_at', [order.id]);
+  }
+  res.json(orders);
+});
+
+app.post('/api/orders/reorder/:id', (req, res) => {
+  const order = queryOne('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  const items = queryAll('SELECT * FROM order_items WHERE order_id = ?', [req.params.id]);
+  res.json({ items, order });
+});
+
+// ========== PRODUCT VIEWS ==========
+app.post('/api/product-views', (req, res) => {
+  const sessionId = getSessionId(req);
+  const { product_id } = req.body;
+  if (!product_id) return res.json({ success: true });
+  run('INSERT INTO product_views (session_id, product_id) VALUES (?, ?)', [sessionId, product_id]);
+  res.json({ success: true });
+});
+
+app.get('/api/products/recommended', (req, res) => {
+  const sessionId = getSessionId(req);
+  // Get categories from user's viewed products
+  const viewed = queryAll(
+    `SELECT DISTINCT p.category FROM product_views pv 
+     JOIN products p ON pv.product_id = p.id 
+     WHERE pv.session_id = ? AND p.status = 'active' 
+     ORDER BY pv.viewed_at DESC LIMIT 3`,
+    [sessionId]
+  );
+  if (!viewed.length) {
+    // Fallback to trending products
+    const trending = queryAll('SELECT * FROM products WHERE status = ? ORDER BY sold_count DESC LIMIT 8', ['active']);
+    return res.json(trending);
+  }
+  const categories = viewed.map(v => v.category).filter(Boolean);
+  const placeholders = categories.map(() => '?').join(',');
+  const recs = queryAll(
+    `SELECT * FROM products WHERE status = 'active' AND category IN (${placeholders}) ORDER BY rating DESC, sold_count DESC LIMIT 8`,
+    categories
+  );
+  if (recs.length < 8) {
+    const extra = queryAll(
+      `SELECT * FROM products WHERE status = 'active' AND category NOT IN (${placeholders}) ORDER BY sold_count DESC LIMIT ?`,
+      [...categories, 8 - recs.length]
+    );
+    recs.push(...extra);
+  }
+  res.json(recs.slice(0, 8));
+});
+
+app.get('/api/products/also-bought/:id', (req, res) => {
+  // Find products that were bought together with this product
+  const alsoBought = queryAll(
+    `SELECT DISTINCT p.* FROM order_items oi1
+     JOIN order_items oi2 ON oi1.order_id = oi2.order_id AND oi2.product_id != ?
+     JOIN products p ON oi2.product_id = p.id
+     WHERE oi1.product_id = ? AND p.status = 'active'
+     GROUP BY p.id ORDER BY COUNT(*) DESC LIMIT 6`,
+    [req.params.id, req.params.id]
+  );
+  if (!alsoBought.length) {
+    // Fallback: same category
+    const prod = queryOne('SELECT category FROM products WHERE id = ?', [req.params.id]);
+    if (prod) {
+      const related = queryAll('SELECT * FROM products WHERE category = ? AND id != ? AND status = ? ORDER BY sold_count DESC LIMIT 6',
+        [prod.category, req.params.id, 'active']);
+      return res.json(related);
+    }
+  }
+  res.json(alsoBought);
+});
+
 // ========== SIZE CHART ==========
 app.get('/api/size-chart/:category', (req, res) => {
   const sizes = queryAll('SELECT * FROM size_chart WHERE category = ?', [req.params.category]);
@@ -713,6 +998,22 @@ app.get('/api/analytics/summary', authMiddleware, (req, res) => {
   const recentOrders = queryAll('SELECT id, customer_name, total_amount, status, created_at FROM orders ORDER BY id DESC LIMIT 5');
   const lowStock = queryAll('SELECT id, name, stock_count FROM products WHERE status = ? AND stock_count < 10 ORDER BY stock_count LIMIT 10', ['active']);
 
+  // Sales by category
+  const salesByCategory = queryAll(
+    `SELECT p.category, SUM(oi.quantity) as total_sold, SUM(CAST(REPLACE(REPLACE(oi.unit_price, 'Rs. ', ''), ',', '') AS REAL) * oi.quantity) as revenue
+     FROM order_items oi JOIN products p ON oi.product_id = p.id
+     GROUP BY p.category ORDER BY revenue DESC`
+  );
+
+  // Monthly sales
+  const monthlySales = queryAll(
+    `SELECT strftime('%Y-%m', created_at) as month, COUNT(*) as orders, SUM(CAST(REPLACE(REPLACE(total_amount, 'Rs. ', ''), ',', '') AS REAL)) as revenue
+     FROM orders WHERE status != 'cancelled' GROUP BY month ORDER BY month DESC LIMIT 12`
+  );
+
+  // Low stock count
+  const lowStockCount = queryOne("SELECT COUNT(*) as count FROM products WHERE status = 'active' AND stock_count < 10") || { count: 0 };
+
   res.json({
     totalViews: totalViews.count,
     todayViews: todayViews.count,
@@ -727,8 +1028,59 @@ app.get('/api/analytics/summary', authMiddleware, (req, res) => {
     ordersByStatus,
     topProducts,
     recentOrders,
-    lowStock
+    lowStock,
+    salesByCategory,
+    monthlySales,
+    lowStockCount: lowStockCount.count
   });
+});
+
+// ========== ORDER REORDER ==========
+app.post('/api/orders/:id/reorder', (req, res) => {
+  const order = queryOne('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  const items = queryAll('SELECT * FROM order_items WHERE order_id = ?', [order.id]);
+  run('INSERT INTO orders (customer_name, customer_phone, customer_email, customer_address, payment_method, notes, total_amount, subtotal, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [order.customer_name, order.customer_phone, order.customer_email, order.customer_address, order.payment_method, 'Reorder from #' + order.id, order.total_amount, order.subtotal, 'pending']);
+  const newOrder = queryOne('SELECT * FROM orders ORDER BY id DESC LIMIT 1');
+  for (const item of items) {
+    run('INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price, size, color) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [newOrder.id, item.product_id, item.product_name, item.quantity, item.unit_price, item.size, item.color]);
+  }
+  run('INSERT INTO order_tracking (order_id, status, note) VALUES (?, ?, ?)', [newOrder.id, 'pending', 'Reorder placed']);
+  res.json({ success: true, order_id: newOrder.id });
+});
+
+// ========== INVENTORY ==========
+app.get('/api/inventory/alerts', authMiddleware, (req, res) => {
+  const critical = queryAll('SELECT * FROM products WHERE status = ? AND stock_count <= 0 ORDER BY name', ['active']);
+  const low = queryAll('SELECT * FROM products WHERE status = ? AND stock_count > 0 AND stock_count < 20 ORDER BY stock_count ASC', ['active']);
+  const normal = queryAll('SELECT * FROM products WHERE status = ? AND stock_count >= 20 ORDER BY name', ['active']);
+  res.json({ critical, low, normal });
+});
+
+app.put('/api/products/:id/stock', authMiddleware, (req, res) => {
+  const { stock_count } = req.body;
+  if (stock_count === undefined || stock_count < 0) return res.status(400).json({ error: 'Valid stock count required' });
+  run('UPDATE products SET stock_count = ? WHERE id = ?', [stock_count, req.params.id]);
+  if (stock_count === 0) {
+    run('UPDATE products SET status = ? WHERE id = ?', ['out_of_stock', req.params.id]);
+  } else if (stock_count > 0) {
+    const p = queryOne('SELECT status FROM products WHERE id = ?', [req.params.id]);
+    if (p && p.status === 'out_of_stock') {
+      run('UPDATE products SET status = ? WHERE id = ?', ['active', req.params.id]);
+    }
+  }
+  res.json({ success: true });
+});
+
+app.post('/api/inventory/bulk-update', authMiddleware, (req, res) => {
+  const { updates } = req.body;
+  if (!updates || !updates.length) return res.status(400).json({ error: 'No updates provided' });
+  for (const u of updates) {
+    run('UPDATE products SET stock_count = ? WHERE id = ?', [u.stock_count, u.product_id]);
+  }
+  res.json({ success: true, updated: updates.length });
 });
 
 // ========== DATA MANAGEMENT ==========

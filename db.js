@@ -274,6 +274,86 @@ async function initDb() {
     measurements TEXT DEFAULT '{}'
   )`);
 
+  d.run(`CREATE TABLE IF NOT EXISTS flash_sales (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    discount_type TEXT NOT NULL DEFAULT 'percentage' CHECK(discount_type IN ('percentage','fixed')),
+    discount_value REAL NOT NULL DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  d.run(`CREATE TABLE IF NOT EXISTS flash_sale_products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    flash_sale_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    sale_price TEXT,
+    max_quantity INTEGER DEFAULT 100,
+    sold_count INTEGER DEFAULT 0,
+    FOREIGN KEY (flash_sale_id) REFERENCES flash_sales(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  )`);
+
+  d.run(`CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'order',
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    link TEXT DEFAULT '',
+    is_read INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  d.run(`CREATE TABLE IF NOT EXISTS saved_addresses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    label TEXT DEFAULT 'Home',
+    full_name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    address TEXT NOT NULL,
+    city TEXT DEFAULT '',
+    state TEXT DEFAULT '',
+    zip_code TEXT DEFAULT '',
+    country TEXT DEFAULT 'Nepal',
+    is_default INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  d.run(`CREATE TABLE IF NOT EXISTS search_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    query TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  d.run(`CREATE TABLE IF NOT EXISTS trending_searches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query TEXT NOT NULL UNIQUE,
+    count INTEGER DEFAULT 1,
+    last_searched DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  d.run(`CREATE TABLE IF NOT EXISTS product_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    product_id INTEGER NOT NULL,
+    viewed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  )`);
+
+  d.run(`CREATE TABLE IF NOT EXISTS order_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    order_id INTEGER NOT NULL,
+    action TEXT NOT NULL DEFAULT 'viewed',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+  )`);
+
   // Ensure hero row
   const heroRow = d.exec('SELECT COUNT(*) as cnt FROM hero');
   if (!heroRow.length || !heroRow[0].values.length || heroRow[0].values[0][0] === 0) {
