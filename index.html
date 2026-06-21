@@ -200,7 +200,7 @@
 
     .cart-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; opacity: 0; visibility: hidden; transition: all 0.3s; }
     .cart-overlay.open { opacity: 1; visibility: visible; }
-    .cart-sidebar { position: fixed; top: 0; right: -420px; width: 420px; max-width: 100vw; height: 100vh; background: #fff; z-index: 2001; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.15); }
+    .cart-sidebar { position: fixed; top: 0; right: -420px; width: 420px; max-width: 100vw; height: 100vh; height: 100dvh; background: #fff; z-index: 2001; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -5px 0 30px rgba(0,0,0,0.15); }
     .cart-sidebar.open { right: 0; }
     .cart-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid #eee; }
     .cart-header h3 { font-size: 1.2rem; color: #1a1a2e; }
@@ -400,7 +400,7 @@
       .modal-info { padding: 20px 18px; }
       .modal-info h2 { font-size: 1.15rem; }
       .modal-info .price-row .current { font-size: 1.5rem; }
-      .modal-box { max-height: 100vh; border-radius: 0; max-width: 100%; }
+      .modal-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; max-width: 100%; }
       .modal-overlay { padding: 0; }
       .about-content { grid-template-columns: 1fr; }
       .contact-wrapper { grid-template-columns: 1fr; }
@@ -587,6 +587,106 @@
       .notif-dropdown { width: 300px; right: -60px; }
       .flash-sale-header h2 { font-size: 1.3rem; }
       .flash-card { min-width: 160px; max-width: 160px; }
+    }
+
+    @media (max-width: 600px) {
+      header .container { padding: 10px 12px; }
+      .logo { font-size: 1.3rem; }
+      nav ul { padding: 12px; gap: 8px; }
+      nav ul li a { font-size: 0.85rem; padding: 8px 0; display: block; }
+      .nav-icons { gap: 10px; }
+      .nav-icons > * { font-size: 1rem; }
+      .hamburger { font-size: 1.3rem; }
+      section { padding: 40px 0; }
+      .section-title { font-size: 1.5rem; margin-bottom: 25px; }
+      .section-subtitle { font-size: 0.9rem; margin-top: -20px; margin-bottom: 25px; }
+      .hero { min-height: auto; padding: 100px 0 60px; }
+      .hero h1 { font-size: 1.6rem; }
+      .hero p { font-size: 0.95rem; margin-bottom: 20px; }
+      .hero-stats { gap: 16px; margin-top: 30px; }
+      .hero-stat .num { font-size: 1.3rem; }
+      .hero-stat .label { font-size: 0.75rem; }
+      .btn-group { gap: 10px; }
+      .btn { padding: 10px 22px; font-size: 0.85rem; }
+      .about-content { grid-template-columns: 1fr; gap: 30px; }
+      .about-text h3 { font-size: 1.3rem; }
+      .about-text p { font-size: 0.9rem; }
+      .about-text .features { grid-template-columns: 1fr; }
+      .about-image { padding: 30px 20px; }
+      .about-image i { font-size: 3rem; }
+      .showcase-header h3 { font-size: 1.15rem; }
+      .scroll-row .product-card { min-width: 155px; max-width: 155px; }
+      .flash-sale-header { flex-direction: column; align-items: flex-start; }
+      .flash-card { min-width: 140px; max-width: 140px; }
+      .flash-card .flash-img { height: 120px; }
+      .flash-card .flash-body { padding: 8px 10px; }
+      .flash-card .flash-body h5 { font-size: 0.78rem; }
+      .products-section .controls { flex-direction: column; align-items: stretch; }
+      .products-section .controls .left { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+      .products-section .controls .right { justify-content: space-between; }
+      .filter-btn { padding: 6px 14px; font-size: 0.78rem; white-space: nowrap; }
+      .sort-select { font-size: 0.78rem; padding: 6px 10px; }
+      .search-box { max-width: 100%; }
+      .search-box input { font-size: 0.85rem; padding: 8px 0; }
+      .search-box button { padding: 8px 16px; font-size: 0.8rem; }
+      .advanced-filters { padding: 10px; }
+      .advanced-filters .filter-group { width: 100%; }
+      .product-grid { gap: 10px; }
+      .product-card .product-img { height: 140px; }
+      .product-card .product-body { padding: 10px 8px; }
+      .product-card .product-body .product-name { font-size: 0.82rem; }
+      .product-card .product-body .price-row .current { font-size: 0.95rem; }
+      .product-card .product-body .actions .btn { font-size: 0.7rem; padding: 7px 6px; }
+      .testimonial-grid { grid-template-columns: 1fr; gap: 15px; }
+      .testimonial-card { padding: 20px; }
+      .testimonial-card p { font-size: 0.88rem; }
+      .newsletter-section { padding: 40px 16px; }
+      .newsletter-section h3 { font-size: 1.4rem; }
+      .newsletter-form { flex-direction: column; gap: 10px; }
+      .newsletter-form input { padding: 10px 16px; font-size: 0.9rem; }
+      .newsletter-form button { padding: 10px 20px; font-size: 0.9rem; }
+      .contact-wrapper { grid-template-columns: 1fr; gap: 25px; }
+      .contact-info h3 { font-size: 1.3rem; }
+      .contact-info .info-item { font-size: 0.85rem; }
+      .contact-form input, .contact-form textarea { padding: 11px 14px; font-size: 0.9rem; }
+      footer { padding: 30px 0 15px; }
+      footer .footer-grid { grid-template-columns: 1fr; gap: 25px; }
+      footer .footer-col h4 { font-size: 1rem; }
+      footer .footer-col p, footer .footer-col ul li a { font-size: 0.85rem; }
+      .container { padding: 0 12px; }
+      .cart-sidebar { width: 100vw; }
+      .cart-header { padding: 14px 16px; }
+      .cart-header h3 { font-size: 1.05rem; }
+      .cart-items { padding: 8px 16px; }
+      .cart-footer { padding: 12px 16px; }
+      .checkout-form .form-scroll { padding: 8px 16px; }
+      .address-grid { grid-template-columns: 1fr; }
+      .addr-form-body { padding: 16px; }
+      .addr-form-row { grid-template-columns: 1fr; }
+      .addr-form-footer { flex-direction: column; padding: 0 16px 16px; }
+      .whatsapp-btn { width: 44px; height: 44px; font-size: 1.3rem; bottom: 70px; left: 12px; }
+      .scroll-top { width: 36px; height: 36px; font-size: 0.95rem; bottom: 20px; right: 16px; }
+      .toast-container { top: 70px; right: 10px; left: 10px; }
+      .toast { font-size: 0.8rem; padding: 10px 16px; max-width: 100%; }
+      .user-dropdown { right: -60px; width: 180px; }
+      .payment-options { gap: 4px; }
+      .payment-option { min-width: 60px; padding: 6px 4px; font-size: 0.7rem; }
+    }
+
+    @media (max-width: 400px) {
+      .hero h1 { font-size: 1.3rem; }
+      .product-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+      .product-card .product-img { height: 110px; }
+      .product-card .product-body .product-name { font-size: 0.75rem; }
+      .product-card .product-body .price-row .current { font-size: 0.85rem; }
+      .product-card .product-body .actions { flex-direction: column; gap: 4px; }
+      .product-card .product-body .actions .btn { font-size: 0.65rem; padding: 6px 4px; }
+      .product-card .badge-row { top: 4px; left: 4px; }
+      .product-card .badge-row .badge { font-size: 0.6rem; padding: 2px 6px; }
+      .product-card .wishlist-btn { width: 26px; height: 26px; font-size: 0.75rem; top: 4px; right: 4px; }
+      .filter-btn { font-size: 0.72rem; padding: 5px 10px; }
+      .section-title { font-size: 1.3rem; }
+      .about-text h3 { font-size: 1.1rem; }
     }
   </style>
 </head>
@@ -1389,29 +1489,84 @@ async function placeOrder() {
   btn.textContent = 'Placing Order...';
 
   try {
-    const orderData = {
+    // Try Express API first (local server), fallback to Supabase
+    try {
+      const orderData = {
+        customer_name: name,
+        customer_phone: phone,
+        customer_email: email,
+        customer_address: address,
+        payment_method: selectedPayment,
+        notes: notes,
+        total_amount: total,
+        subtotal: subtotal,
+        discount: couponDiscount,
+        coupon_code: appliedCoupon || '',
+        status: 'pending',
+        items: cart.map(i => ({ product_id: i.id, product_name: i.name, quantity: i.qty, unit_price: i.price, size: i.size, color: i.color }))
+      };
+      const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success) {
+          cart = []; couponDiscount = 0; appliedCoupon = null;
+          saveCart();
+          closeCart();
+          toast('Order placed successfully! Order #' + (result.order_id || '').toString().substring(0, 8), 'success');
+          btn.disabled = false;
+          btn.textContent = 'Place Order';
+          return;
+        }
+      }
+    } catch {}
+    // Fallback: insert directly via Supabase
+    const orderResult = await supaInsert('orders', {
       customer_name: name,
       customer_phone: phone,
       customer_email: email,
       customer_address: address,
       payment_method: selectedPayment,
       notes: notes,
-      total_amount: total,
-      subtotal: subtotal,
-      discount: couponDiscount,
+      total_amount: String(total),
+      subtotal: String(subtotal),
+      discount: String(couponDiscount),
       coupon_code: appliedCoupon || '',
-      status: 'pending',
-      items: cart.map(i => ({ product_id: i.id, product_name: i.name, quantity: i.qty, unit_price: i.price, size: i.size, color: i.color }))
-    };
-    const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
-    const result = await res.json();
-    if (!result.success) { throw new Error(result.error || 'Order failed'); }
+      status: 'pending'
+    });
+    const order = Array.isArray(orderResult) ? orderResult[0] : orderResult;
+    if (!order || !order.id) throw new Error('Failed to create order');
+    // Insert order items
+    for (const item of cart) {
+      await supaInsert('order_items', {
+        order_id: order.id,
+        product_id: item.id || null,
+        product_name: item.name,
+        quantity: item.qty,
+        unit_price: item.price,
+        size: item.size || '',
+        color: item.color || ''
+      });
+    }
+    // Insert tracking
+    await supaInsert('order_tracking', { order_id: order.id, status: 'pending', note: 'Order placed successfully' });
+    // Update/create customer
+    try {
+      const existing = await supaFetch('customers', { phone: 'eq.' + encodeURIComponent(phone) });
+      if (existing && existing.length) {
+        const c = existing[0];
+        const spent = parseFloat(String(c.total_spent || '0').replace(/[^0-9]/g, '') || '0') + total;
+        await supaUpdate('customers', c.id, { total_orders: (c.total_orders || 0) + 1, total_spent: String(spent) });
+      } else {
+        await supaInsert('customers', { name, email, phone, address, total_orders: 1, total_spent: String(total) });
+      }
+    } catch {}
     cart = []; couponDiscount = 0; appliedCoupon = null;
     saveCart();
     closeCart();
-    toast('Order placed successfully! Order #' + (result.order_id || '').toString().substring(0, 8), 'success');
-  } catch {
-    errEl.textContent = 'Network error. Please try again.';
+    const orderId = order.id.substring ? order.id.substring(0, 8) : order.id;
+    toast('Order placed successfully! Order #' + orderId, 'success');
+  } catch (e) {
+    errEl.textContent = e.message || 'Network error. Please try again.';
     errEl.style.display = 'block';
   }
 
@@ -1917,25 +2072,34 @@ async function trackOrder() {
   const phone = document.getElementById('trackPhone').value.trim();
   if (!phone) { toast('Enter your phone number', 'error'); return; }
   try {
-    const res = await fetch('/api/orders/by-phone/' + encodeURIComponent(phone));
-    const orders = await res.json();
+    let orders;
+    try {
+      const res = await fetch('/api/orders/by-phone/' + encodeURIComponent(phone));
+      orders = await res.json();
+    } catch {
+      orders = await supaFetch('orders', { customer_phone: 'eq.' + phone, order: 'id.desc' });
+      for (const o of orders) {
+        o.items = await supaFetch('order_items', { order_id: 'eq.' + o.id });
+      }
+    }
     const container = document.getElementById('trackResults');
     if (!orders || !orders.length) {
       container.innerHTML = '<p style="color:#888;">No orders found for this phone number.</p>';
       return;
     }
-    const statusColors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
+    const statusColors = { pending: '#f39c12', confirmed: '#3498db', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
     container.innerHTML = orders.map(o => {
-      const steps = ['pending', 'processing', 'shipped', 'delivered'];
+      const steps = ['pending', 'confirmed', 'packed', 'shipped', 'delivered'];
       const currentIdx = steps.indexOf(o.status);
       const items = o.items || [];
+      const orderId = (o.id || '').substring ? (o.id + '').substring(0, 8) : o.id;
       return '<div class="order-card">' +
-        '<div class="order-header"><h5>Order #' + o.id.substring(0, 8) + '</h5><span class="status-badge" style="background:' + (statusColors[o.status] || '#888') + ';">' + o.status + '</span></div>' +
+        '<div class="order-header"><h5>Order #' + orderId + '</h5><span class="status-badge" style="background:' + (statusColors[o.status] || '#888') + ';">' + (o.status || 'pending') + '</span></div>' +
         '<div class="order-body">' +
         '<div><strong>Total:</strong> ' + (o.total_amount || '') + ' | <strong>Payment:</strong> ' + (o.payment_method || '') + '</div>' +
         '<div class="item-list">' + (items || []).map(i => '<span>' + (i.product_name || '') + ' x' + (i.quantity || 0) + '</span>').join('') + '</div>' +
-        '<div class="timeline">' + steps.map((s, i) =>
-          '<div class="step"><div class="dot ' + (i < currentIdx ? 'completed' : i === currentIdx ? 'current' : '') + '"></div>' + s + '</div>'
+        '<div class="timeline">' + steps.filter(s => s).map((s, i) =>
+          '<div class="step"><div class="dot ' + (i < currentIdx ? 'completed' : i === currentIdx ? 'current' : '') + '"></div>' + (s || '') + '</div>'
         ).join('') + '</div>' +
         (o.status === 'delivered' ? '<a class="return-btn" onclick="openReturnModal(\'' + o.id + '\')">Request Return</a>' : '<span style="font-size:0.75rem;color:#999;">' + (o.created_at || '') + (o.notes ? ' | Note: ' + o.notes : '') + '</span>') +
         '</div></div>';
@@ -2480,8 +2644,16 @@ async function fetchOrderHistory(phone) {
   if (!phone) { toast('Enter phone number', 'error'); return; }
   localStorage.setItem('aryal_last_order_phone', phone);
   try {
-    const res = await fetch('/api/orders/by-phone/' + encodeURIComponent(phone));
-    const orders = await res.json();
+    let orders;
+    try {
+      const res = await fetch('/api/orders/by-phone/' + encodeURIComponent(phone));
+      orders = await res.json();
+    } catch {
+      orders = await supaFetch('orders', { customer_phone: 'eq.' + phone, order: 'id.desc' });
+      for (const o of orders) {
+        o.items = await supaFetch('order_items', { order_id: 'eq.' + o.id });
+      }
+    }
     const container = document.getElementById('orderHistoryContent');
     if (!orders || !orders.length) {
       container.innerHTML = '<div style="text-align:center;padding:30px;"><i class="fas fa-receipt" style="font-size:2.5rem;color:#ddd;display:block;margin-bottom:10px;"></i><p style="color:#888;">No orders found</p></div>';
@@ -2493,8 +2665,9 @@ async function fetchOrderHistory(phone) {
       const currentIdx = steps.indexOf(o.status);
       const statusColor = statusColors[o.status] || '#888';
       const items = o.items || [];
+      const orderId = (o.id || '').substring ? (o.id + '').substring(0, 8) : o.id;
       return '<div class="order-history-card">' +
-        '<div class="oh-header"><h5>Order #' + (o.id || '').substring(0, 8) + '</h5><span class="oh-status" style="background:' + statusColor + ';">' + (o.status || 'pending') + '</span></div>' +
+        '<div class="oh-header"><h5>Order #' + orderId + '</h5><span class="oh-status" style="background:' + statusColor + ';">' + (o.status || 'pending') + '</span></div>' +
         '<div class="oh-body">' +
         '<div class="oh-items">' + items.map(i => '<span>' + (i.product_name || '') + ' x' + (i.quantity || 0) + '</span>').join('') + '</div>' +
         '<div class="oh-details"><span>Total: ' + (o.total_amount || '0') + '</span><span>' + (o.payment_method || '') + '</span><span>' + (o.created_at || '').substring(0, 10) + '</span></div>' +

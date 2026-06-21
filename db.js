@@ -189,7 +189,16 @@ async function initDb() {
     currency TEXT DEFAULT 'Rs. ',
     free_shipping_threshold REAL DEFAULT 2000,
     shipping_fee REAL DEFAULT 100,
-    whatsapp_number TEXT DEFAULT '+9779867135403'
+    whatsapp_number TEXT DEFAULT '+9779867135403',
+    store_email TEXT DEFAULT '',
+    smtp_host TEXT DEFAULT '',
+    smtp_port INTEGER DEFAULT 587,
+    smtp_user TEXT DEFAULT '',
+    smtp_pass TEXT DEFAULT '',
+    notify_email INTEGER DEFAULT 0,
+    notify_whatsapp INTEGER DEFAULT 0,
+    whatsapp_api_token TEXT DEFAULT '',
+    whatsapp_phone_id TEXT DEFAULT ''
   )`);
 
   d.run(`CREATE TABLE IF NOT EXISTS subscribers (
@@ -375,8 +384,20 @@ async function initDb() {
   // Ensure settings row
   const settingsRow = d.exec('SELECT COUNT(*) as cnt FROM settings');
   if (!settingsRow.length || !settingsRow[0].values.length || settingsRow[0].values[0][0] === 0) {
-    d.run("INSERT INTO settings (id, admin_password, store_name, store_tagline, currency, free_shipping_threshold, shipping_fee, whatsapp_number) VALUES (1, 'admin123', 'Aryal Store', 'Your Trusted Shopping Destination', 'Rs. ', 2000, 100, '+9779867135403')");
+    d.run("INSERT INTO settings (id, admin_password, store_name, store_tagline, currency, free_shipping_threshold, shipping_fee, whatsapp_number, store_email, smtp_host, smtp_port, smtp_user, smtp_pass, notify_email, notify_whatsapp, whatsapp_api_token, whatsapp_phone_id) VALUES (1, 'admin123', 'Aryal Store', 'Your Trusted Shopping Destination', 'Rs. ', 2000, 100, '+9779867135403', '', '', 587, '', '', 0, 0, '', '')");
   }
+
+  // Add notification columns to settings if missing (for existing databases)
+  const cols = d.exec('PRAGMA table_info(settings)')[0]?.values.map(v => v[1]) || [];
+  if (!cols.includes('store_email')) { d.run("ALTER TABLE settings ADD COLUMN store_email TEXT DEFAULT ''"); }
+  if (!cols.includes('smtp_host')) { d.run("ALTER TABLE settings ADD COLUMN smtp_host TEXT DEFAULT ''"); }
+  if (!cols.includes('smtp_port')) { d.run("ALTER TABLE settings ADD COLUMN smtp_port INTEGER DEFAULT 587"); }
+  if (!cols.includes('smtp_user')) { d.run("ALTER TABLE settings ADD COLUMN smtp_user TEXT DEFAULT ''"); }
+  if (!cols.includes('smtp_pass')) { d.run("ALTER TABLE settings ADD COLUMN smtp_pass TEXT DEFAULT ''"); }
+  if (!cols.includes('notify_email')) { d.run("ALTER TABLE settings ADD COLUMN notify_email INTEGER DEFAULT 0"); }
+  if (!cols.includes('notify_whatsapp')) { d.run("ALTER TABLE settings ADD COLUMN notify_whatsapp INTEGER DEFAULT 0"); }
+  if (!cols.includes('whatsapp_api_token')) { d.run("ALTER TABLE settings ADD COLUMN whatsapp_api_token TEXT DEFAULT ''"); }
+  if (!cols.includes('whatsapp_phone_id')) { d.run("ALTER TABLE settings ADD COLUMN whatsapp_phone_id TEXT DEFAULT ''"); }
 
   saveDb();
 }

@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
+const axios = require('axios');
 const { initDb, queryAll, queryOne, run } = require('./db');
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -344,6 +346,72 @@ app.delete('/api/messages/:id', authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
+// ========== NOTIFICATIONS ==========
+function sendOrderEmail(order, items, settings) {
+  if (!settings.notify_email || !settings.store_email || !settings.smtp_host) return;
+  try {
+    const transporter = nodemailer.createTransport({
+      host: settings.smtp_host,
+      port: settings.smtp_port || 587,
+      secure: (settings.smtp_port || 587) === 465,
+      auth: { user: settings.smtp_user, pass: settings.smtp_pass }
+    });
+    const itemsHtml = items.map(i =>
+      `<tr><td style="padding:6px;border-bottom:1px solid #eee;">${i.product_name}</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:center;">${i.quantity}</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${i.unit_price}</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">Rs. ${(parseInt(i.unit_price.replace(/[^0-9]/g,'')) * i.quantity).toLocaleString()}</td></tr>`
+    ).join('');
+    const mailOptions = {
+      from: settings.smtp_user,
+      to: settings.store_email,
+      subject: `New Order #${order.id} - ${order.customer_name}`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+        <h2 style="background:#e94560;color:#fff;padding:16px;border-radius:8px 8px 0 0;margin:0;">New Order Received</h2>
+        <div style="border:1px solid #ddd;border-top:0;padding:20px;border-radius:0 0 8px 8px;">
+          <p><strong>Order #:</strong> ${order.id}</p>
+          <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+          <p><strong>Customer:</strong> ${order.customer_name}</p>
+          <p><strong>Phone:</strong> ${order.customer_phone}</p>
+          <p><strong>Email:</strong> ${order.customer_email || 'N/A'}</p>
+          <p><strong>Address:</strong> ${order.customer_address}</p>
+          <p><strong>Payment:</strong> ${order.payment_method}</p>
+          <p><strong>Notes:</strong> ${order.notes || 'N/A'}</p>
+          <table style="width:100%;border-collapse:collapse;margin-top:12px;">
+            <thead><tr style="background:#f5f5f5;"><th style="padding:8px;text-align:left;">Item</th><th style="padding:8px;text-align:center;">Qty</th><th style="padding:8px;text-align:right;">Price</th><th style="padding:8px;text-align:right;">Total</th></tr></thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+          <hr style="border:none;border-top:2px solid #eee;margin:12px 0;">
+          <p style="font-size:1.1rem;text-align:right;"><strong>Total: Rs. ${(parseInt(order.total_amount.replace(/[^0-9]/g,'')) || 0).toLocaleString()}</strong></p>
+          <p style="font-size:1.1rem;text-align:right;"><strong>Status: Pending</strong></p>
+          <hr style="border:none;border-top:2px solid #eee;margin:12px 0;">
+          <p style="font-size:0.85rem;color:#888;text-align:center;">This is an automated notification from ${settings.store_name || 'Aryal Store'}.</p>
+        </div></div>`
+    };
+    transporter.sendMail(mailOptions).catch(() => {});
+  } catch {}
+}
+
+function sendOrderWhatsApp(order, items, settings) {
+  if (!settings.notify_whatsapp || !settings.whatsapp_number) return;
+  try {
+    const itemsStr = items.map(i => `  ${i.product_name} x${i.quantity || i.qty} = Rs. ${(parseInt((i.unit_price || i.price || '0').replace(/[^0-9]/g,'')) * (i.quantity || i.qty || 1)).toLocaleString()}`).join('\n');
+    const total = (parseInt(order.total_amount.replace(/[^0-9]/g,'')) || 0).toLocaleString();
+    const message = `New Order #${order.id}\n\nCustomer: ${order.customer_name}\nPhone: ${order.customer_phone}\nEmail: ${order.customer_email || 'N/A'}\nAddress: ${order.customer_address}\nPayment: ${order.payment_method}\nNotes: ${order.notes || 'N/A'}\n\nItems:\n${itemsStr}\n\nTotal: Rs. ${total}\nStatus: Pending`;
+    const waUrl = `https://wa.me/${settings.whatsapp_number.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(message)}`;
+    console.log('WhatsApp notification URL:', waUrl);
+
+    // Try WhatsApp Business Cloud API if configured
+    if (settings.whatsapp_api_token && settings.whatsapp_phone_id) {
+      axios.post(`https://graph.facebook.com/v18.0/${settings.whatsapp_phone_id}/messages`, {
+        messaging_product: 'whatsapp',
+        to: settings.whatsapp_number.replace(/[^0-9]/g,''),
+        type: 'text',
+        text: { body: message }
+      }, {
+        headers: { 'Authorization': 'Bearer ' + settings.whatsapp_api_token, 'Content-Type': 'application/json' }
+      }).catch(() => {});
+    }
+  } catch {}
+}
+
 // ========== ORDERS ==========
 app.post('/api/orders', (req, res) => {
   const { customer_name, customer_phone, customer_email, customer_address, payment_method, notes, items, total_amount, subtotal, discount, coupon_code, customer_id } = req.body;
@@ -371,6 +439,16 @@ app.post('/api/orders', (req, res) => {
         [customer_name, customer_email || '', customer_phone, customer_address, total_amount]);
     }
   }
+
+  // Send notifications in background
+  try {
+    const settings = queryOne('SELECT * FROM settings WHERE id = 1');
+    if (settings) {
+      const orderItems = queryAll('SELECT * FROM order_items WHERE order_id = ?', [order.id]);
+      sendOrderEmail(order, orderItems, settings);
+      sendOrderWhatsApp(order, orderItems, settings);
+    }
+  } catch {}
 
   res.json({ success: true, order_id: order.id });
 });
@@ -959,18 +1037,20 @@ app.delete('/api/size-chart/:id', authMiddleware, (req, res) => {
 
 // ========== SETTINGS ==========
 app.get('/api/settings', authMiddleware, (req, res) => {
-  const setting = queryOne('SELECT admin_password, store_name, store_tagline, currency, free_shipping_threshold, shipping_fee, whatsapp_number FROM settings WHERE id = 1');
+  const setting = queryOne('SELECT admin_password, store_name, store_tagline, currency, free_shipping_threshold, shipping_fee, whatsapp_number, store_email, smtp_host, smtp_port, smtp_user, smtp_pass, notify_email, notify_whatsapp, whatsapp_api_token, whatsapp_phone_id FROM settings WHERE id = 1');
   res.json(setting || { admin_password: 'admin123' });
 });
 
 app.put('/api/settings', authMiddleware, (req, res) => {
-  const { admin_password, store_name, store_tagline, currency, free_shipping_threshold, shipping_fee, whatsapp_number } = req.body;
+  const { admin_password, store_name, store_tagline, currency, free_shipping_threshold, shipping_fee, whatsapp_number, store_email, smtp_host, smtp_port, smtp_user, smtp_pass, notify_email, notify_whatsapp, whatsapp_api_token, whatsapp_phone_id } = req.body;
   if (admin_password && admin_password.length < 4) {
     return res.status(400).json({ error: 'Password must be at least 4 characters' });
   }
-  run('UPDATE settings SET admin_password=?, store_name=?, store_tagline=?, currency=?, free_shipping_threshold=?, shipping_fee=?, whatsapp_number=? WHERE id = 1',
+  run('UPDATE settings SET admin_password=?, store_name=?, store_tagline=?, currency=?, free_shipping_threshold=?, shipping_fee=?, whatsapp_number=?, store_email=?, smtp_host=?, smtp_port=?, smtp_user=?, smtp_pass=?, notify_email=?, notify_whatsapp=?, whatsapp_api_token=?, whatsapp_phone_id=? WHERE id = 1',
     [admin_password || 'admin123', store_name || 'Aryal Store', store_tagline || '', currency || 'Rs. ',
-     parseFloat(free_shipping_threshold) || 2000, parseFloat(shipping_fee) || 100, whatsapp_number || '']);
+     parseFloat(free_shipping_threshold) || 2000, parseFloat(shipping_fee) || 100, whatsapp_number || '',
+     store_email || '', smtp_host || '', parseInt(smtp_port) || 587, smtp_user || '', smtp_pass || '',
+     notify_email ? 1 : 0, notify_whatsapp ? 1 : 0, whatsapp_api_token || '', whatsapp_phone_id || '']);
   res.json({ success: true });
 });
 

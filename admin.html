@@ -86,11 +86,33 @@
     @media (max-width: 768px) {
       .dash-body { flex-direction: column; }
       .dash-sidebar { width: 100%; display: flex; overflow-x: auto; padding: 8px 0; }
-      .dash-sidebar .nav-item { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; padding: 8px 12px; }
+      .dash-sidebar .nav-item { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; padding: 8px 12px; font-size: 0.78rem; }
       .dash-sidebar .nav-item.active { border-left: none; border-bottom-color: #e94560; }
       .dash-content { padding: 15px; }
       .form-row, .form-row-3 { grid-template-columns: 1fr; }
       .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .dash-header { padding: 10px 15px; flex-wrap: wrap; gap: 8px; }
+      .dash-header h2 { font-size: 1.1rem; }
+      .dash-header .admin-info span { font-size: 0.78rem; }
+      .login-box { padding: 30px 20px; margin: 0 15px; }
+      .list-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .list-item .actions { width: 100%; justify-content: flex-end; }
+      .table-wrap { overflow-x: auto; }
+      table { font-size: 0.78rem; }
+      th, td { padding: 6px 8px; }
+      .card { padding: 15px; }
+      .card h4 { font-size: 0.95rem; }
+      .tab-content h3 { font-size: 1.15rem; }
+    }
+    @media (max-width: 480px) {
+      .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .stat-card { padding: 12px; }
+      .stat-card .num { font-size: 1.3rem; }
+      .dash-content { padding: 10px; }
+      .dash-sidebar .nav-item { padding: 6px 10px; font-size: 0.72rem; gap: 6px; }
+      .btn { padding: 7px 16px; font-size: 0.78rem; }
+      .btn-sm { padding: 4px 10px; font-size: 0.7rem; }
+      .form-group label { font-size: 0.78rem; }
     }
   </style>
 </head>
@@ -365,6 +387,29 @@
           </div>
           <div class="form-group"><label>WhatsApp Number</label><input type="text" id="whatsappNumber"></div>
           <div class="form-group"><label>Admin Password</label><input type="text" id="adminPasswordInput"></div>
+        </div>
+        <div class="card">
+          <h4>Notification Settings</h4>
+          <div class="form-group"><label>Store Email (for order notifications)</label><input type="email" id="storeEmail" placeholder="store@example.com"></div>
+          <div class="form-row-3">
+            <div class="form-group"><label>SMTP Host</label><input type="text" id="smtpHost" placeholder="smtp.gmail.com"></div>
+            <div class="form-group"><label>SMTP Port</label><input type="number" id="smtpPort" value="587"></div>
+            <div class="form-group"><label>SMTP User</label><input type="text" id="smtpUser" placeholder="your@email.com"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>SMTP Password</label><input type="password" id="smtpPass" placeholder="App password"></div>
+            <div class="form-group" style="display:flex;align-items:flex-end;gap:16px;padding-bottom:4px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="notifyEmail"> Email notifications</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="notifyWhatsapp"> WhatsApp notifications</label>
+            </div>
+          </div>
+          <details style="margin:8px 0 4px;font-size:0.85rem;color:#888;cursor:pointer;">
+            <summary>WhatsApp Business API (optional)</summary>
+            <div class="form-row">
+              <div class="form-group"><label>Phone Number ID</label><input type="text" id="whatsappPhoneId" placeholder="From Meta Business"></div>
+              <div class="form-group"><label>Access Token</label><input type="password" id="whatsappApiToken" placeholder="Permanent token"></div>
+            </div>
+          </details>
           <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
         </div>
       </div>
@@ -516,14 +561,14 @@ async function loadAllTabs() {
 
 // SETTINGS
 async function loadSettings() {
-  try { const data = await api('/settings'); const s = Array.isArray(data) ? data[0] : data; if (s) { document.getElementById('storeName').value = s.store_name || ''; document.getElementById('storeTagline').value = s.store_tagline || ''; document.getElementById('storeCurrency').value = s.currency || 'Rs. '; document.getElementById('freeShippingThreshold').value = s.free_shipping_threshold || 2000; document.getElementById('shippingFee').value = s.shipping_fee || 100; document.getElementById('whatsappNumber').value = s.whatsapp_number || ''; } } catch {}
+  try { const data = await api('/settings'); const s = Array.isArray(data) ? data[0] : data; if (s) { document.getElementById('storeName').value = s.store_name || ''; document.getElementById('storeTagline').value = s.store_tagline || ''; document.getElementById('storeCurrency').value = s.currency || 'Rs. '; document.getElementById('freeShippingThreshold').value = s.free_shipping_threshold || 2000; document.getElementById('shippingFee').value = s.shipping_fee || 100; document.getElementById('whatsappNumber').value = s.whatsapp_number || ''; document.getElementById('storeEmail').value = s.store_email || ''; document.getElementById('smtpHost').value = s.smtp_host || ''; document.getElementById('smtpPort').value = s.smtp_port || 587; document.getElementById('smtpUser').value = s.smtp_user || ''; document.getElementById('smtpPass').value = s.smtp_pass || ''; document.getElementById('notifyEmail').checked = !!s.notify_email; document.getElementById('notifyWhatsapp').checked = !!s.notify_whatsapp; document.getElementById('whatsappPhoneId').value = s.whatsapp_phone_id || ''; document.getElementById('whatsappApiToken').value = s.whatsapp_api_token || ''; } } catch {}
   document.getElementById('adminPasswordInput').value = getPw();
 }
 async function saveSettings() {
   const pw = document.getElementById('adminPasswordInput').value.trim();
   if (pw.length < 4) { showMsg('Password at least 4 chars.', 'error'); return; }
   setPw(pw);
-  await api('/settings', { method: 'PUT', body: JSON.stringify({ id: 1, store_name: document.getElementById('storeName').value, store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value, free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000, shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100, whatsapp_number: document.getElementById('whatsappNumber').value }) });
+  await api('/settings', { method: 'PUT', body: JSON.stringify({ id: 1, store_name: document.getElementById('storeName').value, store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value, free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000, shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100, whatsapp_number: document.getElementById('whatsappNumber').value, store_email: document.getElementById('storeEmail').value, smtp_host: document.getElementById('smtpHost').value, smtp_port: parseInt(document.getElementById('smtpPort').value) || 587, smtp_user: document.getElementById('smtpUser').value, smtp_pass: document.getElementById('smtpPass').value, notify_email: document.getElementById('notifyEmail').checked ? 1 : 0, notify_whatsapp: document.getElementById('notifyWhatsapp').checked ? 1 : 0, whatsapp_phone_id: document.getElementById('whatsappPhoneId').value, whatsapp_api_token: document.getElementById('whatsappApiToken').value }) });
   showMsg('Settings saved!', 'success');
 }
 
