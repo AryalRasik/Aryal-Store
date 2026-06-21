@@ -2708,7 +2708,7 @@ async function reorder(orderId) {
       }
       throw new Error(data.error);
     } catch {
-      const orig = await supaFetchOne('orders', { id: 'eq.' + orderId });
+      const orig = await supaSingle('orders', { id: 'eq.' + orderId });
       if (!orig) { toast('Order not found', 'error'); return; }
       const items = await supaFetch('order_items', { order_id: 'eq.' + orderId });
       const newOrder = await supaInsert('orders', {
