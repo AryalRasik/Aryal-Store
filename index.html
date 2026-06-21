@@ -2132,13 +2132,21 @@ async function submitReturnRequest() {
   const details = document.getElementById('returnDetails').value.trim();
   if (!order_id || !name || !phone) { toast('Please fill required fields', 'error'); return; }
   try {
-    const res = await fetch('/api/return-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id, customer_name: name, customer_phone: phone, customer_email: email, reason, details })
-    });
-    const data = await res.json();
-    if (!data.success) { throw new Error(data.error); }
+    try {
+      const res = await fetch('/api/return-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id, customer_name: name, customer_phone: phone, customer_email: email, reason, details })
+      });
+      const data = await res.json();
+      if (!data.success) { throw new Error(data.error); }
+    } catch {
+      await supaInsert('return_requests', {
+        order_id, customer_name: name, customer_phone: phone,
+        customer_email: email, reason, details,
+        status: 'pending', created_at: new Date().toISOString()
+      });
+    }
     toast('Return request submitted! We will contact you soon.', 'success');
     closeReturnModal();
   } catch {
@@ -2690,13 +2698,40 @@ async function fetchOrderHistory(phone) {
 
 async function reorder(orderId) {
   try {
-    const res = await fetch('/api/orders/' + orderId + '/reorder', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      toast('Order placed successfully! #' + data.order_id, 'success');
+    try {
+      const res = await fetch('/api/orders/' + orderId + '/reorder', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        toast('Order placed successfully! #' + data.order_id, 'success');
+        loadOrderHistory();
+        return;
+      }
+      throw new Error(data.error);
+    } catch {
+      const orig = await supaFetchOne('orders', { id: 'eq.' + orderId });
+      if (!orig) { toast('Order not found', 'error'); return; }
+      const items = await supaFetch('order_items', { order_id: 'eq.' + orderId });
+      const newOrder = await supaInsert('orders', {
+        customer_name: orig.customer_name, customer_phone: orig.customer_phone,
+        customer_email: orig.customer_email, customer_address: orig.customer_address,
+        payment_method: orig.payment_method, notes: 'Reorder from #' + orig.id,
+        total_amount: orig.total_amount, subtotal: orig.subtotal,
+        status: 'pending', created_at: new Date().toISOString()
+      });
+      for (const item of items) {
+        await supaInsert('order_items', {
+          order_id: newOrder.id || newOrder[0]?.id,
+          product_id: item.product_id, product_name: item.product_name,
+          quantity: item.quantity, unit_price: item.unit_price,
+          size: item.size, color: item.color
+        });
+      }
+      await supaInsert('order_tracking', {
+        order_id: newOrder.id || newOrder[0]?.id,
+        status: 'pending', note: 'Reorder placed', created_at: new Date().toISOString()
+      });
+      toast('Reorder placed successfully!', 'success');
       loadOrderHistory();
-    } else {
-      toast('Reorder failed', 'error');
     }
   } catch {
     toast('Network error', 'error');
