@@ -55,9 +55,12 @@
     .star-empty { color: #ddd; }
 
     header { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; background: rgba(26,26,46,0.95); backdrop-filter: blur(10px); transition: all 0.3s ease; }
-    header .container { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; }
-    .logo { font-size: 1.8rem; font-weight: 800; color: #fff; }
+    header .container { padding: 12px 20px; }
+    .header-main { display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 1.8rem; font-weight: 800; color: #fff; flex-shrink: 0; }
     .logo span { color: #e94560; }
+    .header-tagline { display: none; }
+    .header-search-mobile { display: none; }
     nav { display: flex; align-items: center; gap: 25px; }
     nav ul { display: flex; list-style: none; gap: 25px; }
     nav ul li a { color: #ddd; font-weight: 500; transition: color 0.3s; font-size: 0.9rem; }
@@ -488,13 +491,23 @@
 
     /* Mobile Phones & Small Tablets (max-width: 768px) */
     @media (max-width: 768px) {
-      header .container { padding: 10px 16px; }
+      body { padding-top: 0; }
+      header { position: relative; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+      header .container { padding: 0; display: flex; flex-direction: column; }
+      .header-main { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 0; }
       .logo { font-size: 1.4rem; }
+      .header-tagline { display: block; color: #ccc; font-size: 0.78rem; text-align: center; padding: 2px 14px 8px; line-height: 1.4; }
+      .header-search-mobile { display: block; padding: 0 10px 10px; }
+      .header-search-mobile .search-box { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); }
+      .header-search-mobile .search-box input { color: #fff; }
+      .header-search-mobile .search-box input::placeholder { color: rgba(255,255,255,0.5); }
+      .header-search-mobile .search-box button { background: #e94560; color: #fff; }
+      nav { display: flex; align-items: center; }
       nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: rgba(26,26,46,0.98); padding: 16px; gap: 10px; z-index: 999; }
       nav ul.show { display: flex; }
       nav ul li a { font-size: 0.9rem; padding: 10px 0; display: block; }
       .hamburger { display: block; font-size: 1.4rem; }
-      .nav-icons { gap: 12px; }
+      .nav-icons { gap: 10px; }
       .nav-icons > * { font-size: 1.05rem; }
       .notif-dropdown { width: 300px; right: -60px; }
       .user-dropdown { right: -60px; width: 180px; }
@@ -503,9 +516,10 @@
       .section-title { font-size: 1.6rem; margin-bottom: 25px; }
       .section-subtitle { font-size: 0.9rem; margin-top: -18px; margin-bottom: 25px; }
 
-      .hero { min-height: auto; padding: 90px 0 50px; }
-      .hero h1 { font-size: 2rem; }
-      .hero p { font-size: 0.95rem; max-width: 100%; margin-bottom: 20px; }
+      .hero { min-height: auto; padding: 30px 0 40px; }
+      .hero h1 { font-size: 1.6rem; }
+      .hero p { display: none; }
+      .hero .btn-group { margin-top: 0; }
       .btn-group { gap: 10px; }
       .btn { padding: 10px 24px; font-size: 0.85rem; }
       .hero-stats { gap: 16px; margin-top: 30px; }
@@ -592,8 +606,12 @@
 
     /* Small Phones (max-width: 480px) */
     @media (max-width: 480px) {
-      header .container { padding: 8px 12px; }
+      .header-main { padding: 8px 10px 0; }
       .logo { font-size: 1.2rem; }
+      .header-tagline { font-size: 0.7rem; padding: 2px 10px 6px; }
+      .header-search-mobile { padding: 0 8px 8px; }
+      .header-search-mobile .search-box input { font-size: 0.82rem; }
+      .header-search-mobile .search-box button { font-size: 0.8rem; padding: 6px 10px; }
       .hamburger { font-size: 1.2rem; }
       .nav-icons { gap: 8px; }
       .nav-icons > * { font-size: 0.95rem; }
@@ -602,7 +620,7 @@
       .section-title { font-size: 1.3rem; margin-bottom: 20px; }
       .section-subtitle { font-size: 0.85rem; margin-top: -15px; margin-bottom: 20px; }
 
-      .hero { padding: 80px 0 40px; }
+      .hero { padding: 20px 0 30px; }
       .hero h1 { font-size: 1.5rem; }
       .hero p { font-size: 0.85rem; }
       .btn { padding: 8px 18px; font-size: 0.8rem; }
@@ -663,8 +681,17 @@
       .rec-scroll .rec-item p { font-size: 0.72rem; }
     }
 
-    /* Fix product card actions to not overflow on very small screens */
+    /* Extra Small Phones (max-width: 360px) */
     @media (max-width: 360px) {
+      .header-main { padding: 6px 8px 0; }
+      .logo { font-size: 1rem; }
+      .header-tagline { font-size: 0.65rem; padding: 2px 8px 4px; }
+      .header-search-mobile { padding: 0 6px 6px; }
+      .nav-icons { gap: 5px; }
+      .nav-icons > * { font-size: 0.85rem; }
+      .hamburger { font-size: 1rem; }
+
+      .hero h1 { font-size: 1.3rem; }
       .product-card .product-body .actions { gap: 3px; }
       .product-card .product-body .actions .btn { padding: 5px 3px; font-size: 0.55rem; }
       .product-grid { gap: 6px; }
@@ -840,45 +867,55 @@
 
 <header>
   <div class="container">
-    <a href="#" class="logo">Aryal<span>Store</span></a>
-    <nav>
-      <ul id="navMenu">
-        <li><a href="#home">Home</a></li>
-        <li><a href="#about">About</a></li>
-        <li><a href="#products">Products</a></li>
-        <li><a href="#testimonials">Testimonials</a></li>
-        <li><a href="#contact">Contact</a></li>
-        <li><a href="admin.html" target="_blank"><i class="fas fa-lock" style="font-size:0.8rem;"></i> Admin</a></li>
-      </ul>
-      <div class="nav-icons">
-        <i class="fas fa-heart" id="wishlistIcon" onclick="openWishlist()" title="Wishlist"><span class="count-badge" id="wishlistCount">0</span></i>
-        <div class="notif-bell" id="notifBell">
-          <i class="fas fa-bell" onclick="toggleNotifDropdown()" title="Notifications"></i>
-          <span class="count-badge" id="notifCount">0</span>
-          <div class="notif-dropdown" id="notifDropdown">
-            <div class="notif-dropdown-header">
-              <h4>Notifications</h4>
-              <span class="mark-read" onclick="markAllNotifRead()">Mark all read</span>
+    <div class="header-main">
+      <a href="#" class="logo">Aryal<span>Store</span></a>
+      <nav>
+        <ul id="navMenu">
+          <li><a href="#home">Home</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#products">Products</a></li>
+          <li><a href="#testimonials">Testimonials</a></li>
+          <li><a href="#contact">Contact</a></li>
+          <li><a href="admin.html" target="_blank"><i class="fas fa-lock" style="font-size:0.8rem;"></i> Admin</a></li>
+        </ul>
+        <div class="nav-icons">
+          <i class="fas fa-heart" id="wishlistIcon" onclick="openWishlist()" title="Wishlist"><span class="count-badge" id="wishlistCount">0</span></i>
+          <div class="notif-bell" id="notifBell">
+            <i class="fas fa-bell" onclick="toggleNotifDropdown()" title="Notifications"></i>
+            <span class="count-badge" id="notifCount">0</span>
+            <div class="notif-dropdown" id="notifDropdown">
+              <div class="notif-dropdown-header">
+                <h4>Notifications</h4>
+                <span class="mark-read" onclick="markAllNotifRead()">Mark all read</span>
+              </div>
+              <div class="notif-list" id="notifList"></div>
             </div>
-            <div class="notif-list" id="notifList"></div>
           </div>
-        </div>
-        <i class="fas fa-truck" id="trackIcon" onclick="openTrackOrder()" title="Track Order"></i>
-        <div style="position:relative;cursor:pointer;" onclick="openCart()">
-          <i class="fas fa-shopping-bag"></i>
-          <span class="count-badge" id="cartCount">0</span>
-        </div>
-        <div class="user-menu-btn" id="userMenuBtn">
-          <i class="fas fa-user" onclick="toggleUserMenu()" title="My Account"></i>
-          <div class="user-dropdown" id="userDropdown">
-            <div class="ud-item" onclick="openOrderHistory()"><i class="fas fa-receipt"></i> Order History</div>
-            <div class="ud-item" onclick="openAddresses()"><i class="fas fa-map-marker-alt"></i> My Addresses</div>
-            <div class="ud-item" onclick="openNotifCenter()"><i class="fas fa-bell"></i> Notification Center</div>
+          <i class="fas fa-truck" id="trackIcon" onclick="openTrackOrder()" title="Track Order"></i>
+          <div style="position:relative;cursor:pointer;" onclick="openCart()">
+            <i class="fas fa-shopping-bag"></i>
+            <span class="count-badge" id="cartCount">0</span>
           </div>
+          <div class="user-menu-btn" id="userMenuBtn">
+            <i class="fas fa-user" onclick="toggleUserMenu()" title="My Account"></i>
+            <div class="user-dropdown" id="userDropdown">
+              <div class="ud-item" onclick="openOrderHistory()"><i class="fas fa-receipt"></i> Order History</div>
+              <div class="ud-item" onclick="openAddresses()"><i class="fas fa-map-marker-alt"></i> My Addresses</div>
+              <div class="ud-item" onclick="openNotifCenter()"><i class="fas fa-bell"></i> Notification Center</div>
+            </div>
+          </div>
+          <div class="hamburger" id="hamburger"><i class="fas fa-bars"></i></div>
         </div>
-        <div class="hamburger" id="hamburger"><i class="fas fa-bars"></i></div>
+      </nav>
+    </div>
+    <div class="header-tagline" id="headerTagline">Your one-stop destination for clothes, stationery, cosmetics, and cylinder refills at unbeatable prices.</div>
+    <div class="header-search-mobile" id="headerSearchMobile">
+      <div class="search-box" style="max-width:100%;">
+        <input type="text" id="headerSearchInput" placeholder="Search products..." autocomplete="off" oninput="toggleHeaderSearchClear()">
+        <i class="fas fa-times-circle" id="headerSearchClearBtn" style="display:none;cursor:pointer;color:#aaa;font-size:1.1rem;padding:0 6px;" onclick="clearHeaderSearch()"></i>
+        <button onclick="doHeaderSearch()"><i class="fas fa-search"></i> Search</button>
       </div>
-    </nav>
+    </div>
   </div>
 </header>
 
@@ -1894,6 +1931,27 @@ function clearSearch() {
   loadProducts({ search: '' });
   document.getElementById('searchInput').focus();
 }
+
+function toggleHeaderSearchClear() {
+  const val = document.getElementById('headerSearchInput').value;
+  document.getElementById('headerSearchClearBtn').style.display = val ? 'inline' : 'none';
+}
+
+function clearHeaderSearch() {
+  document.getElementById('headerSearchInput').value = '';
+  document.getElementById('headerSearchClearBtn').style.display = 'none';
+  document.getElementById('headerSearchInput').focus();
+}
+
+function doHeaderSearch() {
+  const q = document.getElementById('headerSearchInput').value.trim().toLowerCase();
+  loadProducts({ search: q });
+  document.getElementById('headerSearchInput').blur();
+}
+
+document.getElementById('headerSearchInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { doHeaderSearch(); }
+});
 
 document.getElementById('searchInput').addEventListener('input', async function() {
   const q = this.value.trim();
