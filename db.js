@@ -1,426 +1,67 @@
-const initSqlJs = require('sql.js');
-const fs = require('fs');
-const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
-// Render persistent disks attach folders at the root level (e.g., /data)
-// If running on Render, use '/data/aryal_store.db', otherwise use the local folder
-const DB_PATH = process.env.RENDER
-  ? '/data/aryal_store.db'
-  : path.join(__dirname, 'aryal_store.db');
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://srlejludttajosnrfkca.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
 
-// Ensure the /data directory exists if we are running live on Render
-if (process.env.RENDER && !fs.existsSync('/data')) {
-// Change it to look like this:
-fs.mkdirSync('./data', { recursive: true });
-}
-let db = null;
-
-async function getDb() {
-  if (db) return db;
-  const SQL = await initSqlJs();
-  if (fs.existsSync(DB_PATH)) {
-    const buffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
-  } else {
-    db = new SQL.Database();
-  }
-  return db;
-}
-
-function saveDb() {
-  if (!db) return;
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function initDb() {
-  const d = await getDb();
+  const { count, error } = await supabase
+    .from('products')
+    .select('*', { count: 'exact', head: true });
 
-  d.run(`CREATE TABLE IF NOT EXISTS hero (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    heading TEXT DEFAULT 'Welcome to Aryal Store',
-    subtext TEXT DEFAULT 'Your one-stop destination for clothes, stationery, cosmetics, and cylinder refills at unbeatable prices. Discover the best shopping experience today.'
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS about (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    title TEXT DEFAULT 'About Us',
-    heading TEXT DEFAULT 'Why Choose Aryal Store?',
-    desc1 TEXT DEFAULT 'At Aryal Store, we are committed to providing our customers with top-quality products and exceptional service. Founded with a passion for excellence, we have grown to become a trusted name in the community.',
-    desc2 TEXT DEFAULT 'We specialize in clothes, stationery, cosmetics, and LPG cylinder refills. We carefully curate every product in our collection to ensure you get nothing but the best. Your satisfaction is our top priority.',
-    features TEXT DEFAULT 'Quality Products, Fast Delivery, 24/7 Support, Secure Payment'
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    category TEXT NOT NULL,
-    subcategory TEXT DEFAULT '',
-    desc TEXT,
-    price TEXT,
-    compare_price TEXT DEFAULT '',
-    icon TEXT DEFAULT 'fas fa-box',
-    gradient TEXT DEFAULT 'linear-gradient(135deg, #e94560, #d63851)',
-    image TEXT DEFAULT '',
-    images TEXT DEFAULT '',
-    video_url TEXT DEFAULT '',
-    sizes TEXT DEFAULT '',
-    colors TEXT DEFAULT '',
-    material TEXT DEFAULT '',
-    care_instructions TEXT DEFAULT '',
-    fit_info TEXT DEFAULT '',
-    brand TEXT DEFAULT '',
-    sku TEXT DEFAULT '',
-    stock_count INTEGER DEFAULT 100,
-    sold_count INTEGER DEFAULT 0,
-    rating REAL DEFAULT 0,
-    review_count INTEGER DEFAULT 0,
-    is_featured INTEGER DEFAULT 0,
-    is_new INTEGER DEFAULT 0,
-    is_best_seller INTEGER DEFAULT 0,
-    is_trending INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'active',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS product_images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    image_url TEXT NOT NULL,
-    is_primary INTEGER DEFAULT 0,
-    sort_order INTEGER DEFAULT 0,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    parent_id INTEGER DEFAULT 0,
-    description TEXT DEFAULT '',
-    image TEXT DEFAULT '',
-    sort_order INTEGER DEFAULT 0
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS testimonials (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    label TEXT DEFAULT 'Customer',
-    text TEXT,
-    stars INTEGER DEFAULT 5
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS contact (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    address TEXT DEFAULT 'Satyawati 06, Ullikhola Bazar, Gulmi',
-    phone TEXT DEFAULT '+977 9867135403 / +977 9844758909',
-    email TEXT DEFAULT 'info@aryalstore.com',
-    hours TEXT DEFAULT 'Sun-Sat: 6:00 AM - 7:00 PM',
-    lat TEXT DEFAULT '28.0340872',
-    lng TEXT DEFAULT '83.4126681',
-    whatsapp TEXT DEFAULT '+9779867135403'
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    subject TEXT,
-    message TEXT NOT NULL,
-    is_read INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    customer_name TEXT NOT NULL,
-    customer_phone TEXT NOT NULL,
-    customer_email TEXT DEFAULT '',
-    customer_address TEXT NOT NULL,
-    payment_method TEXT NOT NULL,
-    notes TEXT,
-    total_amount TEXT NOT NULL,
-    subtotal TEXT DEFAULT '0',
-    discount TEXT DEFAULT '0',
-    coupon_code TEXT DEFAULT '',
-    status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    product_id INTEGER,
-    product_name TEXT NOT NULL,
-    quantity INTEGER NOT NULL,
-    unit_price TEXT NOT NULL,
-    size TEXT DEFAULT '',
-    color TEXT DEFAULT '',
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS order_tracking (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    status TEXT NOT NULL,
-    note TEXT DEFAULT '',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS return_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    customer_name TEXT NOT NULL,
-    customer_phone TEXT NOT NULL,
-    customer_email TEXT DEFAULT '',
-    reason TEXT NOT NULL,
-    details TEXT DEFAULT '',
-    status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS settings (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    admin_password TEXT DEFAULT 'admin123',
-    store_name TEXT DEFAULT 'Aryal Store',
-    store_tagline TEXT DEFAULT 'Your Trusted Shopping Destination',
-    currency TEXT DEFAULT 'Rs. ',
-    free_shipping_threshold REAL DEFAULT 2000,
-    shipping_fee REAL DEFAULT 100,
-    whatsapp_number TEXT DEFAULT '+9779867135403',
-    store_email TEXT DEFAULT '',
-    smtp_host TEXT DEFAULT '',
-    smtp_port INTEGER DEFAULT 587,
-    smtp_user TEXT DEFAULT '',
-    smtp_pass TEXT DEFAULT '',
-    notify_email INTEGER DEFAULT 0,
-    notify_whatsapp INTEGER DEFAULT 0,
-    whatsapp_api_token TEXT DEFAULT '',
-    whatsapp_phone_id TEXT DEFAULT ''
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS subscribers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
-    subscribed_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS wishlist (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    product_id INTEGER NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS recently_viewed (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    product_id INTEGER NOT NULL,
-    viewed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    customer_name TEXT NOT NULL,
-    customer_email TEXT DEFAULT '',
-    rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
-    title TEXT DEFAULT '',
-    comment TEXT DEFAULT '',
-    size TEXT DEFAULT '',
-    color TEXT DEFAULT '',
-    is_verified INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS coupons (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    code TEXT NOT NULL UNIQUE,
-    description TEXT DEFAULT '',
-    discount_type TEXT NOT NULL DEFAULT 'percentage' CHECK(discount_type IN ('percentage','fixed')),
-    discount_value REAL NOT NULL DEFAULT 0,
-    min_order_amount REAL DEFAULT 0,
-    max_discount_amount REAL DEFAULT 0,
-    max_uses INTEGER DEFAULT 100,
-    used_count INTEGER DEFAULT 0,
-    is_active INTEGER DEFAULT 1,
-    starts_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    expires_at DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS customers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT DEFAULT '',
-    phone TEXT DEFAULT '',
-    address TEXT DEFAULT '',
-    total_orders INTEGER DEFAULT 0,
-    total_spent TEXT DEFAULT '0',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS site_analytics (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    page_url TEXT DEFAULT '',
-    page_title TEXT DEFAULT '',
-    session_id TEXT DEFAULT '',
-    event_type TEXT DEFAULT 'pageview',
-    product_id INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS size_chart (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    category TEXT NOT NULL,
-    size TEXT NOT NULL,
-    measurements TEXT DEFAULT '{}'
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS flash_sales (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    start_time DATETIME NOT NULL,
-    end_time DATETIME NOT NULL,
-    discount_type TEXT NOT NULL DEFAULT 'percentage' CHECK(discount_type IN ('percentage','fixed')),
-    discount_value REAL NOT NULL DEFAULT 0,
-    is_active INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS flash_sale_products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    flash_sale_id INTEGER NOT NULL,
-    product_id INTEGER NOT NULL,
-    sale_price TEXT,
-    max_quantity INTEGER DEFAULT 100,
-    sold_count INTEGER DEFAULT 0,
-    FOREIGN KEY (flash_sale_id) REFERENCES flash_sales(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    type TEXT NOT NULL DEFAULT 'order',
-    title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    link TEXT DEFAULT '',
-    is_read INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS saved_addresses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    label TEXT DEFAULT 'Home',
-    full_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    address TEXT NOT NULL,
-    city TEXT DEFAULT '',
-    state TEXT DEFAULT '',
-    zip_code TEXT DEFAULT '',
-    country TEXT DEFAULT 'Nepal',
-    is_default INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS search_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    query TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS trending_searches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    query TEXT NOT NULL UNIQUE,
-    count INTEGER DEFAULT 1,
-    last_searched DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS product_views (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    product_id INTEGER NOT NULL,
-    viewed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  )`);
-
-  d.run(`CREATE TABLE IF NOT EXISTS order_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    order_id INTEGER NOT NULL,
-    action TEXT NOT NULL DEFAULT 'viewed',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-  )`);
-
-  // Ensure hero row
-  const heroRow = d.exec('SELECT COUNT(*) as cnt FROM hero');
-  if (!heroRow.length || !heroRow[0].values.length || heroRow[0].values[0][0] === 0) {
-    d.run('INSERT INTO hero (id, heading, subtext) VALUES (1, \'Welcome to Aryal Store\', \'Your one-stop destination for clothes, stationery, cosmetics, and cylinder refills at unbeatable prices. Discover the best shopping experience today.\')');
+  if (error) {
+    if (error.message.includes('relation') && error.message.includes('does not exist')) {
+      console.error('Supabase tables not found. Please run the migration SQL in supabase-schema-full.sql first.');
+      throw error;
+    }
+    throw error;
   }
 
-  // Ensure about row
-  const aboutRow = d.exec('SELECT COUNT(*) as cnt FROM about');
-  if (!aboutRow.length || !aboutRow[0].values.length || aboutRow[0].values[0][0] === 0) {
-    d.run("INSERT INTO about (id, title, heading, desc1, desc2, features) VALUES (1, 'About Us', 'Why Choose Aryal Store?', 'At Aryal Store, we are committed to providing our customers with top-quality products and exceptional service. Founded with a passion for excellence, we have grown to become a trusted name in the community.', 'We specialize in clothes, stationery, cosmetics, and LPG cylinder refills. We carefully curate every product in our collection to ensure you get nothing but the best. Your satisfaction is our top priority.', 'Quality Products, Fast Delivery, 24/7 Support, Secure Payment')");
+  if (count === 0) {
+    console.log('Database empty — seeding with default data...');
+    await seedData();
   }
-
-  // Ensure contact row
-  const contactRow = d.exec('SELECT COUNT(*) as cnt FROM contact');
-  if (!contactRow.length || !contactRow[0].values.length || contactRow[0].values[0][0] === 0) {
-    d.run("INSERT INTO contact (id, address, phone, email, hours, lat, lng, whatsapp) VALUES (1, 'Satyawati 06, Ullikhola Bazar, Gulmi', '+977 9867135403 / +977 9844758909', 'info@aryalstore.com', 'Sun-Sat: 6:00 AM - 7:00 PM', '28.0340872', '83.4126681', '+9779867135403')");
-  }
-
-  // Ensure settings row
-  const settingsRow = d.exec('SELECT COUNT(*) as cnt FROM settings');
-  if (!settingsRow.length || !settingsRow[0].values.length || settingsRow[0].values[0][0] === 0) {
-    d.run("INSERT INTO settings (id, admin_password, store_name, store_tagline, currency, free_shipping_threshold, shipping_fee, whatsapp_number, store_email, smtp_host, smtp_port, smtp_user, smtp_pass, notify_email, notify_whatsapp, whatsapp_api_token, whatsapp_phone_id) VALUES (1, 'admin123', 'Aryal Store', 'Your Trusted Shopping Destination', 'Rs. ', 2000, 100, '+9779867135403', '', '', 587, '', '', 0, 0, '', '')");
-  }
-
-  // Add notification columns to settings if missing (for existing databases)
-  const cols = d.exec('PRAGMA table_info(settings)')[0]?.values.map(v => v[1]) || [];
-  if (!cols.includes('store_email')) { d.run("ALTER TABLE settings ADD COLUMN store_email TEXT DEFAULT ''"); }
-  if (!cols.includes('smtp_host')) { d.run("ALTER TABLE settings ADD COLUMN smtp_host TEXT DEFAULT ''"); }
-  if (!cols.includes('smtp_port')) { d.run("ALTER TABLE settings ADD COLUMN smtp_port INTEGER DEFAULT 587"); }
-  if (!cols.includes('smtp_user')) { d.run("ALTER TABLE settings ADD COLUMN smtp_user TEXT DEFAULT ''"); }
-  if (!cols.includes('smtp_pass')) { d.run("ALTER TABLE settings ADD COLUMN smtp_pass TEXT DEFAULT ''"); }
-  if (!cols.includes('notify_email')) { d.run("ALTER TABLE settings ADD COLUMN notify_email INTEGER DEFAULT 0"); }
-  if (!cols.includes('notify_whatsapp')) { d.run("ALTER TABLE settings ADD COLUMN notify_whatsapp INTEGER DEFAULT 0"); }
-  if (!cols.includes('whatsapp_api_token')) { d.run("ALTER TABLE settings ADD COLUMN whatsapp_api_token TEXT DEFAULT ''"); }
-  if (!cols.includes('whatsapp_phone_id')) { d.run("ALTER TABLE settings ADD COLUMN whatsapp_phone_id TEXT DEFAULT ''"); }
-
-  saveDb();
 }
 
-function queryAll(sql, params = []) {
-  const stmt = db.prepare(sql);
-  stmt.bind(params);
-  const rows = [];
-  while (stmt.step()) {
-    rows.push(stmt.getAsObject());
+async function seedData() {
+  await supabase.from('hero').upsert({ id: 1, heading: 'Welcome to Aryal Store', subtext: 'Your one-stop destination for clothes, stationery, cosmetics, and cylinder refills at unbeatable prices. Discover the best shopping experience today.' }, { onConflict: 'id' });
+  await supabase.from('about').upsert({ id: 1, title: 'About Us', heading: 'Why Choose Aryal Store?', desc1: 'At Aryal Store, we are committed to providing our customers with top-quality products and exceptional service.', desc2: 'We specialize in clothes, stationery, cosmetics, and LPG cylinder refills.', features: 'Quality Products, Fast Delivery, 24/7 Support, Secure Payment' }, { onConflict: 'id' });
+  await supabase.from('contact').upsert({ id: 1, address: 'Satyawati 06, Ullikhola Bazar, Gulmi', phone: '+977 9867135403 / +977 9844758909', email: 'info@aryalstore.com', hours: 'Sun-Sat: 6:00 AM - 7:00 PM', lat: '28.0340872', lng: '83.4126681', whatsapp: '+9779867135403' }, { onConflict: 'id' });
+  await supabase.from('settings').upsert({ id: 1, admin_password: 'admin123', store_name: 'Aryal Store', store_tagline: 'Your Trusted Shopping Destination', currency: 'Rs. ', free_shipping_threshold: 2000, shipping_fee: 100, whatsapp_number: '+9779867135403', store_email: '', smtp_host: '', smtp_port: 587, smtp_user: '', smtp_pass: '', notify_email: false, notify_whatsapp: false, whatsapp_api_token: '', whatsapp_phone_id: '' }, { onConflict: 'id' });
+
+  const defaultProducts = [
+    { name: "Men's T-Shirt", category: 'clothes', price: 'Rs. 899', image: '', stock_count: 100, is_featured: true, is_new: true, brand: 'Casual Wear', icon: 'fas fa-tshirt', gradient: 'linear-gradient(135deg, #e94560, #d63851)', sizes: 'S,M,L,XL', colors: 'Black,White,Grey,Navy', material: '100% Cotton', status: 'active' },
+    { name: "Women's Kurti", category: 'clothes', price: 'Rs. 1299', image: '', stock_count: 80, is_featured: true, brand: 'Ethnic Wear', icon: 'fas fa-tshirt', gradient: 'linear-gradient(135deg, #d63851, #e94560)', sizes: 'S,M,L,XL', colors: 'Red,Blue,Green,Pink', material: 'Cotton Blend', status: 'active' },
+    { name: 'Kids Wear', category: 'clothes', price: 'Rs. 699', image: '', stock_count: 120, brand: 'Kids Fashion', icon: 'fas fa-child', gradient: 'linear-gradient(135deg, #c0392b, #e74c3c)', sizes: '2Y,4Y,6Y,8Y,10Y', colors: 'Multi', material: 'Cotton', status: 'active' },
+    { name: 'Gel Pens Set', category: 'stationery', price: 'Rs. 199', image: '', stock_count: 200, icon: 'fas fa-pen', gradient: 'linear-gradient(135deg, #2c3e50, #3498db)', colors: 'Assorted', material: 'Plastic, Ink', status: 'active' },
+    { name: 'Spiral Notebooks', category: 'stationery', price: 'Rs. 249', image: '', stock_count: 150, icon: 'fas fa-book', gradient: 'linear-gradient(135deg, #2980b9, #3498db)', colors: 'Red,Blue,Green', material: 'Paper', status: 'active' },
+    { name: 'Face Cream', category: 'cosmetics', price: 'Rs. 449', image: '', stock_count: 90, is_new: true, icon: 'fas fa-magic', gradient: 'linear-gradient(135deg, #8e44ad, #c39bd3)', sizes: '50ml,100ml', material: 'Natural ingredients', status: 'active' },
+    { name: 'Matte Lipstick', category: 'cosmetics', price: 'Rs. 399', image: '', stock_count: 150, is_trending: true, icon: 'fas fa-lipstick', gradient: 'linear-gradient(135deg, #c0392b, #e74c3c)', colors: 'Red,Pink,Nude,Berry,Coral', material: 'Wax, Oils, Pigments', status: 'active' },
+    { name: 'LPG Gas Cylinder (13.2kg)', category: 'cylinder', price: 'Rs. 1850', image: '', stock_count: 30, is_featured: true, icon: 'fas fa-fire', gradient: 'linear-gradient(135deg, #e74c3c, #c0392b)', status: 'active' },
+  ];
+  for (const p of defaultProducts) {
+    await supabase.from('products').insert(p);
   }
-  stmt.free();
-  return rows;
+
+  await supabase.from('testimonials').insert([
+    { name: 'Ram Kumar', label: 'Regular Customer', text: 'Amazing quality and super fast delivery! Aryal Store never disappoints.', stars: 5 },
+    { name: 'Sita Pokharel', label: 'Happy Shopper', text: 'Great prices and excellent customer service.', stars: 5 },
+    { name: 'Anil Gurung', label: 'Verified Buyer', text: 'The products are exactly as described. High quality and affordable.', stars: 5 },
+  ]);
+
+  await supabase.from('categories').insert([
+    { name: 'Clothes', slug: 'clothes', parent_id: 0, description: 'Fashion for men, women, and kids' },
+    { name: 'Stationery', slug: 'stationery', parent_id: 0, description: 'Office and school supplies' },
+    { name: 'Cosmetics', slug: 'cosmetics', parent_id: 0, description: 'Beauty and personal care' },
+    { name: 'Cylinder', slug: 'cylinder', parent_id: 0, description: 'LPG gas cylinders and refills' },
+  ]);
+
+  await supabase.from('coupons').insert([
+    { code: 'WELCOME10', description: '10% off on your first order', discount_type: 'percentage', discount_value: 10, min_order_amount: 0, max_discount_amount: 500, max_uses: 100, is_active: true },
+    { code: 'SAVE20', description: 'Rs. 20 off on orders above Rs. 1000', discount_type: 'fixed', discount_value: 200, min_order_amount: 1000, max_discount_amount: 200, max_uses: 50, is_active: true },
+    { code: 'FREESHIP', description: 'Free shipping on your order', discount_type: 'fixed', discount_value: 100, min_order_amount: 500, max_discount_amount: 100, max_uses: 200, is_active: true },
+  ]);
 }
 
-function queryOne(sql, params = []) {
-  const rows = queryAll(sql, params);
-  return rows.length ? rows[0] : null;
-}
-
-function run(sql, params = []) {
-  db.run(sql, params);
-  saveDb();
-}
-
-module.exports = { initDb, getDb, queryAll, queryOne, run };
+module.exports = { supabase, initDb };

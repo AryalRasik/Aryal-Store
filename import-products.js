@@ -1,4 +1,4 @@
-const { initDb, run, queryAll } = require('./db');
+const { supabase, initDb } = require('./db');
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
@@ -79,10 +79,7 @@ async function importAll(closeOnFinish = true) {
     const icon = CLOTHES_ICONS[p.subCategory] || 'fas fa-tshirt';
     const gradient = CLOTHES_GRADIENTS[i % CLOTHES_GRADIENTS.length];
     const priceNPR = Math.round(p.priceCents * 1.3);
-    run(
-      'INSERT INTO products (name, category, desc, price, icon, gradient, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [p.name, 'clothes', p.description, 'Rs. ' + priceNPR, icon, gradient, imageUrl]
-    );
+    await supabase.from('products').insert({ name: p.name, category: 'clothes', desc: p.description, price: 'Rs. ' + priceNPR, icon, gradient, image: imageUrl });
     console.log('  Imported:', p.name);
   }
 
@@ -126,10 +123,7 @@ async function importAll(closeOnFinish = true) {
     const icon = COSMETICS_ICONS[p.subCategory] || 'fas fa-spa';
     const gradient = COSMETICS_GRADIENTS[i % COSMETICS_GRADIENTS.length];
     const priceNPR = Math.round(p.priceCents * 1.3);
-    run(
-      'INSERT INTO products (name, category, desc, price, icon, gradient, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [p.name, 'cosmetics', p.description, 'Rs. ' + priceNPR, icon, gradient, imageUrl]
-    );
+    await supabase.from('products').insert({ name: p.name, category: 'cosmetics', desc: p.description, price: 'Rs. ' + priceNPR, icon, gradient, image: imageUrl });
     console.log('  Imported:', p.name);
   }
 
@@ -192,46 +186,38 @@ async function importAll(closeOnFinish = true) {
         console.log('  No image for:', p.name);
       }
     }
-    run(
-      'INSERT INTO products (name, category, desc, price, icon, gradient, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [p.name, 'stationery', p.desc, 'Rs. ' + p.price, p.icon, STATIONERY_GRADIENTS[i], imageUrl]
-    );
+    await supabase.from('products').insert({ name: p.name, category: 'stationery', desc: p.desc, price: 'Rs. ' + p.price, icon: p.icon, gradient: STATIONERY_GRADIENTS[i], image: imageUrl });
     console.log('  Imported:', p.name);
   }
 
   // === 3. CYLINDER - Add missing LPG 5kg ===
   console.log('\n--- Fixing Cylinder ---');
-  const existingCylinder = queryAll("SELECT id, name FROM products WHERE category = 'cylinder'");
-  const cylinderNames = existingCylinder.map(c => c.name);
+  const { data: existingCylinders } = await supabase.from('products').select('id, name').eq('category', 'cylinder');
+  const existingCylinderList = existingCylinders || [];
+  const cylinderNames = existingCylinderList.map(c => c.name);
 
   if (!cylinderNames.includes('LPG Gas Cylinder (5kg)')) {
-    run(
-      "INSERT INTO products (name, category, desc, price, icon, gradient, image) VALUES (?, 'cylinder', ?, ?, ?, ?, '')",
-      ['LPG Gas Cylinder (5kg)', 'Portable LPG cylinder ideal for small households and camping.', 'Rs. 950', 'fas fa-burn', 'linear-gradient(135deg, #d35400, #e67e22)']
-    );
+    await supabase.from('products').insert({ name: 'LPG Gas Cylinder (5kg)', category: 'cylinder', desc: 'Portable LPG cylinder ideal for small households and camping.', price: 'Rs. 950', icon: 'fas fa-burn', gradient: 'linear-gradient(135deg, #d35400, #e67e22)', image: '' });
     console.log('  Added missing: LPG Gas Cylinder (5kg)');
   }
 
   if (!cylinderNames.includes('LPG Gas Stove (Single Burner)')) {
-    run(
-      "INSERT INTO products (name, category, desc, price, icon, gradient, image) VALUES (?, 'cylinder', ?, ?, ?, ?, '')",
-      ['LPG Gas Stove (Single Burner)', 'Portable single burner gas stove, perfect for camping and backup cooking.', 'Rs. 1200', 'fas fa-fire', 'linear-gradient(135deg, #e74c3c, #c0392b)']
-    );
+    await supabase.from('products').insert({ name: 'LPG Gas Stove (Single Burner)', category: 'cylinder', desc: 'Portable single burner gas stove, perfect for camping and backup cooking.', price: 'Rs. 1200', icon: 'fas fa-fire', gradient: 'linear-gradient(135deg, #e74c3c, #c0392b)', image: '' });
     console.log('  Added: LPG Gas Stove (Single Burner)');
   }
 
   if (!cylinderNames.includes('Gas Stove Regulator')) {
-    run(
-      "INSERT INTO products (name, category, desc, price, icon, gradient, image) VALUES (?, 'cylinder', ?, ?, ?, ?, '')",
-      ['Gas Stove Regulator', 'High-quality gas regulator with safety valve for secure LPG connections.', 'Rs. 450', 'fas fa-exchange-alt', 'linear-gradient(135deg, #a04000, #d35400)']
-    );
+    await supabase.from('products').insert({ name: 'Gas Stove Regulator', category: 'cylinder', desc: 'High-quality gas regulator with safety valve for secure LPG connections.', price: 'Rs. 450', icon: 'fas fa-exchange-alt', gradient: 'linear-gradient(135deg, #a04000, #d35400)', image: '' });
     console.log('  Added: Gas Stove Regulator');
   }
 
   console.log('\n=== IMPORT COMPLETE ===');
-  const all = queryAll('SELECT category, COUNT(*) as cnt FROM products GROUP BY category ORDER BY category');
+  const { data: all } = await supabase.from('products').select('category');
+  const counts = {};
+  (all || []).forEach(p => { counts[p.category] = (counts[p.category] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
   console.log('Products by category:');
-  all.forEach(r => console.log(`  ${r.category}: ${r.cnt}`));
+  sorted.forEach(([cat, cnt]) => console.log(`  ${cat}: ${cnt}`));
   if (closeOnFinish) process.exit(0);
 }
 
