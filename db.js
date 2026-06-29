@@ -21,6 +21,17 @@ async function runMigration(sql) {
 
 async function migrateDb() {
   const sql = `
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      password TEXT NOT NULL DEFAULT '',
+      phone TEXT DEFAULT '',
+      address TEXT DEFAULT '',
+      facebook_id TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE TABLE IF NOT EXISTS wishlist (
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       session_id TEXT NOT NULL DEFAULT '',

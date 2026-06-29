@@ -90,20 +90,6 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ========== USER AUTH ==========
-const USERS_FILE = path.join(__dirname, 'data', 'users.json');
-function loadUsers() {
-  try {
-    if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-  } catch {}
-  return [];
-}
-function saveUsers(users) {
-  try {
-    const dir = path.dirname(USERS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-  } catch {}
-}
 
 app.post('/api/users/register', async (req, res) => {
   try {
@@ -112,19 +98,16 @@ app.post('/api/users/register', async (req, res) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email format' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
     if (!/[0-9]/.test(password)) return res.status(400).json({ error: 'Password must contain at least one number' });
-    const users = loadUsers();
-    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-      return res.status(400).json({ error: 'An account with this email already exists' });
-    }
+    const { data: existing } = await supabase.from('users').select('id').eq('email', email.toLowerCase()).maybeSingle();
+    if (existing) return res.status(400).json({ error: 'An account with this email already exists' });
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = {
-      id: Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9),
-      name, email: email.toLowerCase(), password: hashedPassword, phone: phone || '', address: address || '', facebook_id: '', created_at: new Date().toISOString()
-    };
-    users.push(newUser);
-    saveUsers(users);
-    const token = jwt.sign({ role: 'user', id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone, address: newUser.address } });
+    const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+    const { error: insertErr } = await supabase.from('users').insert({
+      id, name, email: email.toLowerCase(), password: hashedPassword, phone: phone || '', address: address || '', facebook_id: '', created_at: new Date().toISOString()
+    });
+    if (insertErr) throw insertErr;
+    const token = jwt.sign({ role: 'user', id, email: email.toLowerCase() }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id, name, email: email.toLowerCase(), phone: phone || '', address: address || '' } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -134,8 +117,7 @@ app.post('/api/users/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
-    const users = loadUsers();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const { data: user } = await supabase.from('users').select('*').eq('email', email.toLowerCase()).maybeSingle();
     if (!user) return res.status(401).json({ error: 'No account found with this email' });
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Incorrect password' });
@@ -151,8 +133,7 @@ app.get('/api/users/profile', authMiddleware, async (req, res) => {
     if (req.user.role === 'admin') {
       return res.json({ id: 'admin', name: 'Admin', email: 'admin@aryalstore.com' });
     }
-    const users = loadUsers();
-    const user = users.find(u => u.id === req.user.id);
+    const { data: user } = await supabase.from('users').select('*').eq('id', req.user.id).maybeSingle();
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ id: user.id, name: user.name, email: user.email, phone: user.phone || '', address: user.address || '' });
   } catch (err) {
@@ -164,37 +145,29 @@ app.post('/api/users/facebook', async (req, res) => {
   try {
     const { access_token } = req.body;
     if (!access_token) return res.status(400).json({ error: 'Facebook access token is required' });
-    // Verify token with Facebook Graph API
     const fbRes = await axios.get('https://graph.facebook.com/v18.0/me', {
       params: { fields: 'id,name,email', access_token }
     });
     const fbData = fbRes.data;
     if (!fbData || !fbData.id) return res.status(400).json({ error: 'Invalid Facebook token' });
-    const users = loadUsers();
-    let user = users.find(u => u.facebook_id === fbData.id || u.email.toLowerCase() === (fbData.email || '').toLowerCase());
-    if (user) {
-      // Update facebook_id if not set
-      if (!user.facebook_id) {
-        user.facebook_id = fbData.id;
-        saveUsers(users);
+    const fbEmail = (fbData.email || fbData.id + '@facebook.com').toLowerCase();
+    const { data: existing } = await supabase.from('users').select('*').or('facebook_id.eq.' + fbData.id + ',email.eq.' + fbEmail).maybeSingle();
+    if (existing) {
+      if (!existing.facebook_id) {
+        await supabase.from('users').update({ facebook_id: fbData.id }).eq('id', existing.id);
       }
-    } else {
-      // Create new user from Facebook data
-      user = {
-        id: Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9),
-        name: fbData.name || 'Facebook User',
-        email: (fbData.email || fbData.id + '@facebook.com').toLowerCase(),
-        password: '',
-        phone: '',
-        address: '',
-        facebook_id: fbData.id,
-        created_at: new Date().toISOString()
-      };
-      users.push(user);
-      saveUsers(users);
+      const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email, phone: existing.phone || '', address: existing.address || '' } });
     }
-    const token = jwt.sign({ role: 'user', id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '', address: user.address || '' } });
+    const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+    const newUser = {
+      id, name: fbData.name || 'Facebook User', email: fbEmail, password: '',
+      phone: '', address: '', facebook_id: fbData.id, created_at: new Date().toISOString()
+    };
+    const { error: insertErr } = await supabase.from('users').insert(newUser);
+    if (insertErr) throw insertErr;
+    const token = jwt.sign({ role: 'user', id, email: fbEmail }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id, name: newUser.name, email: fbEmail, phone: '', address: '' } });
   } catch (err) {
     res.status(500).json({ error: 'Facebook authentication failed: ' + (err.response?.data?.error?.message || err.message) });
   }
