@@ -39,7 +39,11 @@ const JWT_SECRET = 'aryal-store-jwt-secret-2026';
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
+if (process.env.VERCEL) {
+  app.use(express.static(process.cwd()));
+} else {
+  app.use(express.static(path.join(__dirname)));
+}
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 function authMiddleware(req, res, next) {
