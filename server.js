@@ -191,6 +191,37 @@ app.post('/api/upload/multiple', adminMiddleware, (req, res) => {
   });
 });
 
+app.post('/api/users/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Google credential is required' });
+    const verifyRes = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + credential);
+    const profile = await verifyRes.json();
+    if (!profile || profile.error) return res.status(400).json({ error: 'Invalid Google token' });
+    const googleEmail = (profile.email || '').toLowerCase();
+    const googleId = profile.sub;
+    const googleName = profile.name || 'Google User';
+    const { data: existing } = await supabase.from('users').select('*').or('facebook_id.eq.' + googleId + ',email.eq.' + googleEmail).maybeSingle();
+    if (existing) {
+      if (!existing.facebook_id) {
+        await supabase.from('users').update({ facebook_id: googleId }).eq('id', existing.id);
+      }
+      const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email, phone: existing.phone || '', address: existing.address || '' } });
+    }
+    const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+    const { error: insertErr } = await supabase.from('users').insert({
+      id, name: googleName, email: googleEmail, password: '',
+      phone: '', address: '', facebook_id: googleId, created_at: new Date().toISOString()
+    });
+    if (insertErr) throw insertErr;
+    const token = jwt.sign({ role: 'user', id, email: googleEmail }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id, name: googleName, email: googleEmail, phone: '', address: '' } });
+  } catch (err) {
+    res.status(500).json({ error: 'Google authentication failed: ' + err.message });
+  }
+});
+
 // ========== HERO ==========
 app.get('/api/hero', async (req, res) => {
   try {
