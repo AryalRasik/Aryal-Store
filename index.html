@@ -162,7 +162,8 @@
     .product-card .product-body .price-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .product-card .product-body .price-row .current { font-size: 1.2rem; font-weight: 700; color: #e94560; }
     .product-card .product-body .price-row .compare { font-size: 0.9rem; color: #aaa; text-decoration: line-through; }
-    .product-card .product-body .actions { display: flex; gap: 8px; }
+    .product-card .product-body .actions { display: flex; gap: 8px; opacity: 0; transform: translateY(8px); transition: all 0.3s ease; pointer-events: none; }
+    .product-card:hover .product-body .actions { opacity: 1; transform: translateY(0); pointer-events: auto; }
     .product-card .product-body .actions .btn { flex: 1; padding: 9px 12px; font-size: 0.8rem; text-align: center; }
 
     .testimonials { background: #f8f9fa; }
@@ -695,7 +696,7 @@
       .hero { min-height: 100vh; min-height: 100dvh; padding: 85px 12px 20px; }
       .hero h1 { font-size: 1.3rem; }
       .hero p { font-size: 0.8rem; }
-      .product-card .product-body .actions { gap: 3px; }
+      .product-card .product-body .actions { gap: 3px; opacity: 1; transform: none; pointer-events: auto; }
       .product-card .product-body .actions .btn { padding: 5px 3px; font-size: 0.55rem; }
       .product-grid { gap: 6px; }
       .product-card .product-img { height: 100px; }
@@ -2115,7 +2116,7 @@ function renderProducts(prods) {
     return '<div class="product-card" data-id="' + p.id + '">' +
       '<div class="badge-row">' + badges.join('') + '</div>' +
       '<button class="wishlist-btn ' + (inWishlist ? 'active' : '') + '" onclick="toggleWishlist(\'' + p.id + '\')"><i class="' + (inWishlist ? 'fas' : 'far') + ' fa-heart"></i></button>' +
-      '<div class="product-img" style="background:' + (p.gradient || '#e94560') + ';" onclick="searchByCategory(\'' + (p.category || '') + '\')">' +
+      '<div class="product-img" style="background:' + (p.gradient || '#e94560') + ';" onclick="viewProduct(\'' + p.id + '\')">' +
         (p.image ? '<img src="' + imgUrl(p.image) + '" alt="' + p.name + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
         (p.stock_count != null && p.stock_count < 100 ? '<div class="stock-bar"><div class="fill ' + (stockLow ? 'low' : '') + '" style="width:' + stockPct + '%"></div></div>' : '') +
       '</div>' +
