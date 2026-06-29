@@ -5,18 +5,62 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_service_role_eyJhbGciOiJIUz
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function runMigration(sql) {
+async function runSql(sql) {
   try {
+    // Path 1: exec_sql RPC with query_text param
     await supabase.rpc('exec_sql', { query_text: sql });
     return true;
   } catch {
     try {
+      // Path 2: exec_sql RPC with query param
       await supabase.rpc('exec_sql', { query: sql });
       return true;
     } catch {
+      try {
+        // Path 3: pg-api HTTP endpoint (built-in on all Supabase projects)
+        const url = SUPABASE_URL.replace(/\/$/, '') + '/pg/pg-api/v1/query';
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' },
+          body: JSON.stringify({ query: sql })
+        });
+        if (resp.ok) return true;
+        const text = await resp.text();
+        console.warn('pg-api fallback failed:', resp.status, text);
+      } catch (e) {
+        console.warn('pg-api error:', e.message);
+      }
+      try {
+        // Path 4: direct PostgreSQL via pg module (needs DATABASE_URL env var)
+        const DB_URL = process.env.DATABASE_URL;
+        if (DB_URL) {
+          const { Client } = require('pg');
+          const client = new Client({ connectionString: DB_URL });
+          await client.connect();
+          await client.query(sql);
+          await client.end();
+          return true;
+        }
+      } catch (e2) {
+        console.warn('Direct SQL fallback failed:', e2.message);
+      }
       return false;
     }
   }
+}
+
+async function runMigration(sql) {
+  // Split multi-statement SQL into individual statements for reliability
+  const stmts = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+  let allOk = true;
+  for (const stmt of stmts) {
+    const ok = await runSql(stmt + ';');
+    if (!ok) {
+      console.warn('Migration statement failed (non-fatal):', stmt.substring(0, 80) + '...');
+      allOk = false;
+    }
+  }
+  return allOk;
 }
 
 async function migrateDb() {
@@ -32,6 +76,7 @@ async function migrateDb() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
     CREATE TABLE IF NOT EXISTS wishlist (
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       session_id TEXT NOT NULL DEFAULT '',
@@ -105,6 +150,15 @@ async function initDb() {
   }
 
   await migrateDb();
+
+  // Verify users table was created
+  const { error: usersErr } = await supabase.from('users').select('id', { count: 'exact', head: true });
+  if (usersErr) {
+    console.error('Users table still missing after migration. Auth will fail. Run supabase-migration-add-users-table.sql in SQL editor.');
+    console.error('Error:', usersErr.message);
+  } else {
+    console.log('Users table ready.');
+  }
 
   if (count === 0) {
     console.log('Database empty — seeding with default data...');

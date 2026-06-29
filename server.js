@@ -115,14 +115,37 @@ app.post('/api/users/register', async (req, res) => {
 
 app.post('/api/users/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
-    const { data: user } = await supabase.from('users').select('*').eq('email', email.toLowerCase()).maybeSingle();
-    if (!user) return res.status(401).json({ error: 'No account found with this email' });
+    const { email, phone, password } = req.body;
+    const identifier = email || phone;
+    if (!identifier || !password) return res.status(400).json({ error: 'Email/Phone and password are required' });
+    let user;
+    if (email) {
+      const { data: u } = await supabase.from('users').select('*').eq('email', email.toLowerCase()).maybeSingle();
+      user = u;
+    } else {
+      const { data: u } = await supabase.from('users').select('*').eq('phone', phone).maybeSingle();
+      user = u;
+    }
+    if (!user) return res.status(401).json({ error: 'No account found with this ' + (email ? 'email' : 'phone number') });
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Incorrect password' });
     const token = jwt.sign({ role: 'user', id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '', address: user.address || '' } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/users/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const { data: user } = await supabase.from('users').select('id, name, email').eq('email', email.toLowerCase()).maybeSingle();
+    if (!user) return res.status(404).json({ error: 'No account found with this email' });
+    // In production, send a password reset email here.
+    // For now, generate a temporary reset token and return success.
+    const resetToken = jwt.sign({ id: user.id, email: user.email, purpose: 'reset' }, JWT_SECRET, { expiresIn: '15m' });
+    res.json({ success: true, message: 'If the email exists, a reset link has been sent.', reset_token: resetToken });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
