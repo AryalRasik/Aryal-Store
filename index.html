@@ -1537,6 +1537,7 @@
       <div class="auth-field"><label>Email</label><input type="email" id="authSignupEmail" placeholder="your@email.com"></div>
       <div class="auth-field"><label>Password</label><input type="password" id="authSignupPassword" placeholder="Min 6 characters"></div>
       <div class="auth-field"><label>Phone</label><input type="text" id="authSignupPhone" placeholder="e.g. 9867135403"></div>
+      <div class="auth-field"><label>Delivery Address</label><textarea id="authSignupAddress" placeholder="Your full delivery address" rows="2" style="width:100%;padding:9px 12px;border:2px solid #eee;border-radius:8px;font-size:0.85rem;outline:none;font-family:inherit;resize:vertical;min-height:45px;background:#fff;"></textarea></div>
       <button class="btn btn-primary" onclick="authSignup()" style="width:100%;margin-top:8px;">Create Account</button>
       <div style="text-align:center;margin:14px 0;color:#ccc;font-size:0.82rem;">or sign up with</div>
       <button class="btn btn-dark" onclick="facebookLogin()" style="width:100%;background:#1877f2;"><i class="fab fa-facebook-f"></i> Continue with Facebook</button>
@@ -1791,6 +1792,27 @@ function showCheckout() {
   document.getElementById('placeOrderBtn').style.display = '';
   document.getElementById('backToCartBtn').style.display = '';
   renderCheckoutSummary();
+  prefillCheckoutForm();
+}
+
+function prefillCheckoutForm() {
+  const user = getCurrentUser();
+  if (!user) return;
+  if (user.name) document.getElementById('ordName').value = user.name;
+  if (user.email) document.getElementById('ordEmail').value = user.email;
+  if (user.phone) document.getElementById('ordPhone').value = user.phone;
+  if (user.address) document.getElementById('ordAddress').value = user.address;
+  // Prefer saved address (default) over profile address
+  fetch('/api/addresses', { headers: { 'x-session-id': SESSION_ID } })
+    .then(r => r.json())
+    .then(function(data) {
+      const def = data.find(function(a) { return a.is_default; }) || data[0];
+      if (def) {
+        document.getElementById('ordName').value = def.full_name || user.name || '';
+        document.getElementById('ordPhone').value = def.phone || user.phone || '';
+        document.getElementById('ordAddress').value = def.address + (def.city ? ', ' + def.city : '') + (def.state ? ', ' + def.state : '');
+      }
+    }).catch(function() {});
 }
 
 function renderCheckoutSummary() {
@@ -3243,6 +3265,7 @@ async function authSignup() {
   const email = document.getElementById('authSignupEmail').value.trim();
   const password = document.getElementById('authSignupPassword').value.trim();
   const phone = document.getElementById('authSignupPhone').value.trim();
+  const address = document.getElementById('authSignupAddress').value.trim();
   const err = document.getElementById('authError');
   if (!name || !email || !password) { err.textContent = 'Please fill in name, email, and password.'; err.style.display = 'block'; return; }
   if (password.length < 6) { err.textContent = 'Password must be at least 6 characters.'; err.style.display = 'block'; return; }
@@ -3250,7 +3273,7 @@ async function authSignup() {
     const res = await fetch('/api/users/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, phone })
+      body: JSON.stringify({ name, email, password, phone, address })
     });
     const data = await res.json();
     if (!res.ok) { err.textContent = data.error || 'Registration failed'; err.style.display = 'block'; return; }

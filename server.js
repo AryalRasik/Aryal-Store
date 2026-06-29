@@ -107,7 +107,7 @@ function saveUsers(users) {
 
 app.post('/api/users/register', async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, address } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password are required' });
     if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
     const users = loadUsers();
@@ -117,12 +117,12 @@ app.post('/api/users/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = {
       id: Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9),
-      name, email: email.toLowerCase(), password: hashedPassword, phone: phone || '', facebook_id: '', created_at: new Date().toISOString()
+      name, email: email.toLowerCase(), password: hashedPassword, phone: phone || '', address: address || '', facebook_id: '', created_at: new Date().toISOString()
     };
     users.push(newUser);
     saveUsers(users);
     const token = jwt.sign({ role: 'user', id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone } });
+    res.json({ token, user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone, address: newUser.address } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -138,7 +138,7 @@ app.post('/api/users/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Incorrect password' });
     const token = jwt.sign({ role: 'user', id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '' } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '', address: user.address || '' } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -152,7 +152,7 @@ app.get('/api/users/profile', authMiddleware, async (req, res) => {
     const users = loadUsers();
     const user = users.find(u => u.id === req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ id: user.id, name: user.name, email: user.email, phone: user.phone || '' });
+    res.json({ id: user.id, name: user.name, email: user.email, phone: user.phone || '', address: user.address || '' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -184,6 +184,7 @@ app.post('/api/users/facebook', async (req, res) => {
         email: (fbData.email || fbData.id + '@facebook.com').toLowerCase(),
         password: '',
         phone: '',
+        address: '',
         facebook_id: fbData.id,
         created_at: new Date().toISOString()
       };
@@ -191,7 +192,7 @@ app.post('/api/users/facebook', async (req, res) => {
       saveUsers(users);
     }
     const token = jwt.sign({ role: 'user', id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '' } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '', address: user.address || '' } });
   } catch (err) {
     res.status(500).json({ error: 'Facebook authentication failed: ' + (err.response?.data?.error?.message || err.message) });
   }
