@@ -1,0 +1,13 @@
+-- Add missing columns to the settings table
+-- Run this in your Supabase SQL editor
+
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS admin_password TEXT DEFAULT 'admin123';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS store_email TEXT DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS smtp_host TEXT DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS smtp_port INTEGER DEFAULT 587;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS smtp_user TEXT DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS smtp_pass TEXT DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS notify_email INTEGER DEFAULT 0;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS notify_whatsapp INTEGER DEFAULT 0;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS whatsapp_api_token TEXT DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS whatsapp_phone_id TEXT DEFAULT '';

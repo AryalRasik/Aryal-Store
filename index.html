@@ -865,6 +865,38 @@
     .user-dropdown .ud-item:hover { background: #f8f9fa; color: #e94560; }
     .user-dropdown .ud-item i { width: 18px; text-align: center; color: #888; }
   </style>
+  <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+  <script>
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId: 'YOUR_FACEBOOK_APP_ID',
+        cookie: true,
+        xfbml: true,
+        version: 'v18.0'
+      });
+    };
+    function fbLoginCallback(response) {
+      if (response.status === 'connected') {
+        FB.api('/me', { fields: 'id,name,email' }, function(me) {
+          if (me && !me.error) {
+            fetch('/api/users/facebook', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ access_token: response.authResponse.accessToken })
+            }).then(function(r) { return r.json(); }).then(function(data) {
+              if (data.error) { showAuthError(data.error); return; }
+              saveAuth(data.token, data.user);
+              closeAuthModal();
+              updateUserMenu();
+              toast('Welcome, ' + (data.user.name || data.user.email) + '!', 'success');
+            }).catch(function() { showAuthError('Facebook login failed. Please try again.'); });
+          }
+        });
+      } else {
+        showAuthError('Facebook login was cancelled or failed.');
+      }
+    }
+  </script>
 </head>
 <body>
 
@@ -1496,6 +1528,8 @@
       <div class="auth-field"><label>Email</label><input type="email" id="authLoginEmail" placeholder="your@email.com"></div>
       <div class="auth-field"><label>Password</label><input type="password" id="authLoginPassword" placeholder="Enter password"></div>
       <button class="btn btn-primary" onclick="authLogin()" style="width:100%;margin-top:8px;">Sign In</button>
+      <div style="text-align:center;margin:14px 0;color:#ccc;font-size:0.82rem;">or continue with</div>
+      <button class="btn btn-dark" onclick="facebookLogin()" style="width:100%;background:#1877f2;"><i class="fab fa-facebook-f"></i> Continue with Facebook</button>
       <p style="text-align:center;margin-top:14px;font-size:0.82rem;color:#888;">Don't have an account? <a style="color:#e94560;cursor:pointer;font-weight:600;" onclick="switchAuthTab('signup')">Sign Up</a></p>
     </div>
     <div class="auth-form" id="authFormSignup" style="display:none;">
@@ -1504,6 +1538,8 @@
       <div class="auth-field"><label>Password</label><input type="password" id="authSignupPassword" placeholder="Min 6 characters"></div>
       <div class="auth-field"><label>Phone</label><input type="text" id="authSignupPhone" placeholder="e.g. 9867135403"></div>
       <button class="btn btn-primary" onclick="authSignup()" style="width:100%;margin-top:8px;">Create Account</button>
+      <div style="text-align:center;margin:14px 0;color:#ccc;font-size:0.82rem;">or sign up with</div>
+      <button class="btn btn-dark" onclick="facebookLogin()" style="width:100%;background:#1877f2;"><i class="fab fa-facebook-f"></i> Continue with Facebook</button>
       <p style="text-align:center;margin-top:14px;font-size:0.82rem;color:#888;">Already have an account? <a style="color:#e94560;cursor:pointer;font-weight:600;" onclick="switchAuthTab('login')">Sign In</a></p>
     </div>
     <div class="auth-error" id="authError"></div>
@@ -1567,13 +1603,16 @@ function mapProduct(p) {
   const catIcons = { clothes: 'fas fa-tshirt', cosmetics: 'fas fa-spa', stationery: 'fas fa-book', cylinder: 'fas fa-burn' };
   const catGrads = { clothes: 'linear-gradient(135deg, #2c3e50, #3498db)', cosmetics: 'linear-gradient(135deg, #e91e63, #f06292)', stationery: 'linear-gradient(135deg, #1a5276, #2e86c1)', cylinder: 'linear-gradient(135deg, #d35400, #e67e22)' };
   return {
-    id: p.id, name: p.name, desc: p.description || '', description: p.description || '',
+    id: p.id, name: p.name,
+    desc: p.description || p.desc || '',
+    description: p.description || p.desc || '',
     price: 'Rs. ' + (p.price || 0), compare_price: p.compare_price ? 'Rs. ' + p.compare_price : '',
-    image: p.image_url || '', category: p.category || '',
+    image: p.image_url || p.image || '',
+    category: p.category || '',
     icon: p.icon || catIcons[p.category] || 'fas fa-box',
     gradient: p.gradient || catGrads[p.category] || 'linear-gradient(135deg, #e94560, #d63851)',
     rating: p.rating || 0, review_count: p.review_count || 0,
-    stock_count: p.stock != null ? p.stock : 100,
+    stock_count: p.stock != null ? p.stock : (p.stock_count != null ? p.stock_count : 100),
     is_new: p.is_new || 0, is_featured: p.is_featured || 0,
     is_best_seller: p.is_best_seller || 0, is_trending: p.is_trending || 0,
     sizes: p.sizes || '', colors: p.colors || '', brand: p.brand || '',
@@ -2054,7 +2093,7 @@ function renderProducts(prods) {
     return '<div class="product-card" data-id="' + p.id + '">' +
       '<div class="badge-row">' + badges.join('') + '</div>' +
       '<button class="wishlist-btn ' + (inWishlist ? 'active' : '') + '" onclick="toggleWishlist(\'' + p.id + '\')"><i class="' + (inWishlist ? 'fas' : 'far') + ' fa-heart"></i></button>' +
-      '<div class="product-img" style="background:' + (p.gradient || '#e94560') + ';">' +
+      '<div class="product-img" style="background:' + (p.gradient || '#e94560') + ';" onclick="searchByCategory(\'' + (p.category || '') + '\')">' +
         (p.image ? '<img src="' + imgUrl(p.image) + '" alt="' + p.name + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
         (p.stock_count != null && p.stock_count < 100 ? '<div class="stock-bar"><div class="fill ' + (stockLow ? 'low' : '') + '" style="width:' + stockPct + '%"></div></div>' : '') +
       '</div>' +
@@ -2261,9 +2300,11 @@ async function loadRecommendations(id) {
       const mapped = recs.map(mapProduct).slice(0, 10);
       document.getElementById('recommendationsRow').style.display = '';
       document.getElementById('recScroll').innerHTML = mapped.map(r =>
-        '<div class="rec-item" onclick="viewProduct(\'' + r.id + '\')">' +
+        '<div class="rec-item">' +
+        '<div onclick="viewProduct(\'' + r.id + '\')">' +
         (r.image ? '<img src="' + imgUrl(r.image) + '" loading="lazy">' : '<div style="width:100%;height:120px;background:' + (r.gradient || '#eee') + ';border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;"><i class="' + (r.icon || 'fas fa-box') + '"></i></div>') +
-        '<h5>' + r.name + '</h5>' +
+        '</div>' +
+        '<h5 onclick="searchByCategory(\'' + (r.category || '') + '\')">' + r.name + '</h5>' +
         '<p>' + (r.price || '') + '</p></div>'
       ).join('');
     }
@@ -2645,11 +2686,11 @@ async function loadShowcaseSections() {
       if (container && prods.length) {
         const mapped = prods.slice(0, 8).map(mapProduct);
         container.innerHTML = mapped.map(p =>
-          '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')">' +
-          '<div class="product-img" style="height:160px;background:' + (p.gradient || '#e94560') + ';">' +
+          '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;">' +
+          '<div class="product-img" style="height:160px;background:' + (p.gradient || '#e94560') + ';" onclick="viewProduct(\'' + p.id + '\')">' +
           (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
           '</div>' +
-          '<div class="product-body" style="padding:12px;">' +
+          '<div class="product-body" style="padding:12px;" onclick="searchByCategory(\'' + (p.category || '') + '\')">' +
           '<div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">' + p.name + '</div>' +
           '<div style="color:#e94560;font-weight:700;font-size:0.95rem;">' + (p.price || '') + '</div>' +
           '</div></div>'
@@ -2714,9 +2755,11 @@ async function loadAlsoBought(productId) {
       row.style.display = '';
       const recs = document.getElementById('recScroll');
       recs.innerHTML = mapped.map(r =>
-        '<div class="rec-item" onclick="viewProduct(\'' + r.id + '\')">' +
+        '<div class="rec-item">' +
+        '<div onclick="viewProduct(\'' + r.id + '\')">' +
         (r.image ? '<img src="' + imgUrl(r.image) + '" loading="lazy">' : '<div style="width:100%;height:120px;background:' + (r.gradient || '#eee') + ';border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#fff;"><i class="' + (r.icon || 'fas fa-box') + '"></i></div>') +
-        '<h5>' + r.name + '</h5>' +
+        '</div>' +
+        '<h5 onclick="searchByCategory(\'' + (r.category || '') + '\')">' + r.name + '</h5>' +
         '<p>' + (r.price || '') + '</p></div>'
       ).join('');
     }
@@ -2879,11 +2922,11 @@ function loadRecentlyViewed() {
   document.getElementById('recentlyViewedSection').style.display = '';
   const container = document.getElementById('recentlyViewedRow');
   container.innerHTML = products.slice(0, 8).map(p =>
-    '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;" onclick="viewProduct(\'' + p.id + '\')">' +
-    '<div class="product-img" style="height:160px;background:' + (p.gradient || '#e94560') + ';">' +
+    '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;">' +
+    '<div class="product-img" style="height:160px;background:' + (p.gradient || '#e94560') + ';" onclick="viewProduct(\'' + p.id + '\')">' +
     (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '"></i>') +
     '</div>' +
-    '<div class="product-body" style="padding:12px;">' +
+    '<div class="product-body" style="padding:12px;" onclick="searchByCategory(\'' + (p.category || '') + '\')">' +
     '<div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">' + p.name + '</div>' +
     '<div style="color:#e94560;font-weight:700;font-size:0.95rem;">' + (p.price || '') + '</div>' +
     '</div></div>'
@@ -3014,6 +3057,13 @@ function filterByCategory(slug) {
   document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
 }
 
+function searchByCategory(category) {
+  if (!category) return;
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) searchInput.value = 'Category: ' + category;
+  filterByCategory(category.toLowerCase());
+}
+
 // ==================== NOTIFICATIONS ====================
 async function loadNotifications() {
   try {
@@ -3112,11 +3162,17 @@ function getCurrentUser() {
   try { return JSON.parse(localStorage.getItem('aryal_user')); } catch { return null; }
 }
 
-function saveUser(user) {
+function getToken() {
+  return localStorage.getItem('aryal_token');
+}
+
+function saveAuth(token, user) {
+  localStorage.setItem('aryal_token', token);
   localStorage.setItem('aryal_user', JSON.stringify(user));
 }
 
 function logoutUser() {
+  localStorage.removeItem('aryal_token');
   localStorage.removeItem('aryal_user');
   updateUserMenu();
   toast('Logged out successfully', 'info');
@@ -3160,24 +3216,29 @@ function switchAuthTab(tab) {
   document.getElementById('authError').style.display = 'none';
 }
 
-function authLogin() {
+async function authLogin() {
   const email = document.getElementById('authLoginEmail').value.trim();
   const password = document.getElementById('authLoginPassword').value.trim();
   const err = document.getElementById('authError');
   if (!email || !password) { err.textContent = 'Please fill in all fields.'; err.style.display = 'block'; return; }
-  const stored = localStorage.getItem('aryal_users_' + email);
-  if (!stored) { err.textContent = 'No account found with this email.'; err.style.display = 'block'; return; }
   try {
-    const data = JSON.parse(stored);
-    if (data.password !== password) { err.textContent = 'Incorrect password.'; err.style.display = 'block'; return; }
-    saveUser({ name: data.name, email: data.email, phone: data.phone || '' });
+    const res = await fetch('/api/users/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error || 'Login failed'; err.style.display = 'block'; return; }
+    saveAuth(data.token, data.user);
     closeAuthModal();
     updateUserMenu();
-    toast('Welcome back, ' + (data.name || data.email) + '!', 'success');
-  } catch { err.textContent = 'Login error. Please try again.'; err.style.display = 'block'; }
+    toast('Welcome back, ' + (data.user.name || data.user.email) + '!', 'success');
+  } catch (e) {
+    err.textContent = 'Network error. Please try again.'; err.style.display = 'block';
+  }
 }
 
-function authSignup() {
+async function authSignup() {
   const name = document.getElementById('authSignupName').value.trim();
   const email = document.getElementById('authSignupEmail').value.trim();
   const password = document.getElementById('authSignupPassword').value.trim();
@@ -3185,13 +3246,35 @@ function authSignup() {
   const err = document.getElementById('authError');
   if (!name || !email || !password) { err.textContent = 'Please fill in name, email, and password.'; err.style.display = 'block'; return; }
   if (password.length < 6) { err.textContent = 'Password must be at least 6 characters.'; err.style.display = 'block'; return; }
-  if (localStorage.getItem('aryal_users_' + email)) { err.textContent = 'An account with this email already exists.'; err.style.display = 'block'; return; }
-  const userData = { name, email, password, phone, created: Date.now() };
-  localStorage.setItem('aryal_users_' + email, JSON.stringify(userData));
-  saveUser({ name, email, phone });
-  closeAuthModal();
-  updateUserMenu();
-  toast('Account created! Welcome, ' + name + '!', 'success');
+  try {
+    const res = await fetch('/api/users/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, phone })
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error || 'Registration failed'; err.style.display = 'block'; return; }
+    saveAuth(data.token, data.user);
+    closeAuthModal();
+    updateUserMenu();
+    toast('Account created! Welcome, ' + name + '!', 'success');
+  } catch (e) {
+    err.textContent = 'Network error. Please try again.'; err.style.display = 'block';
+  }
+}
+
+function showAuthError(msg) {
+  const err = document.getElementById('authError');
+  err.textContent = msg;
+  err.style.display = 'block';
+}
+
+function facebookLogin() {
+  if (typeof FB === 'undefined') {
+    showAuthError('Facebook SDK is still loading. Please try again in a moment.');
+    return;
+  }
+  FB.login(fbLoginCallback, { scope: 'email,public_profile' });
 }
 
 // ==================== USER MENU ====================
@@ -3659,6 +3742,18 @@ loadProducts = async function(params) {
 
 // ==================== INIT ====================
 (async function() {
+  // Verify stored token is still valid
+  const token = getToken();
+  if (token) {
+    try {
+      const res = await fetch('/api/users/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) logoutUser();
+      else {
+        const data = await res.json();
+        localStorage.setItem('aryal_user', JSON.stringify(data));
+      }
+    } catch { logoutUser(); }
+  }
   updateCartUI();
   updateUserMenu();
   loadDynamicContent();

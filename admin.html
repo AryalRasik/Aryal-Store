@@ -568,7 +568,14 @@ async function saveSettings() {
   const pw = document.getElementById('adminPasswordInput').value.trim();
   if (pw.length < 4) { showMsg('Password at least 4 chars.', 'error'); return; }
   setPw(pw);
-  await api('/settings', { method: 'PUT', body: JSON.stringify({ id: 1, store_name: document.getElementById('storeName').value, store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value, free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000, shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100, whatsapp_number: document.getElementById('whatsappNumber').value, store_email: document.getElementById('storeEmail').value, smtp_host: document.getElementById('smtpHost').value, smtp_port: parseInt(document.getElementById('smtpPort').value) || 587, smtp_user: document.getElementById('smtpUser').value, smtp_pass: document.getElementById('smtpPass').value, notify_email: document.getElementById('notifyEmail').checked ? 1 : 0, notify_whatsapp: document.getElementById('notifyWhatsapp').checked ? 1 : 0, whatsapp_phone_id: document.getElementById('whatsappPhoneId').value, whatsapp_api_token: document.getElementById('whatsappApiToken').value }) });
+  const full = { id: 1, store_name: document.getElementById('storeName').value, store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value, free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000, shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100, whatsapp_number: document.getElementById('whatsappNumber').value, store_email: document.getElementById('storeEmail').value, smtp_host: document.getElementById('smtpHost').value, smtp_port: parseInt(document.getElementById('smtpPort').value) || 587, smtp_user: document.getElementById('smtpUser').value, smtp_pass: document.getElementById('smtpPass').value, notify_email: document.getElementById('notifyEmail').checked ? 1 : 0, notify_whatsapp: document.getElementById('notifyWhatsapp').checked ? 1 : 0, whatsapp_phone_id: document.getElementById('whatsappPhoneId').value, whatsapp_api_token: document.getElementById('whatsappApiToken').value };
+  try {
+    await api('/settings', { method: 'PUT', body: JSON.stringify(full) });
+  } catch (e) {
+    // If extended columns don't exist, retry with only base columns
+    const base = { id: 1, store_name: full.store_name, store_tagline: full.store_tagline, currency: full.currency, free_shipping_threshold: full.free_shipping_threshold, shipping_fee: full.shipping_fee, whatsapp_number: full.whatsapp_number };
+    await api('/settings', { method: 'PUT', body: JSON.stringify(base) });
+  }
   showMsg('Settings saved!', 'success');
 }
 

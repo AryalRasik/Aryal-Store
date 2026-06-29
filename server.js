@@ -56,6 +56,14 @@ function authMiddleware(req, res, next) {
   }
 }
 
+function adminMiddleware(req, res, next) {
+  authMiddleware(req, res, function(err) {
+    if (err) return next(err);
+    if (req.user && req.user.role === 'admin') return next();
+    return res.status(403).json({ error: 'Forbidden. Admin access required.' });
+  });
+}
+
 function getSessionId(req) {
   return req.headers['x-session-id'] || 'anonymous_' + req.ip;
 }
@@ -77,8 +85,116 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// ========== USER AUTH ==========
+const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+function loadUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+  } catch {}
+  return [];
+}
+function saveUsers(users) {
+  try {
+    const dir = path.dirname(USERS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  } catch {}
+}
+
+app.post('/api/users/register', async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password are required' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    const users = loadUsers();
+    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+      return res.status(400).json({ error: 'An account with this email already exists' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = {
+      id: Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9),
+      name, email: email.toLowerCase(), password: hashedPassword, phone: phone || '', facebook_id: '', created_at: new Date().toISOString()
+    };
+    users.push(newUser);
+    saveUsers(users);
+    const token = jwt.sign({ role: 'user', id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: newUser.id, name: newUser.name, email: newUser.email, phone: newUser.phone } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/users/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+    const users = loadUsers();
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (!user) return res.status(401).json({ error: 'No account found with this email' });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Incorrect password' });
+    const token = jwt.sign({ role: 'user', id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '' } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/users/profile', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role === 'admin') {
+      return res.json({ id: 'admin', name: 'Admin', email: 'admin@aryalstore.com' });
+    }
+    const users = loadUsers();
+    const user = users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ id: user.id, name: user.name, email: user.email, phone: user.phone || '' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/users/facebook', async (req, res) => {
+  try {
+    const { access_token } = req.body;
+    if (!access_token) return res.status(400).json({ error: 'Facebook access token is required' });
+    // Verify token with Facebook Graph API
+    const fbRes = await axios.get('https://graph.facebook.com/v18.0/me', {
+      params: { fields: 'id,name,email', access_token }
+    });
+    const fbData = fbRes.data;
+    if (!fbData || !fbData.id) return res.status(400).json({ error: 'Invalid Facebook token' });
+    const users = loadUsers();
+    let user = users.find(u => u.facebook_id === fbData.id || u.email.toLowerCase() === (fbData.email || '').toLowerCase());
+    if (user) {
+      // Update facebook_id if not set
+      if (!user.facebook_id) {
+        user.facebook_id = fbData.id;
+        saveUsers(users);
+      }
+    } else {
+      // Create new user from Facebook data
+      user = {
+        id: Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9),
+        name: fbData.name || 'Facebook User',
+        email: (fbData.email || fbData.id + '@facebook.com').toLowerCase(),
+        password: '',
+        phone: '',
+        facebook_id: fbData.id,
+        created_at: new Date().toISOString()
+      };
+      users.push(user);
+      saveUsers(users);
+    }
+    const token = jwt.sign({ role: 'user', id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone || '' } });
+  } catch (err) {
+    res.status(500).json({ error: 'Facebook authentication failed: ' + (err.response?.data?.error?.message || err.message) });
+  }
+});
+
 // ========== UPLOAD ==========
-app.post('/api/upload', authMiddleware, (req, res) => {
+app.post('/api/upload', adminMiddleware, (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -86,7 +202,7 @@ app.post('/api/upload', authMiddleware, (req, res) => {
   });
 });
 
-app.post('/api/upload/multiple', authMiddleware, (req, res) => {
+app.post('/api/upload/multiple', adminMiddleware, (req, res) => {
   upload.array('files', 10)(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.files || !req.files.length) return res.status(400).json({ error: 'No files uploaded' });
@@ -105,7 +221,7 @@ app.get('/api/hero', async (req, res) => {
   }
 });
 
-app.put('/api/hero', authMiddleware, async (req, res) => {
+app.put('/api/hero', adminMiddleware, async (req, res) => {
   try {
     const { heading, subtext } = req.body;
     const { error } = await supabase.from('hero').update({ heading: heading || '', subtext: subtext || '' }).eq('id', 1);
@@ -126,7 +242,7 @@ app.get('/api/about', async (req, res) => {
   }
 });
 
-app.put('/api/about', authMiddleware, async (req, res) => {
+app.put('/api/about', adminMiddleware, async (req, res) => {
   try {
     const { title, heading, desc1, desc2, features } = req.body;
     const { error } = await supabase.from('about').update({
@@ -156,7 +272,19 @@ app.get('/api/products', async (req, res) => {
     if (search) query = query.or('name.ilike.%' + search + '%,desc.ilike.%' + search + '%');
 
     let { data: products, error } = await query;
-    if (error) throw error;
+    if (error && error.message && error.message.includes('Could not find') && search) {
+      // Fallback: search without desc column
+      query = supabase.from('products').select('*').eq('status', 'active');
+      if (category) query = query.eq('category', category);
+      if (brand) query = query.eq('brand', brand);
+      if (material) query = query.ilike('material', '%' + material + '%');
+      if (search) query = query.or('name.ilike.%' + search + '%');
+      const fallback = await query;
+      if (fallback.error) throw fallback.error;
+      products = fallback.data;
+    } else if (error) {
+      throw error;
+    }
     if (!products) products = [];
 
     if (color) products = products.filter(p => p.colors && p.colors.toLowerCase().includes(color.toLowerCase()));
@@ -181,14 +309,29 @@ app.get('/api/products/search', async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
     if (!q) return res.json([]);
-    const { data: products, error } = await supabase
-      .from('products')
-      .select('id, name, price, image, category')
-      .eq('status', 'active')
-      .or('name.ilike.%' + q + '%,desc.ilike.%' + q + '%,category.ilike.%' + q + '%')
-      .order('sold_count', { ascending: false })
-      .limit(10);
-    if (error) throw error;
+    let products;
+    try {
+      const result = await supabase
+        .from('products')
+        .select('id, name, price, image, category')
+        .eq('status', 'active')
+        .or('name.ilike.%' + q + '%,desc.ilike.%' + q + '%,category.ilike.%' + q + '%')
+        .order('sold_count', { ascending: false })
+        .limit(10);
+      if (result.error) throw result.error;
+      products = result.data;
+    } catch {
+      // Fallback: search without desc column if it doesn't exist
+      const result = await supabase
+        .from('products')
+        .select('id, name, price, image, category')
+        .eq('status', 'active')
+        .or('name.ilike.%' + q + '%,category.ilike.%' + q + '%')
+        .order('sold_count', { ascending: false })
+        .limit(10);
+      if (result.error) throw result.error;
+      products = result.data;
+    }
     res.json(products || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -250,7 +393,7 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-app.post('/api/products', authMiddleware, async (req, res) => {
+app.post('/api/products', adminMiddleware, async (req, res) => {
   try {
     const { name, category, subcategory, desc, price, compare_price, icon, gradient, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock_count, is_featured, is_new, is_best_seller, is_trending } = req.body;
     if (!name || !category) return res.status(400).json({ error: 'Name and category are required' });
@@ -272,7 +415,7 @@ app.post('/api/products', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/products/:id', authMiddleware, async (req, res) => {
+app.put('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
     const { name, category, subcategory, desc, price, compare_price, icon, gradient, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
     const { error } = await supabase.from('products').update({
@@ -288,7 +431,7 @@ app.put('/api/products/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/products/:id', authMiddleware, async (req, res) => {
+app.delete('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
     const { data: prod } = await supabase.from('products').select('image').eq('id', req.params.id).maybeSingle();
     if (prod && prod.image) {
@@ -318,7 +461,7 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
-app.post('/api/categories', authMiddleware, async (req, res) => {
+app.post('/api/categories', adminMiddleware, async (req, res) => {
   try {
     const { name, slug, parent_id, description, image } = req.body;
     if (!name || !slug) return res.status(400).json({ error: 'Name and slug are required' });
@@ -332,7 +475,7 @@ app.post('/api/categories', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/categories/:id', authMiddleware, async (req, res) => {
+app.delete('/api/categories/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('categories').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -343,7 +486,7 @@ app.delete('/api/categories/:id', authMiddleware, async (req, res) => {
 });
 
 // ========== PRODUCT IMAGES ==========
-app.post('/api/product-images', authMiddleware, async (req, res) => {
+app.post('/api/product-images', adminMiddleware, async (req, res) => {
   try {
     const { product_id, image_url, is_primary } = req.body;
     if (!product_id || !image_url) return res.status(400).json({ error: 'Product ID and image URL required' });
@@ -357,7 +500,7 @@ app.post('/api/product-images', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/product-images/:id', authMiddleware, async (req, res) => {
+app.delete('/api/product-images/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('product_images').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -378,7 +521,7 @@ app.get('/api/testimonials', async (req, res) => {
   }
 });
 
-app.post('/api/testimonials', authMiddleware, async (req, res) => {
+app.post('/api/testimonials', adminMiddleware, async (req, res) => {
   try {
     const { name, label, text, stars } = req.body;
     if (!name || !text) return res.status(400).json({ error: 'Name and text are required' });
@@ -392,7 +535,7 @@ app.post('/api/testimonials', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/testimonials/:id', authMiddleware, async (req, res) => {
+app.delete('/api/testimonials/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('testimonials').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -412,7 +555,7 @@ app.get('/api/contact', async (req, res) => {
   }
 });
 
-app.put('/api/contact', authMiddleware, async (req, res) => {
+app.put('/api/contact', adminMiddleware, async (req, res) => {
   try {
     const { address, phone, email, hours, lat, lng, whatsapp } = req.body;
     const { error } = await supabase.from('contact').update({
@@ -439,7 +582,7 @@ app.post('/api/messages', async (req, res) => {
   }
 });
 
-app.get('/api/messages', authMiddleware, async (req, res) => {
+app.get('/api/messages', adminMiddleware, async (req, res) => {
   try {
     const { is_read } = req.query;
     let query = supabase.from('messages').select('*').order('id', { ascending: false });
@@ -452,7 +595,7 @@ app.get('/api/messages', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/messages/:id/read', authMiddleware, async (req, res) => {
+app.put('/api/messages/:id/read', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('messages').update({ is_read: 1 }).eq('id', req.params.id);
     if (error) throw error;
@@ -462,7 +605,7 @@ app.put('/api/messages/:id/read', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/messages/:id', authMiddleware, async (req, res) => {
+app.delete('/api/messages/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('messages').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -580,7 +723,7 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-app.get('/api/orders', authMiddleware, async (req, res) => {
+app.get('/api/orders', adminMiddleware, async (req, res) => {
   try {
     const { status, phone } = req.query;
     let query = supabase.from('orders').select('*').order('id', { ascending: false });
@@ -615,7 +758,7 @@ app.get('/api/orders/:id', async (req, res) => {
   }
 });
 
-app.put('/api/orders/:id/status', authMiddleware, async (req, res) => {
+app.put('/api/orders/:id/status', adminMiddleware, async (req, res) => {
   try {
     const { status, note } = req.body;
     if (!status) return res.status(400).json({ error: 'Status is required' });
@@ -629,7 +772,7 @@ app.put('/api/orders/:id/status', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/orders/:id', authMiddleware, async (req, res) => {
+app.delete('/api/orders/:id', adminMiddleware, async (req, res) => {
   try {
     await supabase.from('order_tracking').delete().eq('order_id', req.params.id);
     await supabase.from('order_items').delete().eq('order_id', req.params.id);
@@ -670,7 +813,7 @@ app.post('/api/return-requests', async (req, res) => {
   }
 });
 
-app.get('/api/return-requests', authMiddleware, async (req, res) => {
+app.get('/api/return-requests', adminMiddleware, async (req, res) => {
   try {
     const { data: requests, error } = await supabase.from('return_requests').select('*').order('id', { ascending: false });
     if (error) throw error;
@@ -680,7 +823,7 @@ app.get('/api/return-requests', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/return-requests/:id/status', authMiddleware, async (req, res) => {
+app.put('/api/return-requests/:id/status', adminMiddleware, async (req, res) => {
   try {
     const { status } = req.body;
     if (!status) return res.status(400).json({ error: 'Status is required' });
@@ -692,7 +835,7 @@ app.put('/api/return-requests/:id/status', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/return-requests/:id', authMiddleware, async (req, res) => {
+app.delete('/api/return-requests/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('return_requests').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -867,7 +1010,7 @@ app.delete('/api/reviews/:id/remove', async (req, res) => {
   }
 });
 
-app.get('/api/reviews', authMiddleware, async (req, res) => {
+app.get('/api/reviews', adminMiddleware, async (req, res) => {
   try {
     const { status } = req.query;
     let query = supabase.from('reviews').select('*').order('created_at', { ascending: false });
@@ -885,7 +1028,7 @@ app.get('/api/reviews', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/reviews/:id/status', authMiddleware, async (req, res) => {
+app.put('/api/reviews/:id/status', adminMiddleware, async (req, res) => {
   try {
     const { status } = req.body;
     if (!status) return res.status(400).json({ error: 'Status is required' });
@@ -907,7 +1050,7 @@ app.put('/api/reviews/:id/status', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/reviews/:id', authMiddleware, async (req, res) => {
+app.delete('/api/reviews/:id', adminMiddleware, async (req, res) => {
   try {
     const { data: review } = await supabase.from('reviews').select('*').eq('id', req.params.id).maybeSingle();
     await supabase.from('reviews').delete().eq('id', req.params.id);
@@ -930,7 +1073,7 @@ app.delete('/api/reviews/:id', authMiddleware, async (req, res) => {
 });
 
 // ========== COUPONS ==========
-app.get('/api/coupons', authMiddleware, async (req, res) => {
+app.get('/api/coupons', adminMiddleware, async (req, res) => {
   try {
     const { data: coupons, error } = await supabase.from('coupons').select('*').order('id', { ascending: false });
     if (error) throw error;
@@ -940,7 +1083,7 @@ app.get('/api/coupons', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/coupons', authMiddleware, async (req, res) => {
+app.post('/api/coupons', adminMiddleware, async (req, res) => {
   try {
     const { code, description, discount_type, discount_value, min_order_amount, max_discount_amount, max_uses, expires_at } = req.body;
     if (!code || !discount_value) return res.status(400).json({ error: 'Code and discount value are required' });
@@ -959,7 +1102,7 @@ app.post('/api/coupons', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/coupons/:id', authMiddleware, async (req, res) => {
+app.put('/api/coupons/:id', adminMiddleware, async (req, res) => {
   try {
     const { code, description, discount_type, discount_value, min_order_amount, max_discount_amount, max_uses, is_active, expires_at } = req.body;
     const { error } = await supabase.from('coupons').update({
@@ -974,7 +1117,7 @@ app.put('/api/coupons/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/coupons/:id', authMiddleware, async (req, res) => {
+app.delete('/api/coupons/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('coupons').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -1030,7 +1173,7 @@ app.post('/api/subscribe', async (req, res) => {
   }
 });
 
-app.get('/api/subscribers', authMiddleware, async (req, res) => {
+app.get('/api/subscribers', adminMiddleware, async (req, res) => {
   try {
     const { data: subs, error } = await supabase.from('subscribers').select('*').order('subscribed_at', { ascending: false });
     if (error) throw error;
@@ -1040,7 +1183,7 @@ app.get('/api/subscribers', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/subscribers/:id', authMiddleware, async (req, res) => {
+app.delete('/api/subscribers/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('subscribers').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -1051,7 +1194,7 @@ app.delete('/api/subscribers/:id', authMiddleware, async (req, res) => {
 });
 
 // ========== CUSTOMERS ==========
-app.get('/api/customers', authMiddleware, async (req, res) => {
+app.get('/api/customers', adminMiddleware, async (req, res) => {
   try {
     const { data: customers, error } = await supabase.from('customers').select('*').order('total_orders', { ascending: false });
     if (error) throw error;
@@ -1196,7 +1339,7 @@ app.get('/api/flash-sales/active', async (req, res) => {
   }
 });
 
-app.get('/api/flash-sales', authMiddleware, async (req, res) => {
+app.get('/api/flash-sales', adminMiddleware, async (req, res) => {
   try {
     const { data: sales, error } = await supabase.from('flash_sales').select('*').order('created_at', { ascending: false });
     if (error) throw error;
@@ -1215,7 +1358,7 @@ app.get('/api/flash-sales', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/flash-sales', authMiddleware, async (req, res) => {
+app.post('/api/flash-sales', adminMiddleware, async (req, res) => {
   try {
     const { title, description, start_time, end_time, discount_type, discount_value, product_ids } = req.body;
     if (!title || !start_time || !end_time) return res.status(400).json({ error: 'Title, start and end time required' });
@@ -1245,7 +1388,7 @@ app.post('/api/flash-sales', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/flash-sales/:id', authMiddleware, async (req, res) => {
+app.put('/api/flash-sales/:id', adminMiddleware, async (req, res) => {
   try {
     const { title, description, start_time, end_time, discount_type, discount_value, is_active } = req.body;
     const { error } = await supabase.from('flash_sales').update({
@@ -1259,7 +1402,7 @@ app.put('/api/flash-sales/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/flash-sales/:id', authMiddleware, async (req, res) => {
+app.delete('/api/flash-sales/:id', adminMiddleware, async (req, res) => {
   try {
     await supabase.from('flash_sale_products').delete().eq('flash_sale_id', req.params.id);
     const { error } = await supabase.from('flash_sales').delete().eq('id', req.params.id);
@@ -1541,7 +1684,7 @@ app.get('/api/size-chart/:category', async (req, res) => {
   }
 });
 
-app.post('/api/size-chart', authMiddleware, async (req, res) => {
+app.post('/api/size-chart', adminMiddleware, async (req, res) => {
   try {
     const { category, size, measurements } = req.body;
     if (!category || !size) return res.status(400).json({ error: 'Category and size required' });
@@ -1557,7 +1700,7 @@ app.post('/api/size-chart', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/size-chart/:id', authMiddleware, async (req, res) => {
+app.delete('/api/size-chart/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('size_chart').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -1568,7 +1711,7 @@ app.delete('/api/size-chart/:id', authMiddleware, async (req, res) => {
 });
 
 // ========== SETTINGS ==========
-app.get('/api/settings', authMiddleware, async (req, res) => {
+app.get('/api/settings', adminMiddleware, async (req, res) => {
   try {
     const { data: setting } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
     res.json(setting || { admin_password: 'admin123' });
@@ -1577,13 +1720,13 @@ app.get('/api/settings', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/settings', authMiddleware, async (req, res) => {
+app.put('/api/settings', adminMiddleware, async (req, res) => {
   try {
     const { admin_password, store_name, store_tagline, currency, free_shipping_threshold, shipping_fee, whatsapp_number, store_email, smtp_host, smtp_port, smtp_user, smtp_pass, notify_email, notify_whatsapp, whatsapp_api_token, whatsapp_phone_id } = req.body;
     if (admin_password && admin_password.length < 4) {
       return res.status(400).json({ error: 'Password must be at least 4 characters' });
     }
-    const { error } = await supabase.from('settings').update({
+    const payload = {
       admin_password: admin_password || 'admin123',
       store_name: store_name || 'Aryal Store',
       store_tagline: store_tagline || '',
@@ -1600,8 +1743,16 @@ app.put('/api/settings', authMiddleware, async (req, res) => {
       notify_whatsapp: notify_whatsapp || false,
       whatsapp_api_token: whatsapp_api_token || '',
       whatsapp_phone_id: whatsapp_phone_id || ''
-    }).eq('id', 1);
-    if (error) throw error;
+    };
+    let { error } = await supabase.from('settings').update(payload).eq('id', 1);
+    // If extended columns don't exist, retry with only base columns
+    if (error && error.message && error.message.includes('Could not find')) {
+      const base = { id: 1, admin_password: payload.admin_password, store_name: payload.store_name, store_tagline: payload.store_tagline, currency: payload.currency, free_shipping_threshold: payload.free_shipping_threshold, shipping_fee: payload.shipping_fee, whatsapp_number: payload.whatsapp_number };
+      const { error: err2 } = await supabase.from('settings').update(base).eq('id', 1);
+      if (err2) throw err2;
+    } else if (error) {
+      throw error;
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1624,7 +1775,7 @@ app.post('/api/analytics', async (req, res) => {
   }
 });
 
-app.get('/api/analytics/summary', authMiddleware, async (req, res) => {
+app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
   try {
     const { count: totalViews } = await supabase.from('site_analytics').select('*', { count: 'exact', head: true });
     const todayStr = new Date().toISOString().split('T')[0];
@@ -1749,7 +1900,7 @@ app.post('/api/orders/:id/reorder', async (req, res) => {
 });
 
 // ========== INVENTORY ==========
-app.get('/api/inventory/alerts', authMiddleware, async (req, res) => {
+app.get('/api/inventory/alerts', adminMiddleware, async (req, res) => {
   try {
     const { data: allActive } = await supabase.from('products').select('*').eq('status', 'active').order('name');
     const critical = (allActive || []).filter(function(p) { return p.stock_count <= 0; });
@@ -1761,7 +1912,7 @@ app.get('/api/inventory/alerts', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/products/:id/stock', authMiddleware, async (req, res) => {
+app.put('/api/products/:id/stock', adminMiddleware, async (req, res) => {
   try {
     const { stock_count } = req.body;
     if (stock_count === undefined || stock_count < 0) return res.status(400).json({ error: 'Valid stock count required' });
@@ -1780,7 +1931,7 @@ app.put('/api/products/:id/stock', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/inventory/bulk-update', authMiddleware, async (req, res) => {
+app.post('/api/inventory/bulk-update', adminMiddleware, async (req, res) => {
   try {
     const { updates } = req.body;
     if (!updates || !updates.length) return res.status(400).json({ error: 'No updates provided' });
@@ -1794,7 +1945,7 @@ app.post('/api/inventory/bulk-update', authMiddleware, async (req, res) => {
 });
 
 // ========== DATA MANAGEMENT ==========
-app.post('/api/data/export', authMiddleware, async (req, res) => {
+app.post('/api/data/export', adminMiddleware, async (req, res) => {
   try {
     const { data: hero } = await supabase.from('hero').select('*').eq('id', 1).maybeSingle();
     const { data: about } = await supabase.from('about').select('*').eq('id', 1).maybeSingle();
@@ -1821,7 +1972,7 @@ app.post('/api/data/export', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/data/reset', authMiddleware, async (req, res) => {
+app.post('/api/data/reset', adminMiddleware, async (req, res) => {
   try {
     await supabase.from('order_tracking').delete().gte('id', 0);
     await supabase.from('order_items').delete().gte('id', 0);
@@ -1988,7 +2139,7 @@ app.get('/api/recommendations/:product_id', async (req, res) => {
 });
 
 // ========== SEED DATABASE ==========
-app.post('/api/seed', authMiddleware, async (req, res) => {
+app.post('/api/seed', adminMiddleware, async (req, res) => {
   try {
     const { importAll } = require('./import-products');
     await importAll(false);
@@ -2008,7 +2159,7 @@ if (require.main === module) {
   initDb().then(async function() {
     const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
     if (!count || count === 0) {
-      console.log('Database empty — seeding with default products...');
+      console.log('Database empty ï¿½ seeding with default products...');
       try {
         const { importAll } = require('./import-products');
         await importAll(false);
@@ -2016,9 +2167,11 @@ if (require.main === module) {
         console.error('Auto-seed failed:', err.message);
       }
     }
-    app.listen(PORT, function() {
-      console.log('Aryal Store backend running at http://localhost:' + PORT);
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      app.listen(PORT, function() {
+        console.log('Aryal Store backend running at http://localhost:' + PORT);
+      });
+    }
   }).catch(function(err) {
     console.error('Failed to initialize database:', err);
     process.exit(1);
