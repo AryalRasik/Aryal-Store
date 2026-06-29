@@ -109,7 +109,9 @@ app.post('/api/users/register', async (req, res) => {
   try {
     const { name, email, password, phone, address } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password are required' });
-    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email format' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (!/[0-9]/.test(password)) return res.status(400).json({ error: 'Password must contain at least one number' });
     const users = loadUsers();
     if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
       return res.status(400).json({ error: 'An account with this email already exists' });

@@ -3239,11 +3239,16 @@ function switchAuthTab(tab) {
   document.getElementById('authError').style.display = 'none';
 }
 
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 async function authLogin() {
   const email = document.getElementById('authLoginEmail').value.trim();
   const password = document.getElementById('authLoginPassword').value.trim();
   const err = document.getElementById('authError');
   if (!email || !password) { err.textContent = 'Please fill in all fields.'; err.style.display = 'block'; return; }
+  if (!validateEmail(email)) { err.textContent = 'Please enter a valid email address.'; err.style.display = 'block'; return; }
   try {
     const res = await fetch('/api/users/login', {
       method: 'POST',
@@ -3269,7 +3274,9 @@ async function authSignup() {
   const address = document.getElementById('authSignupAddress').value.trim();
   const err = document.getElementById('authError');
   if (!name || !email || !password) { err.textContent = 'Please fill in name, email, and password.'; err.style.display = 'block'; return; }
-  if (password.length < 6) { err.textContent = 'Password must be at least 6 characters.'; err.style.display = 'block'; return; }
+  if (!validateEmail(email)) { err.textContent = 'Please enter a valid email address.'; err.style.display = 'block'; return; }
+  if (password.length < 8) { err.textContent = 'Password must be at least 8 characters.'; err.style.display = 'block'; return; }
+  if (!/[0-9]/.test(password)) { err.textContent = 'Password must contain at least one number.'; err.style.display = 'block'; return; }
   try {
     const res = await fetch('/api/users/register', {
       method: 'POST',
