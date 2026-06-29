@@ -2162,26 +2162,24 @@ app.post('/api/seed', adminMiddleware, async (req, res) => {
   }
 });
 
+initDb().then(async function() {
+  const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
+  if (!count || count === 0) {
+    console.log('Database empty - seeding with default products...');
+    try {
+      const { importAll } = require('./import-products');
+      await importAll(false);
+    } catch (err) {
+      console.error('Auto-seed failed:', err.message);
+    }
+  }
+}).catch(function(err) {
+  console.error('Database init warning (tables may already exist):', err.message);
+});
+
 if (require.main === module) {
-  initDb().then(async function() {
-    const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
-    if (!count || count === 0) {
-      console.log('Database empty � seeding with default products...');
-      try {
-        const { importAll } = require('./import-products');
-        await importAll(false);
-      } catch (err) {
-        console.error('Auto-seed failed:', err.message);
-      }
-    }
-    if (process.env.NODE_ENV !== 'production') {
-      app.listen(PORT, function() {
-        console.log('Aryal Store backend running at http://localhost:' + PORT);
-      });
-    }
-  }).catch(function(err) {
-    console.error('Failed to initialize database:', err);
-    process.exit(1);
+  app.listen(PORT, function() {
+    console.log('Aryal Store backend running at http://localhost:' + PORT);
   });
 }
 

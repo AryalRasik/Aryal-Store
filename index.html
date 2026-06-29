@@ -1862,86 +1862,37 @@ async function placeOrder() {
   btn.textContent = 'Placing Order...';
 
   try {
-    // Try Express API first (local server), fallback to Supabase
-    try {
-      const orderData = {
-        customer_name: name,
-        customer_phone: phone,
-        customer_email: email,
-        customer_address: address,
-        payment_method: selectedPayment,
-        shipping_method: selectedShipping,
-        shipping_cost: shipping,
-        notes: notes,
-        total_amount: total,
-        subtotal: subtotal,
-        discount: couponDiscount,
-        coupon_code: appliedCoupon || '',
-        status: 'pending',
-        items: cart.map(i => ({ product_id: i.id, product_name: i.name, quantity: i.qty, unit_price: i.price, size: i.size, color: i.color }))
-      };
-      const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.success) {
-          cart = []; couponDiscount = 0; appliedCoupon = null;
-          saveCart();
-          closeCart();
-          toast('Order placed successfully! Order #' + (result.order_id || '').toString().substring(0, 8), 'success');
-          btn.disabled = false;
-          btn.textContent = 'Place Order';
-          return;
-        }
-      }
-    } catch {}
-    // Fallback: insert directly via Supabase
-    const orderResult = await supaInsert('orders', {
+    const orderData = {
       customer_name: name,
       customer_phone: phone,
       customer_email: email,
       customer_address: address,
       payment_method: selectedPayment,
       shipping_method: selectedShipping,
-      shipping_cost: String(shipping),
+      shipping_cost: shipping,
       notes: notes,
-      total_amount: String(total),
-      subtotal: String(subtotal),
-      discount: String(couponDiscount),
+      total_amount: total,
+      subtotal: subtotal,
+      discount: couponDiscount,
       coupon_code: appliedCoupon || '',
-      status: 'pending'
-    });
-    const order = Array.isArray(orderResult) ? orderResult[0] : orderResult;
-    if (!order || !order.id) throw new Error('Failed to create order');
-    // Insert order items
-    for (const item of cart) {
-      await supaInsert('order_items', {
-        order_id: order.id,
-        product_id: item.id || null,
-        product_name: item.name,
-        quantity: item.qty,
-        unit_price: item.price,
-        size: item.size || '',
-        color: item.color || ''
-      });
-    }
-    // Insert tracking
-    await supaInsert('order_tracking', { order_id: order.id, status: 'pending', note: 'Order placed successfully' });
-    // Update/create customer
-    try {
-      const existing = await supaFetch('customers', { phone: 'eq.' + encodeURIComponent(phone) });
-      if (existing && existing.length) {
-        const c = existing[0];
-        const spent = parseFloat(String(c.total_spent || '0').replace(/[^0-9]/g, '') || '0') + total;
-        await supaUpdate('customers', c.id, { total_orders: (c.total_orders || 0) + 1, total_spent: String(spent) });
-      } else {
-        await supaInsert('customers', { name, email, phone, address, total_orders: 1, total_spent: String(total) });
+      status: 'pending',
+      items: cart.map(i => ({ product_id: i.id, product_name: i.name, quantity: i.qty, unit_price: i.price, size: i.size, color: i.color }))
+    };
+    const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success) {
+        cart = []; couponDiscount = 0; appliedCoupon = null;
+        saveCart();
+        closeCart();
+        toast('Order placed successfully! Order #' + (result.order_id || '').toString().substring(0, 8), 'success');
+        btn.disabled = false;
+        btn.textContent = 'Place Order';
+        return;
       }
-    } catch {}
-    cart = []; couponDiscount = 0; appliedCoupon = null;
-    saveCart();
-    closeCart();
-    const orderId = order.id.substring ? order.id.substring(0, 8) : order.id;
-    toast('Order placed successfully! Order #' + orderId, 'success');
+    }
+    const errData = await res.json().catch(function() { return {}; });
+    throw new Error(errData.error || 'Server error (status ' + res.status + ')');
   } catch (e) {
     errEl.textContent = e.message || 'Network error. Please try again.';
     errEl.style.display = 'block';
