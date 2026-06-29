@@ -37,10 +37,6 @@ const app = express();
 const PORT = 3000;
 const JWT_SECRET = 'aryal-store-jwt-secret-2026';
 
-app.get('/', (req, res) => {
-  res.send('Aryal Store Backend is running successfully!');
-});
-
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
