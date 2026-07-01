@@ -3015,9 +3015,18 @@ async function loadProducts(params) {
       filters.order = sortMap[currentSort] || 'created_at.desc';
     }
     const prods = await supaFetch('products', filters);
-    allProducts = prods.map(mapProduct);
+    if (prods && prods.length) {
+      allProducts = prods.map(mapProduct);
+    } else {
+      allProducts = DEMO_PRODUCTS.map(mapProduct);
+    }
     renderProducts(allProducts);
-  } catch {}
+  } catch {
+    if (!allProducts || !allProducts.length) {
+      allProducts = DEMO_PRODUCTS.map(mapProduct);
+    }
+    renderProducts(allProducts);
+  }
 }
 
 function renderProducts(prods) {
@@ -5360,12 +5369,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (products && products.length) {
       allProducts = products.map(mapProduct);
     } else {
-      allProducts = [];
+      // Supabase returned empty — use demo products so the page isn't blank
+      allProducts = DEMO_PRODUCTS.map(mapProduct);
     }
     renderProducts(allProducts);
   } catch (e) {
     console.warn('Supabase products fetch failed:', e);
-    // Show demo products so the page isn't empty
     allProducts = DEMO_PRODUCTS.map(mapProduct);
     renderProducts(allProducts);
   }
