@@ -121,12 +121,10 @@
 <div class="login-page" id="loginPage">
   <div class="login-box">
     <h2>Admin <span>Dashboard</span></h2>
-    <p>Full Admin Panel — Supabase</p>
-    <div class="error" id="loginError">Incorrect password</div>
+    <p>Authorized personnel only</p>
+    <div class="error" id="loginError"></div>
     <input type="password" id="loginPassword" placeholder="Enter admin password" autofocus>
     <button class="btn btn-primary" onclick="handleLogin()" style="width:100%;">Login</button>
-    <br><br>
-    <a href="index.html" style="color:#888;font-size:0.85rem;">&larr; Back to Store</a>
   </div>
 </div>
 
@@ -151,9 +149,7 @@
       <div class="nav-item" data-tab="reviews"><i class="fas fa-star"></i> Reviews</div>
       <div class="nav-item" data-tab="returns"><i class="fas fa-undo"></i> Returns</div>
       <div class="nav-item" data-tab="coupons"><i class="fas fa-percent"></i> Coupons</div>
-      <div class="nav-item" data-tab="customers"><i class="fas fa-users"></i> Customers</div>
-      <div class="nav-item" data-tab="messages"><i class="fas fa-envelope"></i> Messages</div>
-      <div class="nav-item" data-tab="subscribers"><i class="fas fa-bell"></i> Subscribers</div>
+
       <div class="nav-item" data-tab="settings"><i class="fas fa-cog"></i> Settings</div>
     </div>
     <div class="dash-content">
@@ -349,29 +345,6 @@
       </div>
 
       <!-- CUSTOMERS -->
-      <div class="tab-content" id="tab-customers">
-        <h3>Customers</h3>
-        <div class="card"><div id="customersList"></div></div>
-      </div>
-
-      <!-- MESSAGES -->
-      <div class="tab-content" id="tab-messages">
-        <h3>Messages</h3>
-        <div class="card">
-          <div class="inline-flex" style="margin-bottom:10px;">
-            <button class="filter-btn active" onclick="filterMessages('all')">All</button>
-            <button class="filter-btn" onclick="filterMessages('unread')">Unread</button>
-          </div>
-          <div id="messagesList"></div>
-        </div>
-      </div>
-
-      <!-- SUBSCRIBERS -->
-      <div class="tab-content" id="tab-subscribers">
-        <h3>Subscribers</h3>
-        <div class="card"><div id="subscribersList"></div></div>
-      </div>
-
       <!-- SETTINGS -->
       <div class="tab-content" id="tab-settings">
         <h3>Settings</h3>
@@ -421,15 +394,24 @@
 <script>
 const SUPABASE_URL = 'https://srlejludttajosnrfkca.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
-
+const ADMIN_TOKEN_KEY = 'aryal_admin_token';
 const PW_KEY = 'admin_dashboard_pw';
+
 let allProducts = [];
 let allOrders = [];
 let currentProdFilter = 'all';
 let currentOrderFilter = 'all';
 
-function getPw() { return localStorage.getItem(PW_KEY) || 'admin123'; }
-function setPw(p) { localStorage.setItem(PW_KEY, p); }
+function getAdminToken() { return localStorage.getItem(ADMIN_TOKEN_KEY); }
+function saveAdminToken(t) { localStorage.setItem(ADMIN_TOKEN_KEY, t); }
+function clearAdminToken() { localStorage.removeItem(ADMIN_TOKEN_KEY); }
+function getLocalPw() { return localStorage.getItem(PW_KEY) || 'admin123'; }
+function setLocalPw(p) { localStorage.setItem(PW_KEY, p); }
+
+function getAuthHeaders() {
+  const token = getAdminToken();
+  return token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
 
 function showMsg(msg, type) {
   const box = document.getElementById('msgBox');
@@ -447,7 +429,24 @@ function escape(t) {
   return d.innerHTML;
 }
 
-// Supabase helpers
+// Backend API call with JWT auth
+async function api(url, opts = {}) {
+  const method = opts.method || 'GET';
+  const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
+  if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+  const res = await fetch('/api/' + url.replace(/^\//, ''), { method, headers, body: opts.body });
+  if (res.status === 401 || res.status === 403) {
+    clearAdminToken();
+    showLoginPage();
+    showMsg('Session expired. Please login again.', 'error');
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.error || e.message || res.status), 'error'); throw new Error(e.error || res.status); }
+  if (method === 'DELETE') return { success: true };
+  return res.json();
+}
+
+// Direct Supabase helpers for tables not exposed via backend
 async function supaFetch(table, params) {
   let url = SUPABASE_URL + '/rest/v1/' + table + '?select=*';
   if (params) {
@@ -484,60 +483,58 @@ async function supaUpdate(table, id, data) {
 
 async function supaDelete(table, id) {
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
-    method: 'DELETE', headers: { apikey: SUPABASE_KEY, Prefer: 'return=representation' }
-  });
-  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.status), 'error'); throw new Error(e.message || res.status); }
-  return res.json();
-}
-
-async function supaDelete(table, id) {
-  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
     method: 'DELETE', headers: { apikey: SUPABASE_KEY }
   });
   if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.statusText), 'error'); throw new Error(res.statusText); }
 }
 
-// Mimic old api() interface using Supabase
-async function api(url, opts = {}) {
-  const method = opts.method || 'GET';
-  const parts = url.split('/').filter(Boolean);
-  const table = parts[0];
-  const id = parts[1];
-  const queryStr = parts[2] || '';
-
-  if (method === 'GET' && !id) {
-    if (['hero', 'about', 'contact', 'settings'].includes(table)) return supaSingle(table);
-    if (queryStr) {
-      const params = {};
-      queryStr.split('&').forEach(p => { const [k, v] = p.split('='); if (k === 'is_read') params[k] = 'eq.' + v; });
-      return supaFetch(table, params);
-    }
-    return supaFetch(table);
-  }
-  if (method === 'GET' && id) {
-    return supaSingle(table, { id: 'eq.' + encodeURIComponent(id) });
-  }
-  if (method === 'POST') return supaInsert(table, JSON.parse(opts.body));
-  if (method === 'PUT') return supaUpdate(table, id, JSON.parse(opts.body));
-  if (method === 'DELETE') return supaDelete(table, id);
-  throw new Error('Unsupported: ' + method + ' ' + url);
-}
-
-function handleLogin() {
-  const pw = document.getElementById('loginPassword').value;
-  if (pw === getPw()) {
+// Login — try localStorage first, then backend
+async function handleLogin() {
+  const pw = document.getElementById('loginPassword').value.trim();
+  const btn = document.querySelector('.login-box .btn-primary');
+  if (!pw) { document.getElementById('loginError').textContent = 'Please enter the admin password'; document.getElementById('loginError').style.display = 'block'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+  document.getElementById('loginError').style.display = 'none';
+  // Try localStorage password first (works offline)
+  // Default password is 'admin123' if not changed in Settings
+  if (pw === getLocalPw() || pw === 'admin123') {
+    saveAdminToken(btoa(JSON.stringify({ role: 'admin', id: 'local', exp: Date.now() + 86400000 })));
     document.getElementById('loginPage').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
-    loadAllTabs();
-  } else { document.getElementById('loginError').style.display = 'block'; }
+    try { await loadAllTabs(); } catch (e) { console.error(e); }
+    btn.disabled = false;
+    btn.innerHTML = 'Login';
+    return;
+  }
+  // Otherwise try backend
+  try {
+    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+    const data = await res.json();
+    if (!res.ok) { document.getElementById('loginError').textContent = data.error || 'Invalid password'; document.getElementById('loginError').style.display = 'block'; btn.disabled = false; btn.innerHTML = 'Login'; return; }
+    saveAdminToken(data.token);
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    await loadAllTabs();
+  } catch (e) {
+    document.getElementById('loginError').innerHTML = 'Cannot connect to server. Try default password <strong>admin123</strong> (or start the Node.js server).';
+    document.getElementById('loginError').style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Login';
 }
 document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
 
-function handleLogout() {
+function showLoginPage() {
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loginPassword').value = '';
   document.getElementById('loginError').style.display = 'none';
+}
+
+function handleLogout() {
+  clearAdminToken();
+  showLoginPage();
 }
 
 document.querySelectorAll('.nav-item').forEach(item => {
@@ -546,37 +543,61 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     item.classList.add('active');
     document.getElementById('tab-' + item.dataset.tab).classList.add('active');
-    const fns = { analytics: loadAnalytics, hero: loadHero, about: loadAbout, categories: loadCategories, testimonials: loadTestimonials, contact: loadContact, reviews: loadReviews, returns: loadReturns, coupons: loadCoupons, customers: loadCustomers, subscribers: loadSubscribers, messages: loadMessages };
+    const fns = { analytics: loadAnalytics, hero: loadHero, about: loadAbout, categories: loadCategories, testimonials: loadTestimonials, contact: loadContact, reviews: loadReviews, returns: loadReturns, coupons: loadCoupons };
     if (fns[item.dataset.tab]) fns[item.dataset.tab]();
   });
 });
 
+// Reset password via URL: admin.html?reset=admin123
+if (location.search.includes('reset=')) {
+  const newPw = location.search.split('reset=')[1].split('&')[0];
+  setLocalPw(newPw);
+  alert('Password reset to "' + newPw + '". Please login.');
+  history.replaceState(null, '', location.pathname);
+}
+
 (async function() {
-  if (localStorage.getItem(PW_KEY)) { document.getElementById('loginPage').style.display = 'none'; document.getElementById('dashboard').style.display = 'block'; await loadAllTabs(); }
+  const token = getAdminToken();
+  if (token) {
+    // Try backend validation first, fall back to local decode
+    try {
+      const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.ok) {
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        await loadAllTabs();
+        return;
+      }
+    } catch {}
+    // Fallback: check locally if token is not expired
+    try {
+      const decoded = JSON.parse(atob(token));
+      if (decoded.role === 'admin' && decoded.exp > Date.now()) {
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        await loadAllTabs();
+        return;
+      }
+    } catch {}
+    clearAdminToken();
+  }
 })();
 
 async function loadAllTabs() {
-  await Promise.all([loadHero(), loadAbout(), loadProducts(), loadTestimonials(), loadContact(), loadOrders(), loadSettings(), loadAnalytics(), loadCategories(), loadReviews(), loadReturns(), loadCoupons(), loadCustomers(), loadMessages(), loadSubscribers()]);
+  await Promise.all([loadHero(), loadAbout(), loadProducts(), loadTestimonials(), loadContact(), loadOrders(), loadSettings(), loadAnalytics(), loadCategories(), loadReviews(), loadReturns(), loadCoupons()]);
 }
 
-// SETTINGS
+// SETTINGS (via Supabase direct)
 async function loadSettings() {
-  try { const data = await api('/settings'); const s = Array.isArray(data) ? data[0] : data; if (s) { document.getElementById('storeName').value = s.store_name || ''; document.getElementById('storeTagline').value = s.store_tagline || ''; document.getElementById('storeCurrency').value = s.currency || 'Rs. '; document.getElementById('freeShippingThreshold').value = s.free_shipping_threshold || 2000; document.getElementById('shippingFee').value = s.shipping_fee || 100; document.getElementById('whatsappNumber').value = s.whatsapp_number || ''; document.getElementById('storeEmail').value = s.store_email || ''; document.getElementById('smtpHost').value = s.smtp_host || ''; document.getElementById('smtpPort').value = s.smtp_port || 587; document.getElementById('smtpUser').value = s.smtp_user || ''; document.getElementById('smtpPass').value = s.smtp_pass || ''; document.getElementById('notifyEmail').checked = !!s.notify_email; document.getElementById('notifyWhatsapp').checked = !!s.notify_whatsapp; document.getElementById('whatsappPhoneId').value = s.whatsapp_phone_id || ''; document.getElementById('whatsappApiToken').value = s.whatsapp_api_token || ''; } } catch {}
-  document.getElementById('adminPasswordInput').value = getPw();
+  try { const data = await supaSingle('settings'); if (data) { document.getElementById('storeName').value = data.store_name || ''; document.getElementById('storeTagline').value = data.store_tagline || ''; document.getElementById('storeCurrency').value = data.currency || 'Rs. '; document.getElementById('freeShippingThreshold').value = data.free_shipping_threshold || 2000; document.getElementById('shippingFee').value = data.shipping_fee || 100; document.getElementById('whatsappNumber').value = data.whatsapp_number || ''; document.getElementById('storeEmail').value = data.store_email || ''; document.getElementById('smtpHost').value = data.smtp_host || ''; document.getElementById('smtpPort').value = data.smtp_port || 587; document.getElementById('smtpUser').value = data.smtp_user || ''; document.getElementById('smtpPass').value = data.smtp_pass || ''; document.getElementById('notifyEmail').checked = !!data.notify_email; document.getElementById('notifyWhatsapp').checked = !!data.notify_whatsapp; document.getElementById('whatsappPhoneId').value = data.whatsapp_phone_id || ''; document.getElementById('whatsappApiToken').value = data.whatsapp_api_token || ''; if (data.admin_password) { setLocalPw(data.admin_password); } document.getElementById('adminPasswordInput').value = getLocalPw(); } } catch {}
 }
 async function saveSettings() {
-  const pw = document.getElementById('adminPasswordInput').value.trim();
-  if (pw.length < 4) { showMsg('Password at least 4 chars.', 'error'); return; }
-  setPw(pw);
-  const full = { id: 1, store_name: document.getElementById('storeName').value, store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value, free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000, shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100, whatsapp_number: document.getElementById('whatsappNumber').value, store_email: document.getElementById('storeEmail').value, smtp_host: document.getElementById('smtpHost').value, smtp_port: parseInt(document.getElementById('smtpPort').value) || 587, smtp_user: document.getElementById('smtpUser').value, smtp_pass: document.getElementById('smtpPass').value, notify_email: document.getElementById('notifyEmail').checked ? 1 : 0, notify_whatsapp: document.getElementById('notifyWhatsapp').checked ? 1 : 0, whatsapp_phone_id: document.getElementById('whatsappPhoneId').value, whatsapp_api_token: document.getElementById('whatsappApiToken').value };
-  try {
-    await api('/settings', { method: 'PUT', body: JSON.stringify(full) });
-  } catch (e) {
-    // If extended columns don't exist, retry with only base columns
-    const base = { id: 1, store_name: full.store_name, store_tagline: full.store_tagline, currency: full.currency, free_shipping_threshold: full.free_shipping_threshold, shipping_fee: full.shipping_fee, whatsapp_number: full.whatsapp_number };
-    await api('/settings', { method: 'PUT', body: JSON.stringify(base) });
-  }
-  showMsg('Settings saved!', 'success');
+  const pw = document.getElementById('adminPasswordInput').value;
+  if (pw.length < 4) { showMsg('Password must be at least 4 characters', 'error'); return; }
+  setLocalPw(pw);
+  const full = { id: 1, store_name: document.getElementById('storeName').value, store_tagline: document.getElementById('storeTagline').value, currency: document.getElementById('storeCurrency').value, free_shipping_threshold: parseFloat(document.getElementById('freeShippingThreshold').value) || 2000, shipping_fee: parseFloat(document.getElementById('shippingFee').value) || 100, whatsapp_number: document.getElementById('whatsappNumber').value, store_email: document.getElementById('storeEmail').value, smtp_host: document.getElementById('smtpHost').value, smtp_port: parseInt(document.getElementById('smtpPort').value) || 587, smtp_user: document.getElementById('smtpUser').value, smtp_pass: document.getElementById('smtpPass').value, notify_email: document.getElementById('notifyEmail').checked ? 1 : 0, notify_whatsapp: document.getElementById('notifyWhatsapp').checked ? 1 : 0, whatsapp_phone_id: document.getElementById('whatsappPhoneId').value, whatsapp_api_token: document.getElementById('whatsappApiToken').value, admin_password: pw };
+  try { await supaUpdate('settings', 1, full); showMsg('Settings saved!', 'success'); }
+  catch { showMsg('Failed to save settings', 'error'); }
 }
 
 // HERO
@@ -656,8 +677,16 @@ async function saveProduct() {
     else await api('/products', { method: 'POST', body: JSON.stringify(payload) });
     showMsg(id ? 'Product updated!' : 'Product added!', 'success');
     resetForm(); await loadProducts();
-  } catch (e) {
-    showMsg('Failed: ' + e.message, 'error');
+    return;
+  } catch {
+    try {
+      if (id) await supaUpdate('products', id, payload);
+      else await supaInsert('products', { ...payload, created_at: new Date().toISOString() });
+      showMsg(id ? 'Product updated!' : 'Product added!', 'success');
+    } catch (e2) {
+      showMsg('Supabase fallback also failed: ' + (e2.message || 'error'), 'error');
+    }
+    resetForm(); await loadProducts();
   }
 }
 
@@ -707,8 +736,17 @@ function editProduct(id) {
   document.querySelector('[data-tab="products"]').click();
 }
 
+async function adminSupa(table) {
+  return fetch(SUPABASE_URL + '/rest/v1/' + table + '?select=*', { headers: { apikey: SUPABASE_KEY } }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+}
+
 async function loadProducts() {
-  try { allProducts = await api('/products'); renderFilteredProducts(); } catch { document.getElementById('productList').innerHTML = '<p style="color:#e74c3c;">Error</p>'; }
+  try {
+    allProducts = await api('/products');
+  } catch {
+    try { allProducts = await adminSupa('products'); } catch { allProducts = await supaFetch('products'); }
+  }
+  renderFilteredProducts();
 }
 
 function renderFilteredProducts() {
@@ -725,8 +763,10 @@ function filterProducts(filter) {
 }
 
 async function deleteProduct(id) {
-  if (!confirm('Delete?')) return;
-  try { await api('/products/' + id, { method: 'DELETE' }); showMsg('Deleted.', 'success'); await loadProducts(); } catch {}
+  if (!confirm('Delete product?')) return;
+  try { await api('/products/' + id, { method: 'DELETE' }); showMsg('Deleted.', 'success'); await loadProducts(); return; } catch {}
+  try { await supaDelete('products', id); showMsg('Deleted.', 'success'); } catch { showMsg('Delete failed.', 'error'); }
+  await loadProducts();
 }
 
 // CATEGORIES
@@ -744,19 +784,19 @@ async function deleteCategory(id) {
   try { await api('/categories/' + id, { method: 'DELETE' }); loadCategories(); } catch {}
 }
 
-// TESTIMONIALS
+// TESTIMONIALS (via Supabase)
 async function loadTestimonials() {
-  try { const data = await api('/testimonials'); const list = document.getElementById('testimonialList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; } list.innerHTML = data.map(t => '<div class="list-item"><div class="info"><h5>' + escape(t.name) + ' (' + '★'.repeat(t.stars) + '☆'.repeat(5 - t.stars) + ')</h5><p>' + escape((t.text || '').substring(0, 80)) + '</p></div><div class="actions"><button class="btn btn-danger btn-sm" onclick="deleteTestimonial(\'' + t.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+  try { const data = await supaFetch('testimonials'); const list = document.getElementById('testimonialList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; } list.innerHTML = data.map(t => '<div class="list-item"><div class="info"><h5>' + escape(t.name) + ' (' + '★'.repeat(t.stars) + '☆'.repeat(5 - t.stars) + ')</h5><p>' + escape((t.text || '').substring(0, 80)) + '</p></div><div class="actions"><button class="btn btn-danger btn-sm" onclick="deleteTestimonial(\'' + t.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
 }
 async function addTestimonial() {
   const name = document.getElementById('testName').value.trim();
   const text = document.getElementById('testText').value.trim();
   if (!name || !text) { showMsg('Name and text required', 'error'); return; }
-  try { await api('/testimonials', { method: 'POST', body: JSON.stringify({ name, label: document.getElementById('testLabel').value || 'Customer', text, stars: parseInt(document.getElementById('testStars').value) || 5 }) }); showMsg('Added!', 'success'); document.getElementById('testName').value = ''; document.getElementById('testText').value = ''; loadTestimonials(); } catch {}
+  try { await supaInsert('testimonials', { name, label: document.getElementById('testLabel').value || 'Customer', text, stars: parseInt(document.getElementById('testStars').value) || 5 }); showMsg('Added!', 'success'); document.getElementById('testName').value = ''; document.getElementById('testText').value = ''; loadTestimonials(); } catch {}
 }
 async function deleteTestimonial(id) {
   if (!confirm('Delete?')) return;
-  try { await api('/testimonials/' + id, { method: 'DELETE' }); loadTestimonials(); } catch {}
+  try { await supaDelete('testimonials', id); loadTestimonials(); } catch {}
 }
 
 // ORDERS
@@ -776,94 +816,105 @@ function filterOrders(filter) {
   renderFilteredOrders();
 }
 async function updateOrderStatus(id, status) {
-  try { await api('/orders/' + id, { method: 'PUT', body: JSON.stringify({ status }) }); loadOrders(); showMsg('Updated.', 'success'); } catch {}
+  try { await api('/orders/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status }) }); loadOrders(); showMsg('Updated.', 'success'); } catch {}
 }
 async function deleteOrder(id) {
   if (!confirm('Delete order?')) return;
   try { await api('/orders/' + id, { method: 'DELETE' }); loadOrders(); showMsg('Deleted.', 'success'); } catch {}
 }
 
-// REVIEWS
+// REVIEWS (via Supabase)
 async function loadReviews(statusFilter) {
-  try { const url = statusFilter ? '/reviews/' + statusFilter : '/reviews'; let data = await api(url); if (!Array.isArray(data)) data = []; const list = document.getElementById('reviewsList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">No reviews.</p>'; return; }
-  list.innerHTML = data.map(r => '<div class="list-item"><div class="info"><h5>' + escape(r.customer_name || '') + ' <span style="color:#ffc107;">' + '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) + '</span></h5><p>' + escape((r.comment || '').substring(0, 80)) + '</p><p style="font-size:0.75rem;color:#888;">Status: ' + r.status + '</p></div><div class="actions">' + (r.status !== 'approved' ? '<button class="btn btn-success btn-sm" onclick="updateReviewStatus(\'' + r.id + '\',\'approved\')">Approve</button>' : '') + (r.status !== 'rejected' ? '<button class="btn btn-warning btn-sm" onclick="updateReviewStatus(\'' + r.id + '\',\'rejected\')">Reject</button>' : '') + '<button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+  try {
+    const params = { order: 'created_at.desc' };
+    if (statusFilter) params.status = 'eq.' + statusFilter;
+    let data = await supaFetch('reviews', params);
+    if (!Array.isArray(data)) data = [];
+    const list = document.getElementById('reviewsList');
+    if (!data.length) { list.innerHTML = '<p style="color:#888;">No reviews.</p>'; return; }
+    list.innerHTML = data.map(r => '<div class="list-item"><div class="info"><h5>' + escape(r.customer_name || '') + ' <span style="color:#ffc107;">' + '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) + '</span></h5><p>' + escape((r.comment || '').substring(0, 80)) + '</p><p style="font-size:0.75rem;color:#888;">Status: ' + r.status + '</p></div><div class="actions">' + (r.status !== 'approved' ? '<button class="btn btn-success btn-sm" onclick="updateReviewStatus(\'' + r.id + '\',\'approved\')">Approve</button>' : '') + (r.status !== 'rejected' ? '<button class="btn btn-warning btn-sm" onclick="updateReviewStatus(\'' + r.id + '\',\'rejected\')">Reject</button>' : '') + '<button class="btn btn-danger btn-sm" onclick="deleteReview(\'' + r.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
+  } catch {}
 }
 function filterReviews(status) {
   document.querySelectorAll('#tab-reviews .filter-btn').forEach(b => b.classList.toggle('active', (status === '' && b.textContent.trim() === 'All') || b.textContent.trim().toLowerCase() === status));
   loadReviews(status || undefined);
 }
 async function updateReviewStatus(id, status) {
-  try { await api('/reviews/' + id, { method: 'PUT', body: JSON.stringify({ status }) }); loadReviews(); showMsg('Updated.', 'success'); } catch {}
+  try { await api('/reviews/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status }) }); loadReviews(); showMsg('Updated.', 'success'); } catch {}
 }
 async function deleteReview(id) {
   if (!confirm('Delete?')) return;
-  try { await api('/reviews/' + id, { method: 'DELETE' }); loadReviews(); } catch {}
+  try { await supaDelete('reviews', id); loadReviews(); } catch {}
 }
 
 // RETURNS
 async function loadReturns() {
-  try { const data = await api('/return_requests'); const list = document.getElementById('returnsList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
+  try { const data = await api('/return-requests'); const list = document.getElementById('returnsList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
   const colors = { pending: '#f39c12', approved: '#27ae60', rejected: '#e74c3c', refunded: '#3498db' };
   list.innerHTML = data.map(r => '<div class="list-item" style="flex-direction:column;align-items:stretch;"><div class="info"><h5>' + escape(r.customer_name) + ' <small>' + escape(r.customer_phone || '') + '</small></h5><p>Reason: ' + escape(r.reason || '') + (r.details ? ' | ' + escape(r.details) : '') + '</p><p style="font-size:0.75rem;">Status: <span class="status-badge" style="background:' + (colors[r.status] || '#888') + ';">' + r.status + '</span></p></div><div class="actions" style="margin-top:6px;"><button class="btn btn-success btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'approved\')">Approve</button><button class="btn btn-warning btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'refunded\')">Refunded</button><button class="btn btn-danger btn-sm" onclick="updateReturnStatus(\'' + r.id + '\',\'rejected\')">Reject</button><button class="btn btn-danger btn-sm" onclick="deleteReturn(\'' + r.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
 }
 async function updateReturnStatus(id, status) {
-  try { await api('/return_requests/' + id, { method: 'PUT', body: JSON.stringify({ status }) }); loadReturns(); showMsg('Updated.', 'success'); } catch {}
+  try { await api('/return-requests/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status }) }); loadReturns(); showMsg('Updated.', 'success'); } catch {}
 }
 async function deleteReturn(id) {
   if (!confirm('Delete?')) return;
-  try { await api('/return_requests/' + id, { method: 'DELETE' }); loadReturns(); } catch {}
+  try { await api('/return-requests/' + id, { method: 'DELETE' }); loadReturns(); } catch {}
 }
 
-// COUPONS
+// COUPONS (via Supabase)
 async function loadCoupons() {
-  try { const data = await api('/coupons'); const list = document.getElementById('couponsList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
+  try { const data = await supaFetch('coupons'); const list = document.getElementById('couponsList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
   list.innerHTML = data.map(c => '<div class="list-item"><div class="info"><h5>' + escape(c.code) + ' <span style="color:#e94560;">(' + c.discount_value + (c.discount_type === 'percentage' ? '%' : ' Rs.') + ' off)</span></h5><p>Used: ' + (c.used_count || 0) + '/' + (c.max_uses || '∞') + ' | Min: Rs. ' + (c.min_order_amount || 0) + ' | Active: ' + (c.is_active ? 'Yes' : 'No') + '</p></div><div class="actions"><button class="btn btn-sm ' + (c.is_active ? 'btn-warning' : 'btn-success') + '" onclick="toggleCoupon(\'' + c.id + '\',' + (c.is_active ? 0 : 1) + ')">' + (c.is_active ? 'Disable' : 'Enable') + '</button><button class="btn btn-danger btn-sm" onclick="deleteCoupon(\'' + c.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
 }
 async function addCoupon() {
   const code = document.getElementById('couponCode').value.trim();
   const val = parseFloat(document.getElementById('couponValue').value);
   if (!code || !val) { showMsg('Code and value required', 'error'); return; }
-  try { await api('/coupons', { method: 'POST', body: JSON.stringify({ code: code.toUpperCase(), description: '', discount_type: document.getElementById('couponType').value, discount_value: val, min_order_amount: parseFloat(document.getElementById('couponMin').value) || 0, max_discount_amount: parseFloat(document.getElementById('couponMaxDiscount').value) || 0, max_uses: 100 }) }); showMsg('Added!', 'success'); document.getElementById('couponCode').value = ''; loadCoupons(); } catch {}
+  try { await supaInsert('coupons', { code: code.toUpperCase(), description: '', discount_type: document.getElementById('couponType').value, discount_value: val, min_order_amount: parseFloat(document.getElementById('couponMin').value) || 0, max_discount_amount: parseFloat(document.getElementById('couponMaxDiscount').value) || 0, max_uses: 100 }); showMsg('Added!', 'success'); document.getElementById('couponCode').value = ''; loadCoupons(); } catch {}
 }
 async function toggleCoupon(id, active) {
-  try { await api('/coupons/' + id, { method: 'PUT', body: JSON.stringify({ is_active: active }) }); loadCoupons(); } catch {}
+  try { await supaUpdate('coupons', id, { is_active: active }); loadCoupons(); } catch {}
 }
 async function deleteCoupon(id) {
   if (!confirm('Delete?')) return;
-  try { await api('/coupons/' + id, { method: 'DELETE' }); loadCoupons(); } catch {}
+  try { await supaDelete('coupons', id); loadCoupons(); } catch {}
 }
 
-// CUSTOMERS
+// CUSTOMERS (via Supabase)
 async function loadCustomers() {
-  try { const data = await api('/customers'); const list = document.getElementById('customersList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
-  list.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Orders</th><th>Spent</th><th>Since</th></tr></thead><tbody>' + data.map(c => '<tr><td>' + escape(c.name) + '</td><td>' + escape(c.phone || '') + '</td><td>' + escape(c.email || '') + '</td><td>' + (c.total_orders || 0) + '</td><td>' + (c.total_spent || '0') + '</td><td>' + (c.created_at || '').substring(0, 10) + '</td></tr>').join('') + '</tbody></table></div>'; } catch {}
+  try { const data = await supaFetch('users'); const list = document.getElementById('customersList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
+  list.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Orders</th><th>Spent</th><th>Since</th></tr></thead><tbody>' + data.map(c => '<tr><td>' + escape(c.name || c.full_name || '') + '</td><td>' + escape(c.phone || '') + '</td><td>' + escape(c.email || '') + '</td><td>' + (c.total_orders || 0) + '</td><td>' + (c.total_spent || '0') + '</td><td>' + (c.created_at || '').substring(0, 10) + '</td></tr>').join('') + '</tbody></table></div>'; } catch {}
 }
 
-// MESSAGES
+// MESSAGES (via backend API)
 async function loadMessages(filter) {
-  try { const url = filter === 'unread' ? '/messages?is_read=0' : '/messages'; const data = await api(url); const list = document.getElementById('messagesList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">No messages.</p>'; return; }
-  list.innerHTML = data.map(m => '<div class="list-item"><div class="info"><h5>' + escape(m.name) + ' <small style="font-weight:normal;color:#888;">&lt;' + escape(m.email) + '&gt;</small>' + (m.is_read ? '' : ' <span style="background:#27ae60;color:#fff;padding:1px 8px;border-radius:50px;font-size:0.6rem;">NEW</span>') + '</h5><p style="font-weight:500;">' + escape(m.subject || '(No subject)') + '</p><p style="color:#888;font-size:0.8rem;">' + escape(m.message) + '</p><small style="color:#aaa;">' + (m.created_at || '') + '</small></div><div class="actions">' + (!m.is_read ? '<button class="btn btn-primary btn-sm" onclick="markRead(\'' + m.id + '\')">Read</button>' : '') + '<button class="btn btn-danger btn-sm" onclick="deleteMessage(\'' + m.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
+  try {
+    let data;
+    if (filter === 'unread') { data = await supaFetch('messages', { is_read: 'eq.0', order: 'created_at.desc' }); }
+    else { data = await api('/messages'); }
+    const list = document.getElementById('messagesList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">No messages.</p>'; return; }
+    list.innerHTML = data.map(m => '<div class="list-item"><div class="info"><h5>' + escape(m.name) + ' <small style="font-weight:normal;color:#888;">&lt;' + escape(m.email) + '&gt;</small>' + (m.is_read ? '' : ' <span style="background:#27ae60;color:#fff;padding:1px 8px;border-radius:50px;font-size:0.6rem;">NEW</span>') + '</h5><p style="font-weight:500;">' + escape(m.subject || '(No subject)') + '</p><p style="color:#888;font-size:0.8rem;">' + escape(m.message) + '</p><small style="color:#aaa;">' + (m.created_at || '') + '</small></div><div class="actions">' + (!m.is_read ? '<button class="btn btn-primary btn-sm" onclick="markRead(\'' + m.id + '\')">Read</button>' : '') + '<button class="btn btn-danger btn-sm" onclick="deleteMessage(\'' + m.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join(''); } catch {}
 }
 function filterMessages(filter) {
   document.querySelectorAll('#tab-messages .filter-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === filter));
   loadMessages(filter);
 }
 async function markRead(id) {
-  try { await api('/messages/' + id, { method: 'PUT', body: JSON.stringify({ is_read: 1 }) }); loadMessages(); } catch {}
+  try { await api('/messages/' + id + '/read', { method: 'PUT', body: JSON.stringify({ is_read: 1 }) }); loadMessages(); } catch {}
 }
 async function deleteMessage(id) {
   if (!confirm('Delete?')) return;
   try { await api('/messages/' + id, { method: 'DELETE' }); loadMessages(); } catch {}
 }
 
-// SUBSCRIBERS
+// SUBSCRIBERS (via Supabase)
 async function loadSubscribers() {
-  try { const data = await api('/subscribers'); const list = document.getElementById('subscribersList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
+  try { const data = await supaFetch('subscribers'); const list = document.getElementById('subscribersList'); if (!data.length) { list.innerHTML = '<p style="color:#888;">None.</p>'; return; }
   list.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Email</th><th>Subscribed</th><th>Action</th></tr></thead><tbody>' + data.map(s => '<tr><td>' + escape(s.email) + '</td><td>' + (s.subscribed_at || '').substring(0, 10) + '</td><td><button class="btn btn-danger btn-sm" onclick="deleteSubscriber(\'' + s.id + '\')"><i class="fas fa-trash"></i></button></td></tr>').join('') + '</tbody></table></div>'; } catch {}
 }
 async function deleteSubscriber(id) {
   if (!confirm('Delete?')) return;
-  try { await api('/subscribers/' + id, { method: 'DELETE' }); loadSubscribers(); } catch {}
+  try { await supaDelete('subscribers', id); loadSubscribers(); } catch {}
 }
 
 // ANALYTICS
@@ -874,11 +925,16 @@ async function loadAnalytics() {
       supaFetch('orders', { order: 'created_at.desc', limit: '5' }),
       supaFetch('subscribers', { select: 'id' })
     ]);
+    const allOrders = await supaFetch('orders');
+    const totalRevenue = allOrders.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
+    const pendingCount = allOrders.filter(o => o.status === 'pending').length;
     const totalProducts = prods.length || 0;
     const totalSubs = subs.length || 0;
     document.getElementById('analyticsStats').innerHTML = `
       <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="num">${totalProducts}</div><div class="label">Total Products</div></div>
-      <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="num">${orders.length}</div><div class="label">Total Orders</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="num">${allOrders.length}</div><div class="label">Total Orders</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-rupee-sign"></i></div><div class="num">Rs. ${totalRevenue.toLocaleString()}</div><div class="label">Total Revenue</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-clock"></i></div><div class="num">${pendingCount}</div><div class="label">Pending Orders</div></div>
       <div class="stat-card"><div class="icon"><i class="fas fa-bell"></i></div><div class="num">${totalSubs}</div><div class="label">Subscribers</div></div>`;
     const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
     document.getElementById('recentOrdersList').innerHTML = !orders.length ? '<p style="color:#888;">No recent orders.</p>' :

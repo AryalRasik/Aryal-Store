@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const path = require('path');
@@ -8,6 +10,7 @@ const multer = require('multer');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
 const { supabase, initDb } = require('./db');
+const authRoutes = require('./server/routes/auth');
 
 const UPLOADS_DIR = process.env.VERCEL
   ? '/tmp/uploads'
@@ -34,17 +37,26 @@ const upload = multer({
 });
 
 const app = express();
-const PORT = 3000;
-const JWT_SECRET = 'aryal-store-jwt-secret-2026';
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'aryal-store-jwt-secret-2026';
 
-app.use(cors());
-app.use(express.json());
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(cookieParser());
 if (process.env.VERCEL) {
   app.use(express.static(process.cwd()));
 } else {
   app.use(express.static(path.join(__dirname)));
 }
 app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Mount auth routes (supports both /api/auth/* and /api/users/* for backward compatibility)
+app.use('/api/auth', authRoutes);
+app.use('/api/users', authRoutes);
+
+// Rate limiter for login/register endpoints
+const { rateLimiter } = require('./server/middleware/rateLimiter');
 
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization;
@@ -2202,6 +2214,43 @@ initDb().then(async function() {
   }
 }).catch(function(err) {
   console.error('Database init warning (tables may already exist):', err.message);
+});
+
+// ========== PASSWORD RESET PAGE ==========
+app.get('/reset-password', (req, res) => {
+  const token = req.query.token || '';
+  res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Reset Password - Aryal Store</title><style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+    .reset-card{background:#fff;border-radius:16px;padding:40px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.1)}.reset-card h2{color:#1a1a2e;margin-bottom:6px}
+    .reset-card h2 span{color:#e94560}.reset-card p{color:#888;font-size:0.9rem;margin-bottom:20px}
+    .form-group{margin-bottom:14px}.form-group label{display:block;font-weight:600;font-size:0.82rem;color:#555;margin-bottom:4px}
+    .form-group input{width:100%;padding:11px 14px;border:2px solid #eee;border-radius:10px;font-size:0.9rem;outline:none;font-family:inherit;transition:border 0.3s}
+    .form-group input:focus{border-color:#e94560}.btn{display:inline-block;padding:12px 30px;border-radius:50px;font-size:0.95rem;font-weight:600;cursor:pointer;border:none;transition:all 0.3s;font-family:inherit;width:100%;text-align:center}
+    .btn-primary{background:#e94560;color:#fff}.btn-primary:hover{background:#d63851}
+    .btn:disabled{opacity:0.6;cursor:not-allowed}.msg{margin-top:12px;font-size:0.85rem;text-align:center;padding:10px;border-radius:8px;display:none}
+    .msg.error{display:block;background:#ffe0e0;color:#e74c3c}.msg.success{display:block;background:#d4edda;color:#27ae60}.strength{font-size:0.78rem;margin-top:4px;display:none}
+  </style></head><body>
+  <div class="reset-card">
+    <h2><span>Aryal</span> Store</h2>
+    <p>Enter your new password below.</p>
+    <input type="hidden" id="resetToken" value="${token}">
+    <div class="form-group"><label>New Password</label><input type="password" id="newPwd" placeholder="Min 8 characters with uppercase, lowercase & number" oninput="checkStrength(this.value)"></div>
+    <div id="strength" class="strength"></div>
+    <div class="form-group"><label>Confirm Password</label><input type="password" id="confirmPwd" placeholder="Re-enter password"></div>
+    <button class="btn btn-primary" id="resetBtn" onclick="handleReset()">Reset Password</button>
+    <div id="msg" class="msg"></div>
+  </div>
+  <script>
+    function checkStrength(p){var e=[];p.length<8&&e.push('8+ chars');!/[A-Z]/.test(p)&&e.push('Uppercase');!/[a-z]/.test(p)&&e.push('Lowercase');!/[0-9]/.test(p)&&e.push('Number');var s=document.getElementById('strength');if(!p){s.style.display='none';return}s.style.display='block';s.innerHTML=e.length===0?'<span style="color:#27ae60;"><i class="fas fa-check-circle"></i> Strong password</span>':'<span style="color:#e74c3c;">'+e.join(' | ')+'</span>'}
+    async function handleReset(){var t=document.getElementById('resetToken').value,p=document.getElementById('newPwd').value,c=document.getElementById('confirmPwd').value,m=document.getElementById('msg');if(!p||!c){m.className='msg error';m.textContent='Please fill in all fields';return}
+    if(p!==c){m.className='msg error';m.textContent='Passwords do not match';return}
+    if(p.length<8||!/[A-Z]/.test(p)||!/[a-z]/.test(p)||!/[0-9]/.test(p)){m.className='msg error';m.textContent='Password must be 8+ chars with uppercase, lowercase & number';return}
+    var btn=document.getElementById('resetBtn');btn.disabled=true;btn.textContent='Resetting...'
+    try{var r=await fetch('/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t,password:p,confirmPassword:c})});var d=await r.json()
+    if(!r.ok){m.className='msg error';m.textContent=d.error||'Reset failed'}else{m.className='msg success';m.textContent='Password reset successfully! Redirecting to login...';setTimeout(function(){window.location.href='/'},2000)}
+    }catch(e){m.className='msg error';m.textContent='Network error'}finally{btn.disabled=false;btn.textContent='Reset Password'}}
+  </script>
+  </body></html>`);
 });
 
 if (require.main === module) {
