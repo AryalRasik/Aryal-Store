@@ -181,28 +181,39 @@ app.post('/api/users/facebook', async (req, res) => {
     const { access_token } = req.body;
     if (!access_token) return res.status(400).json({ error: 'Facebook access token is required' });
     const fbRes = await axios.get('https://graph.facebook.com/v18.0/me', {
-      params: { fields: 'id,name,email', access_token }
+      params: { fields: 'id,name,email,picture.type(large)', access_token }
     });
     const fbData = fbRes.data;
     if (!fbData || !fbData.id) return res.status(400).json({ error: 'Invalid Facebook token' });
-    const fbEmail = (fbData.email || fbData.id + '@facebook.com').toLowerCase();
-    const { data: existing } = await supabase.from('users').select('*').or('facebook_id.eq.' + fbData.id + ',email.eq.' + fbEmail).maybeSingle();
+    const fbEmail = (fbData.email || '').toLowerCase();
+    const fbId = fbData.id;
+    const fbName = fbData.name || 'Facebook User';
+    const fbPicture = (fbData.picture && fbData.picture.data && fbData.picture.data.url) || '';
+    const now = new Date().toISOString();
+    const { data: existing } = await supabase.from('users').select('*')
+      .or('auth_provider_id.eq.' + fbId + (fbEmail ? ',email.eq.' + fbEmail : ''))
+      .maybeSingle();
     if (existing) {
-      if (!existing.facebook_id) {
-        await supabase.from('users').update({ facebook_id: fbData.id }).eq('id', existing.id);
+      const updates = { last_login_at: now };
+      if (existing.auth_provider !== 'facebook' || !existing.auth_provider_id) {
+        updates.auth_provider = 'facebook';
+        updates.auth_provider_id = fbId;
       }
-      const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email }, JWT_SECRET, { expiresIn: '7d' });
-      return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email, phone: existing.phone || '', address: existing.address || '' } });
+      if (fbPicture && !existing.profile_picture) updates.profile_picture = fbPicture;
+      if (!existing.email && fbEmail) updates.email = fbEmail;
+      await supabase.from('users').update(updates).eq('id', existing.id);
+      const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email || fbEmail }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email || fbEmail, phone: existing.phone || '', address: existing.address || '', profile_picture: existing.profile_picture || fbPicture } });
     }
     const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-    const newUser = {
-      id, name: fbData.name || 'Facebook User', email: fbEmail, password: '',
-      phone: '', address: '', facebook_id: fbData.id, created_at: new Date().toISOString()
-    };
-    const { error: insertErr } = await supabase.from('users').insert(newUser);
+    const { error: insertErr } = await supabase.from('users').insert({
+      id, name: fbName, email: fbEmail, password: '',
+      phone: '', address: '', auth_provider: 'facebook', auth_provider_id: fbId,
+      profile_picture: fbPicture, created_at: now, last_login_at: now
+    });
     if (insertErr) throw insertErr;
-    const token = jwt.sign({ role: 'user', id, email: fbEmail }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id, name: newUser.name, email: fbEmail, phone: '', address: '' } });
+    const token = jwt.sign({ role: 'user', id, email: fbEmail || id + '@facebook.com' }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id, name: fbName, email: fbEmail || '', phone: '', address: '', profile_picture: fbPicture } });
   } catch (err) {
     res.status(500).json({ error: 'Facebook authentication failed: ' + (err.response?.data?.error?.message || err.message) });
   }
@@ -236,25 +247,43 @@ app.post('/api/users/google', async (req, res) => {
     const googleEmail = (profile.email || '').toLowerCase();
     const googleId = profile.sub;
     const googleName = profile.name || 'Google User';
-    const { data: existing } = await supabase.from('users').select('*').or('facebook_id.eq.' + googleId + ',email.eq.' + googleEmail).maybeSingle();
+    const googlePicture = profile.picture || '';
+    const now = new Date().toISOString();
+    const { data: existing } = await supabase.from('users').select('*')
+      .or('auth_provider_id.eq.' + googleId + ',email.eq.' + googleEmail)
+      .maybeSingle();
     if (existing) {
-      if (!existing.facebook_id) {
-        await supabase.from('users').update({ facebook_id: googleId }).eq('id', existing.id);
+      const updates = { last_login_at: now };
+      if (existing.auth_provider !== 'google' || !existing.auth_provider_id) {
+        updates.auth_provider = 'google';
+        updates.auth_provider_id = googleId;
       }
-      const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email }, JWT_SECRET, { expiresIn: '7d' });
-      return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email, phone: existing.phone || '', address: existing.address || '' } });
+      if (googlePicture && !existing.profile_picture) updates.profile_picture = googlePicture;
+      if (!existing.email && googleEmail) updates.email = googleEmail;
+      await supabase.from('users').update(updates).eq('id', existing.id);
+      const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email || googleEmail }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email || googleEmail, phone: existing.phone || '', address: existing.address || '', profile_picture: existing.profile_picture || googlePicture } });
     }
     const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
     const { error: insertErr } = await supabase.from('users').insert({
       id, name: googleName, email: googleEmail, password: '',
-      phone: '', address: '', facebook_id: googleId, created_at: new Date().toISOString()
+      phone: '', address: '', auth_provider: 'google', auth_provider_id: googleId,
+      profile_picture: googlePicture, created_at: now, last_login_at: now
     });
     if (insertErr) throw insertErr;
     const token = jwt.sign({ role: 'user', id, email: googleEmail }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id, name: googleName, email: googleEmail, phone: '', address: '' } });
+    res.json({ token, user: { id, name: googleName, email: googleEmail, phone: '', address: '', profile_picture: googlePicture } });
   } catch (err) {
     res.status(500).json({ error: 'Google authentication failed: ' + err.message });
   }
+});
+
+// ========== OAUTH CONFIG ==========
+app.get('/api/config/oauth', (req, res) => {
+  res.json({
+    google_client_id: process.env.GOOGLE_CLIENT_ID || '',
+    facebook_app_id: process.env.FACEBOOK_APP_ID || ''
+  });
 });
 
 // ========== HERO ==========
@@ -310,24 +339,32 @@ function parsePrice(priceStr) {
 app.get('/api/products', async (req, res) => {
   try {
     const { category, sort, search, min_price, max_price, brand, color, size, material, page, limit } = req.query;
-    let query = supabase.from('products').select('*').eq('status', 'active');
 
-    if (category) query = query.eq('category', category);
-    if (brand) query = query.eq('brand', brand);
-    if (material) query = query.ilike('material', '%' + material + '%');
-    if (search) query = query.or('name.ilike.%' + search + '%,desc.ilike.%' + search + '%');
+    async function fetchProducts(filterStatus) {
+      let q = supabase.from('products').select('*');
+      if (filterStatus) q = q.eq('status', 'active');
+      if (category && category !== 'all') q = q.eq('category', category);
+      if (brand) q = q.eq('brand', brand);
+      if (material) q = q.ilike('material', '%' + material + '%');
+      if (search) q = q.or('name.ilike.%' + search + '%,description.ilike.%' + search + '%');
+      return await q;
+    }
 
-    let { data: products, error } = await query;
-    if (error && error.message && error.message.includes('Could not find') && search) {
-      // Fallback: search without desc column
-      query = supabase.from('products').select('*').eq('status', 'active');
-      if (category) query = query.eq('category', category);
-      if (brand) query = query.eq('brand', brand);
-      if (material) query = query.ilike('material', '%' + material + '%');
-      if (search) query = query.or('name.ilike.%' + search + '%');
-      const fallback = await query;
+    let { data: products, error } = await fetchProducts(true);
+    if (error && error.message && error.message.includes('does not exist')) {
+      // status column doesn't exist — retry without it
+      const fallback = await fetchProducts(false);
       if (fallback.error) throw fallback.error;
       products = fallback.data;
+    } else if (error && error.message && error.message.includes('Could not find') && search) {
+      const q2 = supabase.from('products').select('*');
+      if (category && category !== 'all') q2.eq('category', category);
+      if (brand) q2.eq('brand', brand);
+      if (material) q2.ilike('material', '%' + material + '%');
+      if (search) q2.or('name.ilike.%' + search + '%');
+      const fb2 = await q2;
+      if (fb2.error) throw fb2.error;
+      products = fb2.data;
     } else if (error) {
       throw error;
     }
@@ -353,30 +390,31 @@ app.get('/api/products', async (req, res) => {
 
 app.get('/api/products/search', async (req, res) => {
   try {
-    const q = (req.query.q || '').trim();
-    if (!q) return res.json([]);
+    const qs = (req.query.q || '').trim();
+    if (!qs) return res.json([]);
     let products;
     try {
       const result = await supabase
         .from('products')
-        .select('id, name, price, image, category')
-        .eq('status', 'active')
-        .or('name.ilike.%' + q + '%,desc.ilike.%' + q + '%,category.ilike.%' + q + '%')
+        .select('id, name, price, image_url, category')
+        .or('name.ilike.%' + qs + '%,description.ilike.%' + qs + '%,category.ilike.%' + qs + '%')
         .order('sold_count', { ascending: false })
         .limit(10);
       if (result.error) throw result.error;
       products = result.data;
     } catch {
-      // Fallback: search without desc column if it doesn't exist
-      const result = await supabase
-        .from('products')
-        .select('id, name, price, image, category')
-        .eq('status', 'active')
-        .or('name.ilike.%' + q + '%,category.ilike.%' + q + '%')
-        .order('sold_count', { ascending: false })
-        .limit(10);
-      if (result.error) throw result.error;
-      products = result.data;
+      try {
+        const result = await supabase
+          .from('products')
+          .select('id, name, price, image_url, category')
+          .or('name.ilike.%' + qs + '%,category.ilike.%' + qs + '%')
+          .order('sold_count', { ascending: false })
+          .limit(10);
+        if (result.error) throw result.error;
+        products = result.data;
+      } catch {
+        products = [];
+      }
     }
     res.json(products || []);
   } catch (err) {
@@ -386,7 +424,7 @@ app.get('/api/products/search', async (req, res) => {
 
 app.get('/api/products/featured', async (req, res) => {
   try {
-    const { data: products, error } = await supabase.from('products').select('*').eq('status', 'active').eq('is_featured', true).order('id');
+    const { data: products, error } = await supabase.from('products').select('*').eq('is_featured', true).order('id');
     if (error) throw error;
     res.json(products || []);
   } catch (err) {
@@ -396,7 +434,7 @@ app.get('/api/products/featured', async (req, res) => {
 
 app.get('/api/products/best-sellers', async (req, res) => {
   try {
-    const { data: products, error } = await supabase.from('products').select('*').eq('status', 'active').order('sold_count', { ascending: false }).limit(8);
+    const { data: products, error } = await supabase.from('products').select('*').order('sold_count', { ascending: false }).limit(8);
     if (error) throw error;
     res.json(products || []);
   } catch (err) {
@@ -406,7 +444,7 @@ app.get('/api/products/best-sellers', async (req, res) => {
 
 app.get('/api/products/new-arrivals', async (req, res) => {
   try {
-    const { data: products, error } = await supabase.from('products').select('*').eq('status', 'active').order('id', { ascending: false }).limit(8);
+    const { data: products, error } = await supabase.from('products').select('*').order('id', { ascending: false }).limit(8);
     if (error) throw error;
     res.json(products || []);
   } catch (err) {
@@ -416,7 +454,7 @@ app.get('/api/products/new-arrivals', async (req, res) => {
 
 app.get('/api/products/trending', async (req, res) => {
   try {
-    const { data: products, error } = await supabase.from('products').select('*').eq('status', 'active').eq('is_trending', true).order('sold_count', { ascending: false }).limit(8);
+    const { data: products, error } = await supabase.from('products').select('*').eq('is_trending', true).order('sold_count', { ascending: false }).limit(8);
     if (error) throw error;
     res.json(products || []);
   } catch (err) {
@@ -441,16 +479,17 @@ app.get('/api/products/:id', async (req, res) => {
 
 app.post('/api/products', adminMiddleware, async (req, res) => {
   try {
-    const { name, category, subcategory, desc, price, compare_price, icon, gradient, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock_count, is_featured, is_new, is_best_seller, is_trending } = req.body;
+    const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending } = req.body;
     if (!name || !category) return res.status(400).json({ error: 'Name and category are required' });
     const { data, error } = await supabase.from('products').insert({
-      name, category, subcategory: subcategory || '', desc: desc || '', price: price || '',
+      name, category, subcategory: subcategory || '',
+      description: description || desc || '', price: price || '',
       compare_price: compare_price || '', icon: icon || 'fas fa-box',
       gradient: gradient || 'linear-gradient(135deg, #e94560, #d63851)',
-      image: image || '', images: images || '', video_url: video_url || '',
+      image_url: image_url || image || '', images: images || '', video_url: video_url || '',
       sizes: sizes || '', colors: colors || '', material: material || '',
       care_instructions: care_instructions || '', fit_info: fit_info || '',
-      brand: brand || '', sku: sku || '', stock_count: stock_count || 100,
+      brand: brand || '', sku: sku || '', stock: stock ?? stock_count ?? 100,
       is_featured: is_featured || false, is_new: is_new || false,
       is_best_seller: is_best_seller || false, is_trending: is_trending || false
     }).select();
@@ -463,12 +502,15 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
 
 app.put('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
-    const { name, category, subcategory, desc, price, compare_price, icon, gradient, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
+    const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
     const { error } = await supabase.from('products').update({
-      name, category, subcategory, desc, price, compare_price, icon, gradient,
-      image, images, video_url, sizes, colors, material, care_instructions,
-      fit_info, brand, sku, stock_count, is_featured, is_new, is_best_seller,
-      is_trending, status
+      name, category, subcategory, price, compare_price, icon, gradient,
+      images, video_url, sizes, colors, material, care_instructions,
+      fit_info, brand, sku, is_featured, is_new, is_best_seller,
+      is_trending, status,
+      description: description || desc,
+      image_url: image_url || image,
+      stock: stock ?? stock_count
     }).eq('id', req.params.id);
     if (error) throw error;
     res.json({ success: true });
@@ -479,8 +521,8 @@ app.put('/api/products/:id', adminMiddleware, async (req, res) => {
 
 app.delete('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
-    const { data: prod } = await supabase.from('products').select('image').eq('id', req.params.id).maybeSingle();
-    if (prod && prod.image) {
+    const { data: prod } = await supabase.from('products').select('image_url').eq('id', req.params.id).maybeSingle();
+    if (prod && prod.image_url) {
       const imgPath = path.join(__dirname, prod.image.replace(/^\//, ''));
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
@@ -1118,6 +1160,9 @@ app.delete('/api/reviews/:id', adminMiddleware, async (req, res) => {
   }
 });
 
+// Make app accessible to api/index.js for Vercel deployment
+module.exports = app;
+
 // ========== COUPONS ==========
 app.get('/api/coupons', adminMiddleware, async (req, res) => {
   try {
@@ -1239,6 +1284,96 @@ app.delete('/api/subscribers/:id', adminMiddleware, async (req, res) => {
   }
 });
 
+// ========== CART API ==========
+app.get('/api/cart', async (req, res) => {
+  try {
+    const sessionId = getSessionId(req);
+    let query = supabase.from('user_cart').select('*, products!inner(*)').order('created_at', { ascending: false });
+    const user = getCurrentUserFromRequest(req);
+    if (user) {
+      query = query.eq('user_id', user.id);
+    } else {
+      query = query.eq('session_id', sessionId);
+    }
+    const { data: items, error } = await query;
+    if (error) throw error;
+    const mapped = (items || []).map(function(item) {
+      const p = item.products || {};
+      return { id: item.id, product_id: item.product_id, quantity: item.quantity, size: item.size || '', color: item.color || '', product: p };
+    });
+    res.json(mapped);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function getCurrentUserFromRequest(req) {
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    try {
+      const token = header.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (decoded.role === 'user' && decoded.id) return decoded;
+    } catch {}
+  }
+  return null;
+}
+
+app.post('/api/cart', async (req, res) => {
+  try {
+    const sessionId = getSessionId(req);
+    const { product_id, quantity, size, color } = req.body;
+    if (!product_id) return res.status(400).json({ error: 'Product ID required' });
+    const user = getCurrentUserFromRequest(req);
+    const ownerField = user ? { user_id: user.id } : { session_id: sessionId };
+    const { data: existing } = await supabase.from('user_cart')
+      .select('id, quantity')
+      .match(Object.assign({ product_id, size: size || '', color: color || '' }, ownerField))
+      .maybeSingle();
+    if (existing) {
+      const { error } = await supabase.from('user_cart')
+        .update({ quantity: existing.quantity + (quantity || 1) })
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('user_cart').insert(
+        Object.assign({ product_id, quantity: quantity || 1, size: size || '', color: color || '' }, ownerField)
+      );
+      if (error) throw error;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/cart/:id', async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    if (quantity === undefined || quantity < 0) return res.status(400).json({ error: 'Valid quantity required' });
+    if (quantity === 0) {
+      const { error } = await supabase.from('user_cart').delete().eq('id', req.params.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('user_cart').update({ quantity }).eq('id', req.params.id);
+      if (error) throw error;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/cart/:id', async (req, res) => {
+  try {
+    const { error } = await supabase.from('user_cart').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========== CUSTOMERS ==========
 app.get('/api/customers', adminMiddleware, async (req, res) => {
   try {
@@ -1335,9 +1470,9 @@ app.get('/api/products/search/fuzzy', async (req, res) => {
     if (!q || q.length < 2) return res.json([]);
     const { data: products, error } = await supabase
       .from('products')
-      .select('id, name, price, image, category, stock_count')
+      .select('id, name, price, image_url, category, stock')
       .eq('status', 'active')
-      .or('name.ilike.%' + q + '%,name.ilike.%' + q.slice(0, -1) + '%,desc.ilike.%' + q + '%,category.ilike.%' + q + '%')
+      .or('name.ilike.%' + q + '%,name.ilike.%' + q.slice(0, -1) + '%,description.ilike.%' + q + '%,category.ilike.%' + q + '%')
       .order('sold_count', { ascending: false })
       .limit(10);
     if (error) throw error;
@@ -1363,7 +1498,7 @@ app.get('/api/flash-sales/active', async (req, res) => {
     for (const sale of sales || []) {
       const { data: fsp } = await supabase.from('flash_sale_products').select('*').eq('flash_sale_id', sale.id);
       for (const fp of fsp || []) {
-        const { data: product } = await supabase.from('products').select('name, price, image, stock_count').eq('id', fp.product_id).maybeSingle();
+        const { data: product } = await supabase.from('products').select('name, price, image_url, stock').eq('id', fp.product_id).maybeSingle();
         if (product) {
           result.push({
             ...sale,
@@ -1373,8 +1508,8 @@ app.get('/api/flash-sales/active', async (req, res) => {
             sold_count: fp.sold_count,
             product_name: product.name,
             original_price: product.price,
-            image: product.image,
-            stock_count: product.stock_count
+            image: product.image_url,
+            stock_count: product.stock
           });
         }
       }
@@ -1393,8 +1528,8 @@ app.get('/api/flash-sales', adminMiddleware, async (req, res) => {
       const { data: products } = await supabase.from('flash_sale_products').select('*').eq('flash_sale_id', sale.id);
       const withNames = [];
       for (const fp of products || []) {
-        const { data: prod } = await supabase.from('products').select('name, price, image').eq('id', fp.product_id).maybeSingle();
-        withNames.push(Object.assign({}, fp, { product_name: (prod && prod.name) || '', original_price: (prod && prod.price) || '', image: (prod && prod.image) || '' }));
+        const { data: prod } = await supabase.from('products').select('name, price, image_url').eq('id', fp.product_id).maybeSingle();
+        withNames.push(Object.assign({}, fp, { product_name: (prod && prod.name) || '', original_price: (prod && prod.price) || '', image: (prod && prod.image_url) || '' }));
       }
       sale.products = withNames;
     }
@@ -1857,7 +1992,7 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
 
     const { data: recentOrders } = await supabase.from('orders').select('id, customer_name, total_amount, status, created_at').order('id', { ascending: false }).limit(5);
 
-    const { data: lowStock } = await supabase.from('products').select('id, name, stock_count').eq('status', 'active').lt('stock_count', 10).order('stock_count').limit(10);
+    const { data: lowStock } = await supabase.from('products').select('id, name, stock').eq('status', 'active').lt('stock', 10).order('stock').limit(10);
     const lowStockCount = (lowStock || []).length;
 
     const { data: allOrderItems } = await supabase.from('order_items').select('product_id, quantity, unit_price');
@@ -1949,9 +2084,9 @@ app.post('/api/orders/:id/reorder', async (req, res) => {
 app.get('/api/inventory/alerts', adminMiddleware, async (req, res) => {
   try {
     const { data: allActive } = await supabase.from('products').select('*').eq('status', 'active').order('name');
-    const critical = (allActive || []).filter(function(p) { return p.stock_count <= 0; });
-    const low = (allActive || []).filter(function(p) { return p.stock_count > 0 && p.stock_count < 20; }).sort(function(a, b) { return a.stock_count - b.stock_count; });
-    const normal = (allActive || []).filter(function(p) { return p.stock_count >= 20; });
+    const critical = (allActive || []).filter(function(p) { return p.stock <= 0; });
+    const low = (allActive || []).filter(function(p) { return p.stock > 0 && p.stock < 20; }).sort(function(a, b) { return a.stock - b.stock; });
+    const normal = (allActive || []).filter(function(p) { return p.stock >= 20; });
     res.json({ critical, low, normal });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1960,12 +2095,13 @@ app.get('/api/inventory/alerts', adminMiddleware, async (req, res) => {
 
 app.put('/api/products/:id/stock', adminMiddleware, async (req, res) => {
   try {
-    const { stock_count } = req.body;
-    if (stock_count === undefined || stock_count < 0) return res.status(400).json({ error: 'Valid stock count required' });
-    await supabase.from('products').update({ stock_count }).eq('id', req.params.id);
-    if (stock_count === 0) {
+    const { stock_count, stock } = req.body;
+    const val = stock ?? stock_count;
+    if (val === undefined || val < 0) return res.status(400).json({ error: 'Valid stock count required' });
+    await supabase.from('products').update({ stock: val }).eq('id', req.params.id);
+    if (val === 0) {
       await supabase.from('products').update({ status: 'out_of_stock' }).eq('id', req.params.id);
-    } else if (stock_count > 0) {
+    } else if (val > 0) {
       const { data: p } = await supabase.from('products').select('status').eq('id', req.params.id).maybeSingle();
       if (p && p.status === 'out_of_stock') {
         await supabase.from('products').update({ status: 'active' }).eq('id', req.params.id);
@@ -1982,7 +2118,7 @@ app.post('/api/inventory/bulk-update', adminMiddleware, async (req, res) => {
     const { updates } = req.body;
     if (!updates || !updates.length) return res.status(400).json({ error: 'No updates provided' });
     for (const u of updates) {
-      await supabase.from('products').update({ stock_count: u.stock_count }).eq('id', u.product_id);
+      await supabase.from('products').update({ stock: u.stock_count ?? u.stock }).eq('id', u.product_id);
     }
     res.json({ success: true, updated: updates.length });
   } catch (err) {
@@ -2107,7 +2243,12 @@ app.post('/api/data/reset', adminMiddleware, async (req, res) => {
     const batchSize = 50;
     for (let i = 0; i < defaultProducts.length; i += batchSize) {
       const batch = defaultProducts.slice(i, i + batchSize).map(function(p) {
-        return Object.assign({ status: 'active', sold_count: 0, is_featured: false, is_new: false, is_best_seller: false, is_trending: false, subcategory: '', images: '', video_url: '', care_instructions: p.care_instructions || '', fit_info: p.fit_info || '', icon: p.icon || 'fas fa-tshirt', gradient: p.gradient || 'linear-gradient(135deg, #e94560, #d63851)' }, p);
+        var mapped = Object.assign({}, p);
+        mapped.description = mapped.description || mapped.desc || '';
+        mapped.image_url = mapped.image_url || mapped.image || '';
+        mapped.stock = mapped.stock ?? mapped.stock_count ?? 0;
+        delete mapped.desc; delete mapped.image; delete mapped.stock_count;
+        return Object.assign({ status: 'active', sold_count: 0, is_featured: false, is_new: false, is_best_seller: false, is_trending: false, subcategory: '', images: '', video_url: '', care_instructions: p.care_instructions || '', fit_info: p.fit_info || '', icon: p.icon || 'fas fa-tshirt', gradient: p.gradient || 'linear-gradient(135deg, #e94560, #d63851)' }, mapped);
       });
       const { error } = await supabase.from('products').insert(batch);
       if (error) console.error('Batch insert error:', error.message);

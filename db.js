@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://eomsbcjoxebmoxchilrx.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_service_role_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvbXNiY2pveGVibW94Y2hpbHJ4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTkzMzQ5NCwiZXhwIjoyMDk3NTA5NDk0fQ.R_M3B-HJ_wAkJbZe1aVGoQ9Ic2IHoHDFYleCfKT24vA';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://srlejludttajosnrfkca.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -139,6 +139,8 @@ async function migrateDb() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider TEXT DEFAULT '';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider_id TEXT DEFAULT '';
     CREATE TABLE IF NOT EXISTS user_addresses (
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       user_id TEXT NOT NULL DEFAULT '',

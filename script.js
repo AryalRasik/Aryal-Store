@@ -16,7 +16,17 @@ async function supaFetch(table, params) {
       if (v !== undefined && v !== null && v !== '') url += '&' + k + '=' + encodeURIComponent(v);
     }
   }
-  return fetch(url, { headers: { apikey: SUPABASE_KEY } }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 8000);
+  try {
+    var r = await fetch(url, { headers: { apikey: SUPABASE_KEY }, signal: controller.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error(r.statusText);
+    return r.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 async function supaSingle(table, params) {
@@ -24,23 +34,50 @@ async function supaSingle(table, params) {
 }
 
 async function supaInsert(table, data) {
-  return fetch(SUPABASE_URL + '/rest/v1/' + table, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Prefer: 'return=representation' },
-    body: JSON.stringify(data)
-  }).then(r => r.json());
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 8000);
+  try {
+    var r = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Prefer: 'return=representation' },
+      body: JSON.stringify(data), signal: controller.signal
+    });
+    clearTimeout(timer);
+    return r.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 async function supaUpdate(table, id, data) {
-  return fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
-    method: 'PATCH', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
-    body: JSON.stringify(data)
-  }).then(r => r.json());
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 8000);
+  try {
+    var r = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+      body: JSON.stringify(data), signal: controller.signal
+    });
+    clearTimeout(timer);
+    return r.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 async function supaDelete(table, id) {
-  return fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
-    method: 'DELETE', headers: { apikey: SUPABASE_KEY }
-  }).then(r => r.json());
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 8000);
+  try {
+    var r = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+      method: 'DELETE', headers: { apikey: SUPABASE_KEY }, signal: controller.signal
+    });
+    clearTimeout(timer);
+    return r.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 console.log('Aryal Store script.js loaded');
