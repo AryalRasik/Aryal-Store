@@ -2394,6 +2394,16 @@ app.get('/reset-password', (req, res) => {
   </body></html>`);
 });
 
+// SPA catch-all: serve index.html for any non-API, non-static-file route
+app.get('*', (req, res) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+  // Skip uploads
+  if (req.path.startsWith('/uploads/')) return res.status(404).json({ error: 'Not found' });
+  // Serve index.html for all other routes (SPA support)
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 if (require.main === module) {
   app.listen(PORT, function() {
     console.log('Aryal Store backend running at http://localhost:' + PORT);
