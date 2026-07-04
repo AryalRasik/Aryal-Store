@@ -1253,17 +1253,18 @@
   <script>
     // OAuth config loaded from backend on page load
     var OAUTH_CFG = { google_client_id: '', facebook_app_id: '' };
+    var GOOGLE_CLIENT_ID = OAUTH_CFG.google_client_id || '';
+    var FB_APP_ID = OAUTH_CFG.facebook_app_id || '';
     fetch('/api/config/oauth').then(function(r) { return r.json(); }).then(function(cfg) {
       OAUTH_CFG = cfg;
+      GOOGLE_CLIENT_ID = cfg.google_client_id || '';
+      FB_APP_ID = cfg.facebook_app_id || '';
       if (cfg.facebook_app_id) {
-        FB_APP_ID = cfg.facebook_app_id;
         if (typeof FB !== 'undefined') {
           FB.init({ appId: FB_APP_ID, cookie: true, xfbml: true, version: 'v18.0' });
         }
       }
     }).catch(function() {});
-
-    var FB_APP_ID = OAUTH_CFG.facebook_app_id || '';
     window.fbAsyncInit = function() {
       if (!FB_APP_ID) return;
       FB.init({ appId: FB_APP_ID, cookie: true, xfbml: true, version: 'v18.0' });
@@ -4215,7 +4216,7 @@ function openAuthModal(tab) {
   document.getElementById('authModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   localStorage.setItem('loginReturnUrl', window.location.href);
-  if (typeof google !== 'undefined' && google.accounts && !_googleInitialized && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
+  if (typeof google !== 'undefined' && google.accounts && !_googleInitialized && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
     google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
     _googleInitialized = true;
   }
@@ -5529,13 +5530,13 @@ function initCarousel() {
   // Initialize Google Sign-In buttons
   var _googleInitialized = false;
   function initGoogleBtn() {
-    if (typeof google !== 'undefined' && google.accounts && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
+    if (typeof google !== 'undefined' && google.accounts && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
       google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
       _googleInitialized = true;
     }
   }
   function handleGoogleSignIn() {
-    if (typeof google !== 'undefined' && google.accounts && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
+    if (typeof google !== 'undefined' && google.accounts && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
       if (!_googleInitialized) google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
       var tmp = document.createElement('div');
       tmp.style.display = 'none';

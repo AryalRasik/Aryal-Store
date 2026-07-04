@@ -388,10 +388,8 @@
 
   <!-- Hidden Google Sign-In button (for GSI) -->
   <div id="g_id_onload"
-       data-client_id="YOUR_GOOGLE_CLIENT_ID"
        data-context="signin"
        data-ux_mode="popup"
-       data-callback="handleGoogleCredential"
        data-auto_prompt="false">
   </div>
   <div class="google-btn-hidden"
@@ -1114,8 +1112,11 @@
       window.handleGoogleCredential = handleGoogleCredential;
 
       $('googleLoginBtn').addEventListener('click', function() {
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        if (googleClientId && googleInitialized) {
           google.accounts.id.prompt();
+        } else if (googleClientId && !googleInitialized && typeof google !== 'undefined' && google.accounts) {
+          initGoogleClient();
+          setTimeout(function() { google.accounts.id.prompt(); }, 100);
         } else {
           showGlobalError('Google Sign-In is loading. Please try again.');
         }
@@ -1124,8 +1125,11 @@
       // Duplicate Google buttons for signup form
       document.querySelectorAll('#signupForm .auth-social-btn.google').forEach(btn => {
         btn.addEventListener('click', function() {
-          if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+          if (googleClientId && googleInitialized) {
             google.accounts.id.prompt();
+          } else if (googleClientId && !googleInitialized && typeof google !== 'undefined' && google.accounts) {
+            initGoogleClient();
+            setTimeout(function() { google.accounts.id.prompt(); }, 100);
           } else {
             showGlobalError('Google Sign-In is loading. Please try again.');
           }
@@ -1193,6 +1197,25 @@
         });
       }
 
+      // ==================== OAUTH CONFIG ====================
+      let googleClientId = '';
+      let googleInitialized = false;
+      function initGoogleClient() {
+        if (googleInitialized) return;
+        if (googleClientId && typeof google !== 'undefined' && google.accounts) {
+          google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredential,
+            auto_prompt: false
+          });
+          googleInitialized = true;
+        }
+      }
+      fetch('/api/config/oauth').then(r => r.json()).then(function(cfg) {
+        googleClientId = cfg.google_client_id || '';
+        initGoogleClient();
+      }).catch(function() {});
+
       // ==================== INIT ====================
       document.addEventListener('DOMContentLoaded', function() {
         const token = getToken();
@@ -1216,6 +1239,22 @@
 
         initFloatingLabels();
       });
+
+      // Re-try Google init once GSI library finishes loading
+      function onGoogleLoaded() {
+        initGoogleClient();
+      }
+      if (typeof google !== 'undefined' && google.accounts) {
+        onGoogleLoaded();
+      } else {
+        var checkGoogleTimer = setInterval(function() {
+          if (typeof google !== 'undefined' && google.accounts) {
+            clearInterval(checkGoogleTimer);
+            onGoogleLoaded();
+          }
+        }, 200);
+        setTimeout(function() { clearInterval(checkGoogleTimer); }, 10000);
+      }
 
     })();
   </script>
