@@ -1111,27 +1111,44 @@
 
       window.handleGoogleCredential = handleGoogleCredential;
 
-      $('googleLoginBtn').addEventListener('click', function() {
+      function triggerGoogleSignIn() {
         if (googleClientId && googleInitialized) {
           google.accounts.id.prompt();
-        } else if (googleClientId && !googleInitialized && typeof google !== 'undefined' && google.accounts) {
+          return true;
+        }
+        if (googleClientId && !googleInitialized && typeof google !== 'undefined' && google.accounts) {
           initGoogleClient();
           setTimeout(function() { google.accounts.id.prompt(); }, 100);
-        } else {
-          showGlobalError('Google Sign-In is loading. Please try again.');
+          return true;
+        }
+        return false;
+      }
+
+      function retryGoogleConfig() {
+        fetch('/api/config/oauth').then(function(r) { return r.json(); }).then(function(cfg) {
+          googleClientId = cfg.google_client_id || '';
+          initGoogleClient();
+          if (googleClientId && googleInitialized) {
+            google.accounts.id.prompt();
+          } else {
+            showGlobalError('Google Sign-In is not configured. Contact the administrator.');
+          }
+        }).catch(function() {
+          showGlobalError('Could not connect to server. Make sure the server is running (npm start).');
+        });
+      }
+
+      $('googleLoginBtn').addEventListener('click', function() {
+        if (!triggerGoogleSignIn()) {
+          retryGoogleConfig();
         }
       });
 
       // Duplicate Google buttons for signup form
       document.querySelectorAll('#signupForm .auth-social-btn.google').forEach(btn => {
         btn.addEventListener('click', function() {
-          if (googleClientId && googleInitialized) {
-            google.accounts.id.prompt();
-          } else if (googleClientId && !googleInitialized && typeof google !== 'undefined' && google.accounts) {
-            initGoogleClient();
-            setTimeout(function() { google.accounts.id.prompt(); }, 100);
-          } else {
-            showGlobalError('Google Sign-In is loading. Please try again.');
+          if (!triggerGoogleSignIn()) {
+            retryGoogleConfig();
           }
         });
       });
@@ -1214,7 +1231,9 @@
       fetch('/api/config/oauth').then(r => r.json()).then(function(cfg) {
         googleClientId = cfg.google_client_id || '';
         initGoogleClient();
-      }).catch(function() {});
+      }).catch(function(err) {
+        console.warn('Failed to load OAuth config:', err);
+      });
 
       // ==================== INIT ====================
       document.addEventListener('DOMContentLoaded', function() {
