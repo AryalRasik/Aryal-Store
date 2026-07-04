@@ -1,7 +1,3 @@
-// =============================================================
-// Auth Module - Enhanced authentication for Aryal Store
-// =============================================================
-
 const AUTH_API = '/api/auth';
 const USERS_API = '/api/users';
 
@@ -31,6 +27,7 @@ function clearAuth() {
   localStorage.removeItem('aryal_user');
   localStorage.removeItem('aryal_refresh_token');
   localStorage.removeItem('aryal_email_verified');
+  localStorage.removeItem('aryal_remember');
 }
 
 async function authFetch(url, options = {}) {
@@ -61,7 +58,6 @@ async function authFetch(url, options = {}) {
 async function authRegister(data) {
   const btn = document.getElementById('authSignupBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...'; }
-
   try {
     const res = await fetch(AUTH_API + '/register', {
       method: 'POST',
@@ -69,12 +65,7 @@ async function authRegister(data) {
       body: JSON.stringify(data)
     });
     const result = await res.json();
-
-    if (!res.ok) {
-      showAuthError(result.error || 'Registration failed');
-      return null;
-    }
-
+    if (!res.ok) { showAuthError(result.error || 'Registration failed'); return null; }
     saveAuth(result.token, result.user);
     closeAuthModal();
     updateUserMenu();
@@ -92,27 +83,18 @@ async function authRegister(data) {
 async function authLogin(data) {
   const btn = document.getElementById('authLoginBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...'; }
-
   try {
     data.mergeCart = true;
     data.sessionId = localStorage.getItem('aryal_session_id');
-
     const res = await fetch(AUTH_API + '/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
     });
     const result = await res.json();
-
     if (!res.ok) {
-      if (res.status === 429) {
-        showAuthError(result.error);
-      } else {
-        showAuthError(result.error || 'Login failed');
-      }
+      if (res.status === 429) showAuthError(result.error);
+      else showAuthError(result.error || 'Login failed');
       return null;
     }
-
     saveAuth(result.token, result.user);
     closeAuthModal();
     updateUserMenu();
@@ -131,8 +113,7 @@ async function authLogin(data) {
 async function authLogout() {
   try {
     await fetch(AUTH_API + '/logout', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' }
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' }
     });
   } catch {}
   clearAuth();
@@ -145,67 +126,39 @@ async function authLogout() {
 async function forgotPassword(email) {
   const btn = document.getElementById('forgotPwdBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...'; }
-
   try {
     const res = await fetch(AUTH_API + '/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email })
     });
     const data = await res.json();
-
-    if (!res.ok) {
-      showToast(data.error || 'Failed to send reset email', 'error');
-      return null;
-    }
-
-    if (data.reset_token) {
-      showResetPasswordForm(data.reset_token);
-    } else {
-      showToast('If an account exists, a reset link has been sent.', 'success');
-      closeAuthModal();
-    }
+    if (!res.ok) { showToast(data.error || 'Failed to send reset email', 'error'); return null; }
+    if (data.reset_token) showResetPasswordForm(data.reset_token);
+    else { showToast('If an account exists, a reset link has been sent.', 'success'); closeAuthModal(); }
     return data;
-  } catch {
-    showToast('Network error', 'error');
-    return null;
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = 'Send Reset Link'; }
-  }
+  } catch { showToast('Network error', 'error'); return null; }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Send Reset Link'; } }
 }
 
 async function resetPassword(token, password, confirmPassword) {
   const btn = document.getElementById('resetPwdBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...'; }
-
   try {
     const res = await fetch(AUTH_API + '/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, password, confirmPassword })
     });
     const data = await res.json();
-
-    if (!res.ok) {
-      showToast(data.error || 'Reset failed', 'error');
-      return null;
-    }
-
+    if (!res.ok) { showToast(data.error || 'Reset failed', 'error'); return null; }
     showToast('Password reset successfully. Please login.', 'success');
     showLoginForm();
     return data;
-  } catch {
-    showToast('Network error', 'error');
-    return null;
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = 'Reset Password'; }
-  }
+  } catch { showToast('Network error', 'error'); return null; }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = 'Reset Password'; } }
 }
 
 async function updateProfile(data) {
   const res = await authFetch(USERS_API + '/profile', {
-    method: 'PUT',
-    body: JSON.stringify(data)
+    method: 'PUT', body: JSON.stringify(data)
   });
   if (!res) return null;
   const result = await res.json();
@@ -220,8 +173,7 @@ async function updateProfile(data) {
 
 async function changePassword(data) {
   const res = await authFetch(USERS_API + '/change-password', {
-    method: 'PUT',
-    body: JSON.stringify(data)
+    method: 'PUT', body: JSON.stringify(data)
   });
   if (!res) return null;
   const result = await res.json();
@@ -248,8 +200,7 @@ async function fetchAddresses() {
 
 async function saveAddress(data) {
   const res = await authFetch(USERS_API + '/addresses', {
-    method: 'POST',
-    body: JSON.stringify(data)
+    method: 'POST', body: JSON.stringify(data)
   });
   if (!res) return null;
   const result = await res.json();
@@ -279,26 +230,47 @@ async function resendVerification() {
   showToast(data.message || 'Verification email sent', 'success');
 }
 
+// ==================== OTP ====================
+async function sendOtp(phone) {
+  try {
+    const res = await fetch(AUTH_API + '/send-otp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Failed to send OTP', 'error'); return null; }
+    return data;
+  } catch { showToast('Network error', 'error'); return null; }
+}
+
+async function verifyOtp(phone, otp) {
+  try {
+    const res = await fetch(AUTH_API + '/verify-otp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, otp })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Invalid OTP', 'error'); return null; }
+    saveAuth(data.token, data.user);
+    updateUserMenu();
+    mergeGuestCart();
+    showToast('Phone verified successfully!', 'success');
+    return data;
+  } catch { showToast('Network error', 'error'); return null; }
+}
+
 // ==================== CART MERGE ====================
 async function mergeGuestCart() {
   const sessionId = localStorage.getItem('aryal_session_id');
   if (!sessionId) return;
-  try {
-    await authFetch(USERS_API + '/cart/merge', {
-      method: 'POST',
-      body: JSON.stringify({ sessionId })
-    });
-  } catch {}
+  try { await authFetch(USERS_API + '/cart/merge', { method: 'POST', body: JSON.stringify({ sessionId }) }); } catch {}
 }
 
 async function loadUserCart() {
   const user = getCurrentUser();
   if (!user) return;
-  // Cart is loaded via existing cart mechanism
-  loadCart();
+  if (typeof loadCart === 'function') loadCart();
 }
 
-// ==================== UI Functions ====================
+// ==================== UI ====================
 function showAuthError(message) {
   const el = document.getElementById('authError');
   if (el) { el.textContent = message; el.style.display = 'block'; }
@@ -311,6 +283,7 @@ function validatePasswordStrength(password) {
   if (!/[A-Z]/.test(password)) errors.push('Uppercase letter required');
   if (!/[a-z]/.test(password)) errors.push('Lowercase letter required');
   if (!/[0-9]/.test(password)) errors.push('Number required');
+  if (!/[^a-zA-Z0-9]/.test(password)) errors.push('Special character required');
   return errors;
 }
 
@@ -341,33 +314,86 @@ function showResetPasswordForm(token) {
   document.getElementById('authFormSignup').style.display = 'none';
   document.getElementById('authForgotForm').style.display = 'none';
   const resetForm = document.getElementById('authResetForm');
-  if (resetForm) {
-    resetForm.style.display = 'block';
-    document.getElementById('resetTokenInput').value = token;
-  }
+  if (resetForm) { resetForm.style.display = 'block'; document.getElementById('resetTokenInput').value = token; }
 }
 
 function showLoginForm() {
   const resetForm = document.getElementById('authResetForm');
   if (resetForm) resetForm.style.display = 'none';
   document.getElementById('authForgotForm').style.display = 'none';
-  switchAuthTab('login');
+  if (typeof switchAuthTab === 'function') switchAuthTab('login');
 }
 
-// ==================== TOAST NOTIFICATIONS ====================
+function showOtpModal(phone) {
+  const existing = document.getElementById('otpModalOverlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'otpModalOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.15);">
+      <div style="text-align:center;margin-bottom:20px;">
+        <h3 style="margin-bottom:6px;font-size:1.2rem;">Verify Phone</h3>
+        <p style="color:#888;font-size:0.88rem;">Enter the code sent to ${phone}</p>
+      </div>
+      <div id="otpInputs" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
+        ${[1,2,3,4,5,6].map(i => `<input type="text" maxlength="1" class="otp-digit" data-idx="${i-1}" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;border:1.5px solid #ddd;border-radius:8px;outline:none;font-family:inherit;">`).join('')}
+      </div>
+      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#888;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#e94560;font-weight:700;">05:00</span></div>
+      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#e94560;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
+      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#e94560;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const inputs = overlay.querySelectorAll('.otp-digit');
+  inputs.forEach((inp, idx) => {
+    inp.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '');
+      if (this.value && idx < 5) inputs[idx+1].focus();
+    });
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value && idx > 0) inputs[idx-1].focus();
+    });
+    inp.addEventListener('paste', function(e) {
+      e.preventDefault();
+      const paste = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      paste.split('').forEach((c,i) => { if(inputs[i]) inputs[i].value=c; });
+      inputs[Math.min(paste.length,5)].focus();
+    });
+  });
+  inputs[0].focus();
+  let expiresAt = Date.now() + 300000;
+  const timer = setInterval(() => {
+    const remaining = Math.max(0, Math.floor((expiresAt - Date.now())/1000));
+    document.getElementById('otpCountdown').textContent = String(Math.floor(remaining/60)).padStart(2,'0')+':'+String(remaining%60).padStart(2,'0');
+    if (remaining <= 0) { clearInterval(timer); document.getElementById('resendOtpModal').disabled = false; }
+  }, 1000);
+  document.getElementById('resendOtpModal').addEventListener('click', function() {
+    sendOtp(phone); expiresAt = Date.now() + 300000; this.disabled = true;
+    inputs.forEach(i => i.value = '');
+    inputs[0].focus();
+  });
+  document.getElementById('verifyOtpBtn').addEventListener('click', async function() {
+    const otp = Array.from(inputs).map(i => i.value).join('');
+    if (otp.length !== 6) { showToast('Enter all 6 digits', 'error'); return; }
+    this.disabled = true; this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+    const result = await verifyOtp(phone, otp);
+    this.disabled = false; this.textContent = 'Verify';
+    if (result) { overlay.remove(); clearInterval(timer); closeAuthModal(); }
+  });
+}
+
+// ==================== TOAST ====================
 function showToast(message, type) {
-  if (typeof toast === 'function') {
-    toast(message, type);
-    return;
-  }
+  if (typeof toast === 'function') { toast(message, type); return; }
   const container = document.getElementById('toastContainer');
   if (!container) return;
   const colors = { success: '#27ae60', error: '#e74c3c', info: '#3498db', warning: '#f39c12' };
   const icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle', warning: 'fa-exclamation-triangle' };
-  const toast = document.createElement('div');
-  toast.className = 'toast toast-' + type;
-  toast.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i> ' + message;
-  toast.style.cssText = 'background:' + (colors[type] || colors.info) + ';color:#fff;padding:12px 20px;border-radius:8px;margin-bottom:8px;font-size:0.9rem;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease;min-width:280px;';
-  container.appendChild(toast);
-  setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 4000);
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i> ' + message;
+  el.style.cssText = 'background:' + (colors[type] || colors.info) + ';color:#fff;padding:12px 20px;border-radius:8px;margin-bottom:8px;font-size:0.9rem;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease;min-width:280px;';
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 4000);
 }

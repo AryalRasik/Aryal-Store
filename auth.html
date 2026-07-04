@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign in or create your Aryal Store account. Secure authentication with email, phone OTP, Google, and Facebook login.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta property="og:title" content="Sign In - Aryal Store">
+  <meta property="og:description" content="Access your Aryal Store account for orders, wishlist, and more.">
+  <title>Sign In - Aryal Store</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="auth.css">
+  <style>
+    .auth-page-loading {
+      position: fixed;
+      inset: 0;
+      background: var(--auth-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.3s ease;
+    }
+    .auth-page-loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .auth-page-loading .loader {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--auth-border);
+      border-top-color: var(--auth-primary);
+      border-radius: 50%;
+      animation: authSpin 0.6s linear infinite;
+    }
+    .google-btn-hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="auth-page-loading" id="pageLoader">
+    <div class="loader"></div>
+  </div>
+
+  <button class="auth-theme-toggle" id="themeToggle" aria-label="Toggle theme">
+    <i class="fas fa-moon" id="themeIcon"></i>
+  </button>
+
+  <div class="auth-container">
+    <!-- Brand Side -->
+    <div class="auth-brand">
+      <div class="auth-brand-content">
+        <div class="auth-brand-logo">
+          <i class="fas fa-store"></i>
+          <span>Aryal</span> Store
+        </div>
+        <h2>Welcome Back</h2>
+        <p>Sign in to access your orders, wishlist, and enjoy a personalized shopping experience.</p>
+        <div class="auth-benefits">
+          <div class="auth-benefit">
+            <div class="auth-benefit-icon"><i class="fas fa-truck"></i></div>
+            <span>Track your orders in real time</span>
+          </div>
+          <div class="auth-benefit">
+            <div class="auth-benefit-icon"><i class="fas fa-heart"></i></div>
+            <span>Save favourites to your wishlist</span>
+          </div>
+          <div class="auth-benefit">
+            <div class="auth-benefit-icon"><i class="fas fa-bolt"></i></div>
+            <span>Express checkout with saved details</span>
+          </div>
+          <div class="auth-benefit">
+            <div class="auth-benefit-icon"><i class="fas fa-tag"></i></div>
+            <span>Exclusive deals and member prices</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Side -->
+    <div class="auth-form-side">
+      <div class="auth-form-wrapper">
+        <!-- Mobile Logo -->
+        <div class="auth-form-header">
+          <div class="mobile-logo"><i class="fas fa-store"></i> <span>Aryal</span> Store</div>
+          <h1 id="formTitle">Sign In</h1>
+          <p id="formSubtitle">Welcome back! Please enter your details.</p>
+        </div>
+
+        <!-- Global Messages -->
+        <div class="auth-error-global" id="authError">
+          <i class="fas fa-exclamation-circle"></i>
+          <span id="authErrorMsg"></span>
+        </div>
+        <div class="auth-success-global" id="authSuccess">
+          <i class="fas fa-check-circle"></i>
+          <span id="authSuccessMsg"></span>
+        </div>
+
+        <!-- Login Form -->
+        <form class="auth-form" id="loginForm" autocomplete="on" novalidate>
+          <div class="auth-input-group">
+            <input class="auth-input" type="text" id="loginEmail" placeholder=" " autocomplete="email" inputmode="email" required>
+            <label for="loginEmail">Email or Phone Number</label>
+            <span class="auth-input-icon"><i class="fas fa-envelope"></i></span>
+          </div>
+          <div class="auth-field-error" id="loginEmailError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="password" id="loginPassword" placeholder=" " autocomplete="current-password" required>
+            <label for="loginPassword">Password</label>
+            <button type="button" class="auth-input-toggle" id="loginPasswordToggle" aria-label="Toggle password visibility">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          <div class="auth-field-error" id="loginPasswordError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-options">
+            <label class="auth-remember">
+              <input type="checkbox" id="rememberMe"> Remember Me
+            </label>
+            <a href="#" class="auth-forgot" id="forgotLink">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="auth-btn auth-btn-primary" id="loginBtn">
+            <span class="spinner"></span>
+            <span class="btn-text">Sign In</span>
+            <span class="btn-text-loading">Signing In...</span>
+          </button>
+
+          <div class="auth-divider">or continue with</div>
+
+          <div class="auth-social">
+            <button type="button" class="auth-social-btn google" id="googleLoginBtn">
+              <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              Continue with Google
+            </button>
+            <button type="button" class="auth-social-btn facebook" id="facebookLoginBtn">
+              <i class="fab fa-facebook-f"></i> Continue with Facebook
+            </button>
+          </div>
+
+          <div class="auth-form-footer">
+            <p>Don't have an account? <a href="#" id="switchToSignup">Create Account</a></p>
+          </div>
+        </form>
+
+        <!-- Signup Form -->
+        <form class="auth-form hidden" id="signupForm" autocomplete="on" novalidate>
+          <div class="auth-tabs">
+            <button type="button" class="auth-tab active" data-tab="login">Sign In</button>
+            <button type="button" class="auth-tab" data-tab="signup">Create Account</button>
+          </div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="text" id="signupFirstName" placeholder=" " autocomplete="given-name" required>
+            <label for="signupFirstName">First Name</label>
+            <span class="auth-input-icon"><i class="fas fa-user"></i></span>
+          </div>
+          <div class="auth-field-error" id="signupFirstNameError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="text" id="signupLastName" placeholder=" " autocomplete="family-name" required>
+            <label for="signupLastName">Last Name</label>
+            <span class="auth-input-icon"><i class="fas fa-user"></i></span>
+          </div>
+          <div class="auth-field-error" id="signupLastNameError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="email" id="signupEmail" placeholder=" " autocomplete="email" inputmode="email" required>
+            <label for="signupEmail">Email</label>
+            <span class="auth-input-icon"><i class="fas fa-envelope"></i></span>
+          </div>
+          <div class="auth-field-error" id="signupEmailError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="tel" id="signupPhone" placeholder=" " autocomplete="tel" inputmode="tel" required>
+            <label for="signupPhone">Phone Number</label>
+            <span class="auth-input-icon"><i class="fas fa-phone"></i></span>
+          </div>
+          <div class="auth-field-error" id="signupPhoneError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-input-group">
+            <select class="auth-select" id="signupCountry" required>
+              <option value="Nepal">Nepal</option>
+              <option value="India">India</option>
+              <option value="China">China</option>
+              <option value="Bangladesh">Bangladesh</option>
+              <option value="Bhutan">Bhutan</option>
+              <option value="Pakistan">Pakistan</option>
+              <option value="Sri Lanka">Sri Lanka</option>
+              <option value="Maldives">Maldives</option>
+              <option value="United States">United States</option>
+              <option value="United Kingdom">United Kingdom</option>
+              <option value="Canada">Canada</option>
+              <option value="Australia">Australia</option>
+              <option value="Others">Others</option>
+            </select>
+            <label for="signupCountry" style="top:0;transform:translateY(-50%) scale(0.82);background:var(--auth-input-bg);color:var(--auth-text-muted);">Country</label>
+          </div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="password" id="signupPassword" placeholder=" " autocomplete="new-password" required>
+            <label for="signupPassword">Password</label>
+            <button type="button" class="auth-input-toggle" id="signupPasswordToggle" aria-label="Toggle password visibility">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          <div class="auth-field-error" id="signupPasswordError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-password-strength" id="passwordStrength">
+            <div class="auth-strength-bar">
+              <span id="str1"></span>
+              <span id="str2"></span>
+              <span id="str3"></span>
+              <span id="str4"></span>
+            </div>
+            <span class="auth-strength-text" id="strengthText"></span>
+          </div>
+
+          <div class="auth-password-requirements" id="passwordReqs">
+            <div class="req" id="reqLength"><i class="far fa-circle"></i> At least 8 characters</div>
+            <div class="req" id="reqUpper"><i class="far fa-circle"></i> One uppercase letter</div>
+            <div class="req" id="reqLower"><i class="far fa-circle"></i> One lowercase letter</div>
+            <div class="req" id="reqNumber"><i class="far fa-circle"></i> One number</div>
+            <div class="req" id="reqSpecial"><i class="far fa-circle"></i> One special character</div>
+          </div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="password" id="signupConfirmPassword" placeholder=" " autocomplete="new-password" required>
+            <label for="signupConfirmPassword">Confirm Password</label>
+            <button type="button" class="auth-input-toggle" id="signupConfirmToggle" aria-label="Toggle password visibility">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          <div class="auth-field-error" id="signupConfirmError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-checkbox-group">
+            <input type="checkbox" id="acceptTerms" required>
+            <label for="acceptTerms">I accept the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a></label>
+          </div>
+          <div class="auth-field-error" id="signupTermsError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <button type="submit" class="auth-btn auth-btn-primary" id="signupBtn">
+            <span class="spinner"></span>
+            <span class="btn-text">Create Account</span>
+            <span class="btn-text-loading">Creating Account...</span>
+          </button>
+
+          <div class="auth-divider">or continue with</div>
+
+          <div class="auth-social">
+            <button type="button" class="auth-social-btn google">
+              <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              Continue with Google
+            </button>
+            <button type="button" class="auth-social-btn facebook">
+              <i class="fab fa-facebook-f"></i> Continue with Facebook
+            </button>
+          </div>
+
+          <div class="auth-form-footer">
+            <p>Already have an account? <a href="#" id="switchToLogin">Sign In</a></p>
+          </div>
+        </form>
+
+        <!-- Forgot Password Form -->
+        <form class="auth-form hidden" id="forgotForm" novalidate>
+          <a href="#" class="auth-back-link" id="backToLoginFromForgot">
+            <i class="fas fa-arrow-left"></i> Back to Sign In
+          </a>
+          <div class="auth-form-header" style="text-align:left;margin-bottom:24px;">
+            <h1 style="font-size:1.35rem;">Forgot Password</h1>
+            <p style="font-size:0.88rem;">Enter your email and we'll send you a reset link.</p>
+          </div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="email" id="forgotEmail" placeholder=" " autocomplete="email" inputmode="email" required>
+            <label for="forgotEmail">Email Address</label>
+            <span class="auth-input-icon"><i class="fas fa-envelope"></i></span>
+          </div>
+          <div class="auth-field-error" id="forgotEmailError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <button type="submit" class="auth-btn auth-btn-primary" id="forgotBtn">
+            <span class="spinner"></span>
+            <span class="btn-text">Send Reset Link</span>
+            <span class="btn-text-loading">Sending...</span>
+          </button>
+
+          <div class="auth-form-footer">
+            <p>Remember your password? <a href="#" id="backToLoginFromForgot2">Sign In</a></p>
+          </div>
+        </form>
+
+        <!-- Reset Password Form -->
+        <form class="auth-form hidden" id="resetForm" novalidate>
+          <a href="#" class="auth-back-link" id="backToLoginFromReset">
+            <i class="fas fa-arrow-left"></i> Back to Sign In
+          </a>
+          <div class="auth-form-header" style="text-align:left;margin-bottom:24px;">
+            <h1 style="font-size:1.35rem;">Set New Password</h1>
+            <p style="font-size:0.88rem;">Your new password must be different from previously used passwords.</p>
+          </div>
+
+          <input type="hidden" id="resetToken">
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="password" id="resetPassword" placeholder=" " autocomplete="new-password" required>
+            <label for="resetPassword">New Password</label>
+            <button type="button" class="auth-input-toggle" id="resetPasswordToggle" aria-label="Toggle password visibility">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          <div class="auth-field-error" id="resetPasswordError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="auth-password-strength" id="resetPasswordStrength">
+            <div class="auth-strength-bar">
+              <span id="rstr1"></span>
+              <span id="rstr2"></span>
+              <span id="rstr3"></span>
+              <span id="rstr4"></span>
+            </div>
+            <span class="auth-strength-text" id="resetStrengthText"></span>
+          </div>
+
+          <div class="auth-input-group">
+            <input class="auth-input" type="password" id="resetConfirmPassword" placeholder=" " autocomplete="new-password" required>
+            <label for="resetConfirmPassword">Confirm New Password</label>
+            <button type="button" class="auth-input-toggle" id="resetConfirmToggle" aria-label="Toggle password visibility">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+          <div class="auth-field-error" id="resetConfirmError"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <button type="submit" class="auth-btn auth-btn-primary" id="resetBtn">
+            <span class="spinner"></span>
+            <span class="btn-text">Reset Password</span>
+            <span class="btn-text-loading">Resetting...</span>
+          </button>
+        </form>
+
+        <!-- OTP Verification Form -->
+        <form class="auth-form hidden" id="otpForm" novalidate>
+          <a href="#" class="auth-back-link" id="backFromOtp">
+            <i class="fas fa-arrow-left"></i> Back
+          </a>
+          <div class="auth-form-header" style="text-align:left;margin-bottom:24px;">
+            <h1 style="font-size:1.35rem;">Verify Phone</h1>
+            <p style="font-size:0.88rem;" id="otpSentTo">Enter the 6-digit code sent to your phone.</p>
+          </div>
+
+          <div class="otp-container" id="otpContainer">
+            <input type="text" class="otp-input" id="otp1" maxlength="1" inputmode="numeric" autocomplete="one-time-code">
+            <input type="text" class="otp-input" id="otp2" maxlength="1" inputmode="numeric">
+            <input type="text" class="otp-input" id="otp3" maxlength="1" inputmode="numeric">
+            <input type="text" class="otp-input" id="otp4" maxlength="1" inputmode="numeric">
+            <input type="text" class="otp-input" id="otp5" maxlength="1" inputmode="numeric">
+            <input type="text" class="otp-input" id="otp6" maxlength="1" inputmode="numeric">
+          </div>
+
+          <div class="auth-field-error" id="otpError" style="justify-content:center;margin-bottom:12px;"><i class="fas fa-times-circle"></i> <span></span></div>
+
+          <div class="otp-timer">
+            Code expires in <span id="otpTimer">05:00</span>
+          </div>
+
+          <div class="otp-resend">
+            <button type="button" id="resendOtpBtn" disabled>Resend Code</button>
+          </div>
+
+          <input type="hidden" id="otpPhone">
+
+          <button type="submit" class="auth-btn auth-btn-primary" id="otpVerifyBtn">
+            <span class="spinner"></span>
+            <span class="btn-text">Verify</span>
+            <span class="btn-text-loading">Verifying...</span>
+          </button>
+        </form>
+
+        <!-- Success View -->
+        <div class="auth-success-check" id="successView">
+          <div class="check-icon"><i class="fas fa-check"></i></div>
+          <h3 id="successTitle">Success!</h3>
+          <p id="successMsg">You have been logged in successfully.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Google Sign-In button (for GSI) -->
+  <div id="g_id_onload"
+       data-client_id="YOUR_GOOGLE_CLIENT_ID"
+       data-context="signin"
+       data-ux_mode="popup"
+       data-callback="handleGoogleCredential"
+       data-auto_prompt="false">
+  </div>
+  <div class="google-btn-hidden"
+       id="g_id_signin"
+       data-type="standard"
+       data-shape="rectangular"
+       data-theme="outline"
+       data-text="signin_with"
+       data-size="large"
+       data-logo_alignment="left">
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    (function() {
+      'use strict';
+
+      const AUTH_API = '/api/auth';
+      const COOKIE_CHECK = '/api/auth/me';
+      const SOCIAL_API = '/api/users';
+
+      // ==================== DOM REFS ====================
+      const $ = id => document.getElementById(id);
+      const loginForm = $('loginForm');
+      const signupForm = $('signupForm');
+      const forgotForm = $('forgotForm');
+      const resetForm = $('resetForm');
+      const otpForm = $('otpForm');
+      const successView = $('successView');
+      const authError = $('authError');
+      const authErrorMsg = $('authErrorMsg');
+      const authSuccess = $('authSuccess');
+      const authSuccessMsg = $('authSuccessMsg');
+      const formTitle = $('formTitle');
+      const formSubtitle = $('formSubtitle');
+      const pageLoader = $('pageLoader');
+
+      // ==================== UTILITY ====================
+      function getToken() {
+        return localStorage.getItem('aryal_token');
+      }
+
+      function getCurrentUser() {
+        try { return JSON.parse(localStorage.getItem('aryal_user')); } catch { return null; }
+      }
+
+      function saveAuth(token, user, remember) {
+        localStorage.setItem('aryal_token', token);
+        localStorage.setItem('aryal_user', JSON.stringify(user));
+        if (remember) localStorage.setItem('aryal_remember', 'true');
+        if (user && user.email_verified_at) {
+          localStorage.setItem('aryal_email_verified', 'true');
+        }
+      }
+
+      function clearAuth() {
+        localStorage.removeItem('aryal_token');
+        localStorage.removeItem('aryal_user');
+        localStorage.removeItem('aryal_refresh_token');
+        localStorage.removeItem('aryal_email_verified');
+        localStorage.removeItem('aryal_remember');
+      }
+
+      function isValidEmail(v) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      }
+
+      function isValidPhone(v) {
+        return /^[\d\s\-\+\(\)]{7,20}$/.test(v);
+      }
+
+      function detectInputType(v) {
+        return isValidEmail(v) ? 'email' : 'phone';
+      }
+
+      function showGlobalError(msg) {
+        authErrorMsg.textContent = msg;
+        authError.classList.add('show');
+        authSuccess.classList.remove('show');
+      }
+
+      function hideGlobalError() {
+        authError.classList.remove('show');
+      }
+
+      function showGlobalSuccess(msg) {
+        authSuccessMsg.textContent = msg;
+        authSuccess.classList.add('show');
+        authError.classList.remove('show');
+      }
+
+      function hideGlobalSuccess() {
+        authSuccess.classList.remove('show');
+      }
+
+      function setFieldError(elId, msg) {
+        const el = $(elId);
+        if (!el) return;
+        if (msg) {
+          el.querySelector('span').textContent = msg;
+          el.classList.add('show');
+        } else {
+          el.classList.remove('show');
+        }
+      }
+
+      function clearFieldErrors() {
+        document.querySelectorAll('.auth-field-error').forEach(e => e.classList.remove('show'));
+        document.querySelectorAll('.auth-input.error').forEach(e => e.classList.remove('error', 'success'));
+      }
+
+      function markField(id, state) {
+        const el = $(id);
+        if (!el) return;
+        el.classList.remove('error', 'success');
+        if (state) el.classList.add(state);
+      }
+
+      function setBtnLoading(btnId, loading) {
+        const btn = $(btnId);
+        if (!btn) return;
+        if (loading) {
+          btn.classList.add('loading');
+          btn.disabled = true;
+        } else {
+          btn.classList.remove('loading');
+          btn.disabled = false;
+        }
+      }
+
+      // ==================== SHOW FORM ====================
+      function showForm(form) {
+        [loginForm, signupForm, forgotForm, resetForm, otpForm].forEach(f => f.classList.add('hidden'));
+        successView.classList.remove('show');
+        hideGlobalError();
+        hideGlobalSuccess();
+        clearFieldErrors();
+        if (form) form.classList.remove('hidden');
+
+        if (form === loginForm) {
+          formTitle.textContent = 'Sign In';
+          formSubtitle.textContent = 'Welcome back! Please enter your details.';
+        } else if (form === signupForm) {
+          formTitle.textContent = 'Create Account';
+          formSubtitle.textContent = 'Join Aryal Store for a better shopping experience.';
+        }
+      }
+
+      // ==================== PASSWORD TOGGLE ====================
+      function setupPasswordToggle(inputId, toggleId) {
+        const input = $(inputId);
+        const toggle = $(toggleId);
+        if (!input || !toggle) return;
+        toggle.addEventListener('click', function() {
+          const type = input.type === 'password' ? 'text' : 'password';
+          input.type = type;
+          this.querySelector('i').className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+      }
+
+      setupPasswordToggle('loginPassword', 'loginPasswordToggle');
+      setupPasswordToggle('signupPassword', 'signupPasswordToggle');
+      setupPasswordToggle('signupConfirmPassword', 'signupConfirmToggle');
+      setupPasswordToggle('resetPassword', 'resetPasswordToggle');
+      setupPasswordToggle('resetConfirmPassword', 'resetConfirmToggle');
+
+      // ==================== PASSWORD STRENGTH ====================
+      function evaluatePassword(pwd) {
+        let score = 0;
+        if (pwd.length >= 8) score++;
+        if (pwd.length >= 12) score++;
+        if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+        if (/[0-9]/.test(pwd)) score++;
+        if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+        return score;
+      }
+
+      function updateStrengthUI(pwd, prefix) {
+        const bar = [$(prefix + 'str1'), $(prefix + 'str2'), $(prefix + 'str3'), $(prefix + 'str4')];
+        const text = $(prefix + 'strengthText');
+        const container = text ? text.closest('.auth-password-strength') : null;
+        if (!container) return;
+
+        if (!pwd) {
+          container.classList.remove('show');
+          return;
+        }
+
+        container.classList.add('show');
+        const score = evaluatePassword(pwd);
+        const levels = [
+          { label: 'Weak', color: 'weak', bars: 1 },
+          { label: 'Fair', color: 'medium', bars: 2 },
+          { label: 'Good', color: 'medium', bars: 3 },
+          { label: 'Strong', color: 'strong', bars: 4 }
+        ];
+        const level = levels[Math.min(score, 4) - 1] || levels[0];
+        bar.forEach((b, i) => {
+          if (!b) return;
+          b.className = '';
+          if (i < level.bars) b.classList.add(level.color);
+        });
+        text.textContent = level.label;
+        text.className = 'auth-strength-text ' + level.color;
+      }
+
+      function updateRequirements(pwd) {
+        const reqs = ['reqLength', 'reqUpper', 'reqLower', 'reqNumber', 'reqSpecial'];
+        const checks = [
+          pwd.length >= 8,
+          /[A-Z]/.test(pwd),
+          /[a-z]/.test(pwd),
+          /[0-9]/.test(pwd),
+          /[^a-zA-Z0-9]/.test(pwd)
+        ];
+        reqs.forEach((id, i) => {
+          const el = $(id);
+          if (!el) return;
+          if (checks[i]) {
+            el.classList.add('met');
+            el.querySelector('i').className = 'fas fa-check-circle';
+          } else {
+            el.classList.remove('met');
+            el.querySelector('i').className = 'far fa-circle';
+          }
+        });
+      }
+
+      $('signupPassword').addEventListener('input', function() {
+        updateStrengthUI(this.value, 'str');
+        const reqs = $('passwordReqs');
+        if (this.value) reqs.classList.add('show'); else reqs.classList.remove('show');
+        updateRequirements(this.value);
+      });
+
+      $('resetPassword').addEventListener('input', function() {
+        updateStrengthUI(this.value, 'rstr');
+      });
+
+      // ==================== LIVE VALIDATION ====================
+      function setupLiveValidation(inputId, errorId, validateFn) {
+        const input = $(inputId);
+        const error = $(errorId);
+        if (!input || !error) return;
+        input.addEventListener('blur', function() {
+          if (!this.value) {
+            this.classList.remove('error', 'success');
+            error.classList.remove('show');
+            return;
+          }
+          const result = validateFn(this.value);
+          if (result === true) {
+            this.classList.remove('error');
+            this.classList.add('success');
+            error.classList.remove('show');
+          } else {
+            this.classList.remove('success');
+            this.classList.add('error');
+            error.querySelector('span').textContent = result;
+            error.classList.add('show');
+          }
+        });
+        input.addEventListener('input', function() {
+          if (this.classList.contains('error') || this.classList.contains('success')) {
+            if (!this.value) {
+              this.classList.remove('error', 'success');
+              error.classList.remove('show');
+            }
+          }
+        });
+      }
+
+      setupLiveValidation('loginEmail', 'loginEmailError', v => {
+        if (!v) return 'Email or phone is required';
+        return true;
+      });
+
+      setupLiveValidation('signupEmail', 'signupEmailError', v => {
+        if (!v) return 'Email is required';
+        if (!isValidEmail(v)) return 'Invalid email format';
+        return true;
+      });
+
+      setupLiveValidation('signupFirstName', 'signupFirstNameError', v => {
+        if (!v || v.length < 2) return 'First name is required (min 2 chars)';
+        return true;
+      });
+
+      setupLiveValidation('signupLastName', 'signupLastNameError', v => {
+        if (!v || v.length < 2) return 'Last name is required (min 2 chars)';
+        return true;
+      });
+
+      setupLiveValidation('signupPhone', 'signupPhoneError', v => {
+        if (!v) return 'Phone number is required';
+        if (!isValidPhone(v)) return 'Invalid phone number';
+        return true;
+      });
+
+      // ==================== FORM SWITCHING ====================
+      function showLogin() { showForm(loginForm); }
+      function showSignup() {
+        showForm(signupForm);
+        document.querySelectorAll('.auth-tab').forEach(t => {
+          t.classList.toggle('active', t.dataset.tab === 'signup');
+        });
+      }
+
+      $('switchToSignup').addEventListener('click', function(e) { e.preventDefault(); showSignup(); });
+      $('switchToLogin').addEventListener('click', function(e) { e.preventDefault(); showLogin(); });
+      $('backToLoginFromForgot').addEventListener('click', function(e) { e.preventDefault(); showLogin(); });
+      $('backToLoginFromForgot2').addEventListener('click', function(e) { e.preventDefault(); showLogin(); });
+      $('backToLoginFromReset').addEventListener('click', function(e) { e.preventDefault(); showLogin(); });
+      $('backFromOtp').addEventListener('click', function(e) { e.preventDefault(); showLogin(); });
+
+      // Tab switching
+      document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          const tabName = this.dataset.tab;
+          document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t === this));
+          if (tabName === 'login') showLogin();
+          else showSignup();
+        });
+      });
+
+      // Forgot link
+      $('forgotLink').addEventListener('click', function(e) {
+        e.preventDefault();
+        showForm(forgotForm);
+      });
+
+      // ==================== LOGIN ====================
+      loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideGlobalError();
+        clearFieldErrors();
+
+        const identifier = $('loginEmail').value.trim();
+        const password = $('loginPassword').value;
+        const rememberMe = $('rememberMe').checked;
+
+        if (!identifier) {
+          setFieldError('loginEmailError', 'Email or phone number is required');
+          markField('loginEmail', 'error');
+          return;
+        }
+
+        if (!password) {
+          setFieldError('loginPasswordError', 'Password is required');
+          markField('loginPassword', 'error');
+          return;
+        }
+
+        const body = { password, rememberMe, mergeCart: true, sessionId: localStorage.getItem('aryal_session_id') || '' };
+        const type = detectInputType(identifier);
+        if (type === 'email') body.email = identifier.toLowerCase();
+        else body.phone = identifier;
+
+        setBtnLoading('loginBtn', true);
+
+        try {
+          const res = await fetch(AUTH_API + '/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            if (res.status === 429) {
+              showGlobalError(data.error || 'Too many attempts. Please try again later.');
+            } else if (res.status === 401) {
+              setFieldError('loginPasswordError', data.error || 'Invalid credentials');
+              markField('loginPassword', 'error');
+            } else {
+              showGlobalError(data.error || 'Login failed');
+            }
+            return;
+          }
+
+          saveAuth(data.token, data.user, rememberMe);
+          showSuccessView('Welcome back!', 'Redirecting to your account...');
+          setTimeout(() => {
+            const redirect = localStorage.getItem('aryal_redirect') || '/';
+            localStorage.removeItem('aryal_redirect');
+            window.location.href = redirect;
+          }, 1000);
+        } catch (err) {
+          showGlobalError('Network error. Please try again.');
+        } finally {
+          setBtnLoading('loginBtn', false);
+        }
+      });
+
+      // ==================== SIGNUP ====================
+      signupForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideGlobalError();
+        clearFieldErrors();
+
+        const firstName = $('signupFirstName').value.trim();
+        const lastName = $('signupLastName').value.trim();
+        const email = $('signupEmail').value.trim();
+        const phone = $('signupPhone').value.trim();
+        const country = $('signupCountry').value;
+        const password = $('signupPassword').value;
+        const confirmPassword = $('signupConfirmPassword').value;
+        const acceptTerms = $('acceptTerms').checked;
+
+        let valid = true;
+
+        if (!firstName || firstName.length < 2) {
+          setFieldError('signupFirstNameError', 'First name is required');
+          markField('signupFirstName', 'error'); valid = false;
+        }
+        if (!lastName || lastName.length < 2) {
+          setFieldError('signupLastNameError', 'Last name is required');
+          markField('signupLastName', 'error'); valid = false;
+        }
+        if (!email || !isValidEmail(email)) {
+          setFieldError('signupEmailError', 'Valid email is required');
+          markField('signupEmail', 'error'); valid = false;
+        }
+        if (!phone || !isValidPhone(phone)) {
+          setFieldError('signupPhoneError', 'Valid phone number is required');
+          markField('signupPhone', 'error'); valid = false;
+        }
+        if (!password || password.length < 8) {
+          setFieldError('signupPasswordError', 'Password must be at least 8 characters');
+          markField('signupPassword', 'error'); valid = false;
+        }
+        if (password !== confirmPassword) {
+          setFieldError('signupConfirmError', 'Passwords do not match');
+          markField('signupConfirmPassword', 'error'); valid = false;
+        }
+        if (!acceptTerms) {
+          setFieldError('signupTermsError', 'You must accept the terms');
+          valid = false;
+        }
+
+        if (!valid) return;
+
+        const body = {
+          name: firstName + ' ' + lastName,
+          email: email.toLowerCase(),
+          phone,
+          password,
+          confirmPassword,
+          address: country
+        };
+
+        setBtnLoading('signupBtn', true);
+
+        try {
+          const res = await fetch(AUTH_API + '/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            showGlobalError(data.error || 'Registration failed');
+            return;
+          }
+
+          saveAuth(data.token, data.user);
+          showSuccessView('Account Created!', 'Please check your email to verify your account. Redirecting...');
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+        } catch (err) {
+          showGlobalError('Network error. Please try again.');
+        } finally {
+          setBtnLoading('signupBtn', false);
+        }
+      });
+
+      // ==================== FORGOT PASSWORD ====================
+      forgotForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideGlobalError();
+        clearFieldErrors();
+
+        const email = $('forgotEmail').value.trim();
+
+        if (!email || !isValidEmail(email)) {
+          setFieldError('forgotEmailError', 'Valid email is required');
+          markField('forgotEmail', 'error');
+          return;
+        }
+
+        setBtnLoading('forgotBtn', true);
+
+        try {
+          const res = await fetch(AUTH_API + '/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.toLowerCase() })
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            showGlobalError(data.error || 'Failed to send reset email');
+            return;
+          }
+
+          if (data.reset_token) {
+            $('resetToken').value = data.reset_token;
+            showForm(resetForm);
+          } else {
+            showGlobalSuccess(data.message || 'If an account exists, a reset link has been sent.');
+          }
+        } catch (err) {
+          showGlobalError('Network error. Please try again.');
+        } finally {
+          setBtnLoading('forgotBtn', false);
+        }
+      });
+
+      // ==================== RESET PASSWORD ====================
+      resetForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideGlobalError();
+        clearFieldErrors();
+
+        const token = $('resetToken').value;
+        const password = $('resetPassword').value;
+        const confirm = $('resetConfirmPassword').value;
+
+        if (!password || password.length < 8) {
+          setFieldError('resetPasswordError', 'Password must be at least 8 characters');
+          markField('resetPassword', 'error');
+          return;
+        }
+        if (password !== confirm) {
+          setFieldError('resetConfirmError', 'Passwords do not match');
+          markField('resetConfirmPassword', 'error');
+          return;
+        }
+
+        setBtnLoading('resetBtn', true);
+
+        try {
+          const res = await fetch(AUTH_API + '/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, password, confirmPassword: confirm })
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            showGlobalError(data.error || 'Reset failed');
+            return;
+          }
+
+          showSuccessView('Password Reset!', 'Your password has been updated. Redirecting to login...');
+          setTimeout(() => showLogin(), 2000);
+        } catch (err) {
+          showGlobalError('Network error. Please try again.');
+        } finally {
+          setBtnLoading('resetBtn', false);
+        }
+      });
+
+      // ==================== OTP ====================
+      const otpInputs = ['otp1','otp2','otp3','otp4','otp5','otp6'].map(id => $(id));
+      let otpTimerInterval = null;
+      let otpExpiresAt = 0;
+
+      otpInputs.forEach((input, idx) => {
+        input.addEventListener('input', function() {
+          this.value = this.value.replace(/\D/g, '');
+          if (this.value && idx < 5) otpInputs[idx + 1].focus();
+        });
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Backspace' && !this.value && idx > 0) otpInputs[idx - 1].focus();
+          if (e.key === 'Enter' && idx === 5) otpForm.dispatchEvent(new Event('submit'));
+        });
+        input.addEventListener('paste', function(e) {
+          e.preventDefault();
+          const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+          paste.split('').forEach((char, i) => {
+            if (otpInputs[i]) { otpInputs[i].value = char; otpInputs[i].classList.add('filled'); }
+          });
+          otpInputs[Math.min(paste.length, 5)].focus();
+        });
+        input.addEventListener('focus', function() { this.select(); });
+      });
+
+      function showOtpForm(phone) {
+        $('otpPhone').value = phone;
+        $('otpSentTo').textContent = 'Enter the 6-digit code sent to ' + phone;
+        showForm(otpForm);
+        otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled', 'error'); });
+        otpInputs[0].focus();
+        startOtpTimer(300);
+        sendOtp(phone);
+      }
+
+      async function sendOtp(phone) {
+        try {
+          const res = await fetch(AUTH_API + '/send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone })
+          });
+          const data = await res.json();
+          if (!res.ok) showGlobalError(data.error || 'Failed to send OTP');
+          else if (data.debug) console.log('[OTP Debug]', data.debug);
+        } catch {
+          showGlobalError('Network error. Please try again.');
+        }
+      }
+
+      function startOtpTimer(seconds) {
+        otpExpiresAt = Date.now() + seconds * 1000;
+        const timerEl = $('otpTimer');
+        const resendBtn = $('resendOtpBtn');
+        resendBtn.disabled = true;
+        clearInterval(otpTimerInterval);
+        otpTimerInterval = setInterval(() => {
+          const remaining = Math.max(0, Math.floor((otpExpiresAt - Date.now()) / 1000));
+          const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
+          const secs = String(remaining % 60).padStart(2, '0');
+          timerEl.textContent = mins + ':' + secs;
+          if (remaining <= 0) {
+            clearInterval(otpTimerInterval);
+            resendBtn.disabled = false;
+            timerEl.textContent = 'Expired';
+          }
+        }, 1000);
+      }
+
+      $('resendOtpBtn').addEventListener('click', function() {
+        const phone = $('otpPhone').value;
+        if (!phone) return;
+        otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled', 'error'); });
+        otpInputs[0].focus();
+        startOtpTimer(300);
+        sendOtp(phone);
+      });
+
+      otpForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideGlobalError();
+        $('otpError').classList.remove('show');
+        otpInputs.forEach(i => i.classList.remove('error'));
+
+        const otp = otpInputs.map(i => i.value).join('');
+        const phone = $('otpPhone').value;
+
+        if (otp.length !== 6) {
+          $('otpError').querySelector('span').textContent = 'Please enter all 6 digits';
+          $('otpError').classList.add('show');
+          otpInputs.forEach(i => i.classList.add('error'));
+          return;
+        }
+
+        setBtnLoading('otpVerifyBtn', true);
+
+        try {
+          const res = await fetch(AUTH_API + '/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, otp })
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            $('otpError').querySelector('span').textContent = data.error || 'Invalid OTP';
+            $('otpError').classList.add('show');
+            otpInputs.forEach(i => i.classList.add('error'));
+            return;
+          }
+
+          saveAuth(data.token, data.user);
+          showSuccessView('Verified!', 'Redirecting to your account...');
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
+        } catch {
+          showGlobalError('Network error. Please try again.');
+        } finally {
+          setBtnLoading('otpVerifyBtn', false);
+        }
+      });
+
+      // ==================== SUCCESS VIEW ====================
+      function showSuccessView(title, msg) {
+        $('successTitle').textContent = title;
+        $('successMsg').textContent = msg;
+        successView.classList.add('show');
+        [loginForm, signupForm, forgotForm, resetForm, otpForm].forEach(f => f.classList.add('hidden'));
+      }
+
+      // ==================== SOCIAL LOGIN ====================
+      function handleGoogleCredential(response) {
+        if (!response || !response.credential) return;
+        setBtnLoading('loginBtn', true);
+        fetch(SOCIAL_API + '/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.token) {
+            saveAuth(data.token, data.user);
+            showSuccessView('Welcome!', 'Signed in with Google. Redirecting...');
+            setTimeout(() => window.location.href = '/', 1000);
+          } else {
+            showGlobalError(data.error || 'Google sign-in failed');
+          }
+        })
+        .catch(() => showGlobalError('Google sign-in failed'))
+        .finally(() => setBtnLoading('loginBtn', false));
+      }
+
+      window.handleGoogleCredential = handleGoogleCredential;
+
+      $('googleLoginBtn').addEventListener('click', function() {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+          google.accounts.id.prompt();
+        } else {
+          showGlobalError('Google Sign-In is loading. Please try again.');
+        }
+      });
+
+      // Duplicate Google buttons for signup form
+      document.querySelectorAll('#signupForm .auth-social-btn.google').forEach(btn => {
+        btn.addEventListener('click', function() {
+          if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            google.accounts.id.prompt();
+          } else {
+            showGlobalError('Google Sign-In is loading. Please try again.');
+          }
+        });
+      });
+
+      $('facebookLoginBtn').addEventListener('click', function() {
+        if (typeof FB !== 'undefined') {
+          FB.login(function(response) {
+            if (response.authResponse) {
+              setBtnLoading('loginBtn', true);
+              fetch(SOCIAL_API + '/facebook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accessToken: response.authResponse.accessToken })
+              })
+              .then(r => r.json())
+              .then(data => {
+                if (data.token) {
+                  saveAuth(data.token, data.user);
+                  showSuccessView('Welcome!', 'Signed in with Facebook. Redirecting...');
+                  setTimeout(() => window.location.href = '/', 1000);
+                } else {
+                  showGlobalError(data.error || 'Facebook sign-in failed');
+                }
+              })
+              .catch(() => showGlobalError('Facebook sign-in failed'))
+              .finally(() => setBtnLoading('loginBtn', false));
+            }
+          }, { scope: 'email,public_profile' });
+        } else {
+          showGlobalError('Facebook SDK is loading. Please try again.');
+        }
+      });
+
+      document.querySelectorAll('#signupForm .auth-social-btn.facebook').forEach(btn => {
+        btn.addEventListener('click', function() {
+          $('facebookLoginBtn').click();
+        });
+      });
+
+      // ==================== THEME TOGGLE ====================
+      function getTheme() { return localStorage.getItem('aryal_theme') || 'light'; }
+
+      function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('aryal_theme', theme);
+        const icon = $('themeIcon');
+        if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+      }
+
+      $('themeToggle').addEventListener('click', function() {
+        setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+      });
+      setTheme(getTheme());
+
+      // ==================== LOADING STATE ====================
+      function initFloatingLabels() {
+        document.querySelectorAll('.auth-input').forEach(input => {
+          input.addEventListener('blur', function() {
+            if (this.value) this.classList.add('filled');
+            else this.classList.remove('filled');
+          });
+          if (input.value) input.classList.add('filled');
+        });
+      }
+
+      // ==================== INIT ====================
+      document.addEventListener('DOMContentLoaded', function() {
+        const token = getToken();
+        if (token) {
+          fetch(COOKIE_CHECK, {
+            headers: { 'Authorization': 'Bearer ' + token }
+          })
+          .then(r => {
+            if (r.ok) {
+              window.location.href = '/';
+            } else {
+              clearAuth();
+            }
+          })
+          .catch(() => {});
+        }
+
+        setTimeout(function() {
+          pageLoader.classList.add('hidden');
+        }, 400);
+
+        initFloatingLabels();
+      });
+
+    })();
+  </script>
+</body>
+</html>

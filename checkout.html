@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Secure checkout at Aryal Store">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Checkout - Aryal Store</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="checkout.css">
+  <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="co-header">
+    <div class="co-header-inner">
+      <a href="/" class="co-header-logo"><i class="fas fa-store"></i> <span>Aryal</span> Store</a>
+      <div class="co-header-lock">
+        <i class="fas fa-lock"></i>
+        <span>Secure Checkout</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page -->
+  <div class="co-page">
+    <!-- Left: Main Content -->
+    <div class="co-main" id="coMainContent">
+      <!-- Steps -->
+      <div class="co-steps" id="coSteps"></div>
+
+      <!-- Step 1: Cart Review -->
+      <div class="co-step-content active" id="step1">
+        <div class="co-card">
+          <div class="co-card-title"><i class="fas fa-shopping-bag" style="color:var(--co-primary);"></i> Review Your Cart</div>
+          <div class="co-card-subtitle">Check your items before proceeding</div>
+          <div id="coCartItems"></div>
+          <div class="co-actions" id="coCartActions">
+            <a href="/" class="co-btn co-btn-secondary"><i class="fas fa-arrow-left"></i> Continue Shopping</a>
+            <button class="co-btn co-btn-primary co-btn-lg" data-goto="2">Proceed to Checkout <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Sign In -->
+      <div class="co-step-content" id="step2">
+        <div class="co-card">
+          <div class="co-card-title"><i class="fas fa-user-circle" style="color:var(--co-primary);"></i> Sign In</div>
+          <div class="co-card-subtitle">Sign in to continue with your saved address and order history</div>
+          <div class="co-actions">
+            <button class="co-btn co-btn-secondary" data-goto="1"><i class="fas fa-arrow-left"></i> Back</button>
+            <button class="co-btn co-btn-primary co-btn-lg" onclick="document.getElementById('coAuthModal').classList.add('open')">Sign In <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Shipping Address -->
+      <div class="co-step-content" id="step3">
+        <div class="co-card">
+          <div class="co-card-title"><i class="fas fa-map-marker-alt" style="color:var(--co-primary);"></i> Shipping Address</div>
+          <div class="co-card-subtitle">Where should we deliver your order?</div>
+          <div id="coAddressList"></div>
+
+          <div class="co-card co-hidden" id="coAddressForm" style="margin-top:16px;padding:16px;background:var(--co-bg);">
+            <div class="co-card-title" style="font-size:1rem;">New Address</div>
+            <div class="co-row" style="margin-top:12px;">
+              <div class="co-field"><label>Full Name</label><input type="text" id="addrFullName" placeholder="Ram Prasad Aryal"></div>
+              <div class="co-field"><label>Phone Number</label><input type="tel" id="addrPhone" placeholder="98XXXXXXXX"></div>
+            </div>
+            <div class="co-row">
+              <div class="co-field"><label>Province/State</label><input type="text" id="addrProvince" placeholder="Province 5"></div>
+              <div class="co-field"><label>District/City</label><input type="text" id="addrCity" placeholder="Gulmi"></div>
+            </div>
+            <div class="co-row">
+              <div class="co-field"><label>Area/Locality</label><input type="text" id="addrArea" placeholder="Tansen Road"></div>
+              <div class="co-field"><label>Street Address</label><input type="text" id="addrStreet" placeholder="Ward No. 4"></div>
+            </div>
+            <div class="co-row">
+              <div class="co-field"><label>Postal Code <span style="color:var(--co-text-muted);font-weight:400;">(optional)</span></label><input type="text" id="addrZip" placeholder="33000"></div>
+              <div class="co-field"><label>Address Label</label>
+                <select id="addrLabel">
+                  <option value="Home">Home</option>
+                  <option value="Office">Office</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="co-actions" style="margin-top:8px;">
+              <button class="co-btn co-btn-secondary" id="coCancelAddressBtn">Cancel</button>
+              <button class="co-btn co-btn-primary" id="coSaveAddressBtn">Save Address</button>
+            </div>
+          </div>
+
+          <div class="co-actions">
+            <button class="co-btn co-btn-secondary" data-goto="2"><i class="fas fa-arrow-left"></i> Back</button>
+            <button class="co-btn co-btn-primary co-btn-lg" data-goto="4">Continue <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Delivery Method -->
+      <div class="co-step-content" id="step4">
+        <div class="co-card">
+          <div class="co-card-title"><i class="fas fa-truck" style="color:var(--co-primary);"></i> Delivery Method</div>
+          <div class="co-card-subtitle">Choose how you want your order delivered</div>
+          <div id="coDeliveryOptions"></div>
+          <div class="co-actions">
+            <button class="co-btn co-btn-secondary" data-goto="3"><i class="fas fa-arrow-left"></i> Back</button>
+            <button class="co-btn co-btn-primary co-btn-lg" data-goto="5">Continue <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: Payment Method -->
+      <div class="co-step-content" id="step5">
+        <div class="co-card">
+          <div class="co-card-title"><i class="fas fa-credit-card" style="color:var(--co-primary);"></i> Payment Method</div>
+          <div class="co-card-subtitle">Select your preferred payment option</div>
+          <div id="coPaymentOptions"></div>
+          <div class="co-actions">
+            <button class="co-btn co-btn-secondary" data-goto="4"><i class="fas fa-arrow-left"></i> Back</button>
+            <button class="co-btn co-btn-primary co-btn-lg" data-goto="6">Review Order <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6: Order Review -->
+      <div class="co-step-content" id="step6">
+        <div class="co-card">
+          <div class="co-card-title"><i class="fas fa-file-invoice" style="color:var(--co-primary);"></i> Order Review</div>
+          <div class="co-card-subtitle">Please review your order before placing</div>
+          <div id="coReviewContent"></div>
+          <div class="co-actions">
+            <button class="co-btn co-btn-secondary" data-goto="5"><i class="fas fa-arrow-left"></i> Back</button>
+            <button class="co-btn co-btn-primary co-btn-lg co-btn-full" id="coPlaceOrderBtn" style="margin-top:8px;">
+              <span class="spinner"></span>
+              <span class="btn-text">Place Order <i class="fas fa-lock"></i></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Order Summary -->
+    <div class="co-summary" id="coSummary">
+      <div class="co-summary-title">Order Summary</div>
+      <div class="co-summary-items" id="coSummaryItems"></div>
+      <div class="co-summary-divider"></div>
+      <div class="co-summary-item"><span class="label">Items</span><span class="value" id="coSummaryCount">0</span></div>
+      <div class="co-summary-item"><span class="label">Subtotal</span><span class="value" id="coSummarySubtotal">Rs. 0</span></div>
+      <div class="co-summary-item"><span class="label">Shipping</span><span class="value" id="coSummaryShipping">—</span></div>
+      <div class="co-summary-item" style="display:none;"><span class="label">Discount</span><span class="value" id="coSummaryDiscount">—</span></div>
+      <div class="co-summary-divider"></div>
+      <div class="co-summary-total"><span>Total</span><span id="coSummaryTotal">Rs. 0</span></div>
+
+      <div class="co-summary-coupon">
+        <div class="co-coupon-row">
+          <input type="text" id="coCouponInput" placeholder="Coupon code" maxlength="20">
+          <button id="coCouponBtn">Apply</button>
+        </div>
+        <div class="co-coupon-error" id="coCouponError"></div>
+        <div class="co-coupon-applied co-hidden" id="coCouponApplied">
+          <span><i class="fas fa-check-circle"></i> <span class="co-coupon-code"></span>: -Rs. <span class="co-coupon-amount"></span></span>
+          <button id="coRemoveCoupon"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;font-size:0.78rem;color:var(--co-text-muted);">
+        <span><i class="fas fa-shield-alt"></i> Secure checkout</span>
+        <span><i class="fas fa-undo-alt"></i> Easy returns within 7 days</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="checkout.js"></script>
+</body>
+</html>

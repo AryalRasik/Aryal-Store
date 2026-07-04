@@ -2031,7 +2031,7 @@
       <button onclick="removeCoupon()" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:0.8rem;padding:0 0 0 8px;"><i class="fas fa-times"></i></button>
     </div>
     <div id="cartTotals"></div>
-    <button class="btn btn-primary" id="checkoutBtn" onclick="showCheckout()" style="display:none;">Proceed to Checkout</button>
+    <button class="btn btn-primary" id="checkoutBtn" onclick="window.location.href='checkout.html'" style="display:none;">Proceed to Checkout</button>
   </div>
 </div>
 
@@ -2451,6 +2451,7 @@
 </div>
 
 <script src="auth.js"></script>
+<script src="auth-session.js"></script>
 <script>
 const SUPABASE_URL = 'https://srlejludttajosnrfkca.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
@@ -4202,8 +4203,8 @@ function updateUserMenu() {
       '<div class="ud-item" onclick="logoutUser()" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Sign Out</div>';
   } else {
     dd.innerHTML =
-      '<div class="ud-item" onclick="openAuthModal(\'login\')"><i class="fas fa-sign-in-alt"></i> Sign In</div>' +
-      '<div class="ud-item" onclick="openAuthModal(\'signup\')"><i class="fas fa-user-plus"></i> Create Account</div>' +
+      '<div class="ud-item" onclick="window.location.href=\'auth.html\'"><i class="fas fa-sign-in-alt"></i> Sign In</div>' +
+      '<div class="ud-item" onclick="window.location.href=\'auth.html\'"><i class="fas fa-user-plus"></i> Create Account</div>' +
       '<div class="ud-item" onclick="openOrderHistory()"><i class="fas fa-receipt"></i> Track Order</div>';
   }
 }
@@ -5773,7 +5774,7 @@ function initCarousel() {
     btn.className = 'btn btn-primary';
     btn.style.cssText = 'margin-top:6px;background:linear-gradient(135deg,#667eea,#764ba2);';
     btn.innerHTML = '<i class="fas fa-bolt"></i> Express Checkout';
-    btn.onclick = openCheckoutModal;
+    btn.onclick = function() { window.location.href = 'checkout.html'; };
     ref.parentNode.insertBefore(btn, ref.nextSibling);
   };
   setTimeout(addExpressCheckoutBtn, 500);

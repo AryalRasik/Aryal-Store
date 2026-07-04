@@ -585,4 +585,111 @@ router.post('/cart/merge', authMiddleware, async (req, res) => {
   }
 });
 
+// ==================== OTP VERIFICATION ====================
+
+// In-memory OTP store (use Redis in production)
+const otpStore = new Map();
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// POST /api/auth/send-otp
+router.post('/send-otp', rateLimiter(3, 60 * 1000), async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone || !/^[\d\s\-\+\(\)]{7,20}$/.test(phone)) {
+      return res.status(400).json({ error: 'Valid phone number is required' });
+    }
+
+    const otp = generateOTP();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+
+    otpStore.set(phone, { otp, expiresAt, attempts: 0 });
+
+    // In production, send via SMS gateway
+    console.log(`[OTP] ${phone}: ${otp}`);
+
+    res.json({
+      message: 'OTP sent successfully',
+      expiresIn: 300,
+      debug: process.env.NODE_ENV !== 'production' ? otp : undefined
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/auth/verify-otp
+router.post('/verify-otp', rateLimiter(5, 15 * 60 * 1000), async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) {
+      return res.status(400).json({ error: 'Phone and OTP are required' });
+    }
+
+    const stored = otpStore.get(phone);
+    if (!stored) {
+      return res.status(400).json({ error: 'No OTP sent to this number. Please request a new one.' });
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(phone);
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    stored.attempts++;
+    if (stored.attempts > 5) {
+      otpStore.delete(phone);
+      return res.status(429).json({ error: 'Too many invalid attempts. Please request a new OTP.' });
+    }
+
+    if (stored.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
+    }
+
+    otpStore.delete(phone);
+
+    // Find or create user by phone
+    let { data: user } = await supabase.from('users').select('*').eq('phone', phone).maybeSingle();
+
+    if (!user) {
+      // Auto-register with phone
+      const userId = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+      const { error: insertErr } = await supabase.from('users').insert({
+        id: userId,
+        name: 'User_' + phone.slice(-4),
+        email: '',
+        password: '',
+        phone,
+        profile_picture: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      if (insertErr) throw insertErr;
+      user = { id: userId, name: 'User_' + phone.slice(-4), email: '', phone, profile_picture: '', email_verified_at: null };
+    }
+
+    const userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email || '',
+      phone: user.phone,
+      profile_picture: user.profile_picture || '',
+      email_verified_at: user.email_verified_at
+    };
+
+    const token = generateToken(userData);
+    setAuthCookies(res, token);
+
+    res.json({
+      message: 'OTP verified successfully',
+      token,
+      user: userData
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
