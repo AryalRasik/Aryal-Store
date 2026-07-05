@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { supabase } = require('../../db');
+const { supabase, from } = require('../../db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'aryal-store-jwt-secret-2026';
 const JWT_EXPIRES_IN = '7d';
@@ -56,8 +56,7 @@ async function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
 
-    const { data: user } = await supabase
-      .from('users')
+    const { data: user } = await (await from('users'))
       .select('id, name, email, phone, address, profile_picture, email_verified_at')
       .eq('id', decoded.id)
       .maybeSingle();
@@ -94,11 +93,14 @@ function optionalAuth(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
-    supabase.from('users').select('id, name, email, phone, address, profile_picture')
-      .eq('id', decoded.id).maybeSingle().then(({ data: user }) => {
-        req.userData = user;
-        next();
-      }).catch(() => { next(); });
+    (async () => {
+      const { data: user } = await (await from('users'))
+        .select('id, name, email, phone, address, profile_picture')
+        .eq('id', decoded.id)
+        .maybeSingle();
+      req.userData = user;
+      next();
+    })().catch(() => { next(); });
   } catch {
     req.user = null;
     req.userData = null;

@@ -1,4 +1,4 @@
-const { supabase } = require('../../db');
+const { supabase, from } = require('../../db');
 
 const loginAttempts = new Map();
 
@@ -32,11 +32,11 @@ function rateLimiter(maxAttempts = 5, windowMs = 15 * 60 * 1000) {
   };
 }
 
-async function checkAccountLockout(email) {
-  const { data: user } = await supabase
-    .from('users')
+async function checkAccountLockout(identifier) {
+  const field = identifier.includes('@') ? 'email' : 'phone';
+  const { data: user } = await (await from('users'))
     .select('login_attempts, locked_until')
-    .eq('email', email.toLowerCase())
+    .eq(field, identifier.toLowerCase())
     .maybeSingle();
 
   if (!user) return { locked: false };
@@ -49,11 +49,11 @@ async function checkAccountLockout(email) {
   return { locked: false, attempts: user.login_attempts || 0 };
 }
 
-async function incrementLoginAttempts(email) {
-  const { data: user } = await supabase
-    .from('users')
+async function incrementLoginAttempts(identifier) {
+  const field = identifier.includes('@') ? 'email' : 'phone';
+  const { data: user } = await (await from('users'))
     .select('login_attempts')
-    .eq('email', email.toLowerCase())
+    .eq(field, identifier.toLowerCase())
     .maybeSingle();
 
   const attempts = (user?.login_attempts || 0) + 1;
@@ -63,14 +63,14 @@ async function incrementLoginAttempts(email) {
     updateData.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   }
 
-  await supabase.from('users').update(updateData).eq('email', email.toLowerCase());
+  await (await from('users')).update(updateData).eq(field, identifier.toLowerCase());
 }
 
-async function resetLoginAttempts(email) {
-  await supabase
-    .from('users')
+async function resetLoginAttempts(identifier) {
+  const field = identifier.includes('@') ? 'email' : 'phone';
+  await (await from('users'))
     .update({ login_attempts: 0, locked_until: null })
-    .eq('email', email.toLowerCase());
+    .eq(field, identifier.toLowerCase());
 }
 
 module.exports = { rateLimiter, checkAccountLockout, incrementLoginAttempts, resetLoginAttempts };

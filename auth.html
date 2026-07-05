@@ -1088,8 +1088,7 @@
 
       // ==================== SOCIAL LOGIN ====================
       function handleGoogleCredential(response) {
-        if (!response || !response.credential) return;
-        setBtnLoading('loginBtn', true);
+        if (!response || !response.credential) { if (_activeGoogleBtn) { _activeGoogleBtn.classList.remove('loading'); _activeGoogleBtn.disabled = false; _activeGoogleBtn = null; } return; }
         fetch(SOCIAL_API + '/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1103,33 +1102,63 @@
             setTimeout(() => window.location.href = '/', 1000);
           } else {
             showGlobalError(data.error || 'Google sign-in failed');
+            if (_activeGoogleBtn) { _activeGoogleBtn.classList.remove('loading'); _activeGoogleBtn.disabled = false; }
           }
         })
-        .catch(() => showGlobalError('Google sign-in failed'))
-        .finally(() => setBtnLoading('loginBtn', false));
+        .catch(function() { showGlobalError('Google sign-in failed'); if (_activeGoogleBtn) { _activeGoogleBtn.classList.remove('loading'); _activeGoogleBtn.disabled = false; } })
+        .finally(function() { _activeGoogleBtn = null; });
       }
 
       window.handleGoogleCredential = handleGoogleCredential;
+
+      // Track which Google button was clicked
+      var _activeGoogleBtn = null;
+
+      // Render hidden Google button via renderButton, then proxy clicks from our custom button
+      function renderGoogleButton(containerId, customBtn) {
+        if (!googleClientId || !googleInitialized) return false;
+        var hiddenDiv = document.getElementById(containerId);
+        if (!hiddenDiv) {
+          hiddenDiv = document.createElement('div');
+          hiddenDiv.id = containerId;
+          hiddenDiv.style.display = 'none';
+          customBtn.parentNode.insertBefore(hiddenDiv, customBtn);
+        }
+        google.accounts.id.renderButton(hiddenDiv, {
+          type: 'standard',
+          shape: 'rectangular',
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with'
+        });
+        var googleBtn = hiddenDiv.querySelector('div[role=button]');
+        if (googleBtn) {
+          customBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            _activeGoogleBtn = customBtn;
+            customBtn.classList.add('loading');
+            customBtn.disabled = true;
+            googleBtn.click();
+          });
+          return true;
+        }
+        return false;
+      }
 
       function triggerGoogleSignIn() {
         if (googleClientId && googleInitialized) {
           google.accounts.id.prompt();
           return true;
         }
-        if (googleClientId && !googleInitialized && typeof google !== 'undefined' && google.accounts) {
-          initGoogleClient();
-          setTimeout(function() { google.accounts.id.prompt(); }, 100);
-          return true;
-        }
         return false;
       }
 
-      function retryGoogleConfig() {
+      function retryGoogleConfig(customBtn) {
         fetch('/api/config/oauth').then(function(r) { return r.json(); }).then(function(cfg) {
           googleClientId = cfg.google_client_id || '';
           initGoogleClient();
           if (googleClientId && googleInitialized) {
-            google.accounts.id.prompt();
+            renderGoogleButton('gBtnHidden', customBtn);
           } else {
             showGlobalError('Google Sign-In is not configured. Contact the administrator.');
           }
@@ -1138,26 +1167,29 @@
         });
       }
 
-      $('googleLoginBtn').addEventListener('click', function() {
-        if (!triggerGoogleSignIn()) {
-          retryGoogleConfig();
+      // Initialize per-button: try renderButton first, fall back to prompt
+      function setupGoogleButton(btn) {
+        if (!renderGoogleButton('gBtn_' + (btn.id || Math.random().toString(36).slice(2)), btn)) {
+          // Fall back to prompt-based approach
+          btn.addEventListener('click', function() {
+            if (!triggerGoogleSignIn()) {
+              retryGoogleConfig(btn);
+            }
+          });
         }
-      });
+      }
 
-      // Duplicate Google buttons for signup form
-      document.querySelectorAll('#signupForm .auth-social-btn.google').forEach(btn => {
-        btn.addEventListener('click', function() {
-          if (!triggerGoogleSignIn()) {
-            retryGoogleConfig();
-          }
-        });
-      });
+      setupGoogleButton($('googleLoginBtn'));
+
+      document.querySelectorAll('#signupForm .auth-social-btn.google').forEach(setupGoogleButton);
 
       $('facebookLoginBtn').addEventListener('click', function() {
+        var fbBtn = this;
         if (typeof FB !== 'undefined') {
           FB.login(function(response) {
             if (response.authResponse) {
-              setBtnLoading('loginBtn', true);
+              fbBtn.classList.add('loading');
+              fbBtn.disabled = true;
               fetch(SOCIAL_API + '/facebook', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1171,14 +1203,15 @@
                   setTimeout(() => window.location.href = '/', 1000);
                 } else {
                   showGlobalError(data.error || 'Facebook sign-in failed');
+                  fbBtn.classList.remove('loading');
+                  fbBtn.disabled = false;
                 }
               })
-              .catch(() => showGlobalError('Facebook sign-in failed'))
-              .finally(() => setBtnLoading('loginBtn', false));
+              .catch(function() { showGlobalError('Facebook sign-in failed'); fbBtn.classList.remove('loading'); fbBtn.disabled = false; });
             }
-          }, { scope: 'email,public_profile' });
+          }, { scope: 'public_profile,email' });
         } else {
-          showGlobalError('Facebook SDK is loading. Please try again.');
+          showGlobalError('Facebook SDK not loaded');
         }
       });
 

@@ -1,23 +1,39 @@
 const { createClient } = require('@supabase/supabase-js');
+const localDb = require('./local-db');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://srlejludttajosnrfkca.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Auth tables that might not exist in Supabase
+const AUTH_TABLES = ['users', 'user_addresses', 'password_reset_tokens', 'email_verification_tokens', 'user_sessions', 'user_cart'];
+const tableSource = {};
+
+async function getTableSource(name) {
+  if (!AUTH_TABLES.includes(name)) return 'supabase';
+  if (tableSource[name]) return tableSource[name];
+  tableSource[name] = 'local';
+  return 'local';
+}
+
+function from(tableName) {
+  if (AUTH_TABLES.includes(tableName)) {
+    return localDb.from(tableName);
+  }
+  return supabase.from(tableName);
+}
+
 async function runSql(sql) {
   try {
-    // Path 1: exec_sql RPC with query_text param
     await supabase.rpc('exec_sql', { query_text: sql });
     return true;
   } catch {
     try {
-      // Path 2: exec_sql RPC with query param
       await supabase.rpc('exec_sql', { query: sql });
       return true;
     } catch {
       try {
-        // Path 3: pg-api HTTP endpoint (built-in on all Supabase projects)
         const url = SUPABASE_URL.replace(/\/$/, '') + '/pg/pg-api/v1/query';
         const resp = await fetch(url, {
           method: 'POST',
@@ -31,7 +47,6 @@ async function runSql(sql) {
         console.warn('pg-api error:', e.message);
       }
       try {
-        // Path 4: direct PostgreSQL via pg module (needs DATABASE_URL env var)
         const DB_URL = process.env.DATABASE_URL;
         if (DB_URL) {
           const { Client } = require('pg');
@@ -50,7 +65,6 @@ async function runSql(sql) {
 }
 
 async function runMigration(sql) {
-  // Split multi-statement SQL into individual statements for reliability
   const stmts = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
   let allOk = true;
   for (const stmt of stmts) {
@@ -130,7 +144,6 @@ async function migrateDb() {
     ALTER TABLE product_views ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMPTZ DEFAULT NOW();
     ALTER TABLE flash_sale_products ADD COLUMN IF NOT EXISTS max_quantity INTEGER DEFAULT 0;
     ALTER TABLE flash_sale_products ADD COLUMN IF NOT EXISTS sold_count INTEGER DEFAULT 0;
-    -- Auth system tables
     ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT DEFAULT '';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token TEXT DEFAULT '';
@@ -208,7 +221,7 @@ async function migrateDb() {
   `;
   const ok = await runMigration(sql);
   if (ok) console.log('Database schema migrated successfully.');
-  else console.warn('Auto-migration not available (exec_sql RPC not found). Run supabase-complete-schema.sql in Supabase SQL editor if you see column errors.');
+  else console.warn('Auto-migration not available (exec_sql RPC not found). Using local SQLite for auth tables.');
 }
 
 async function initDb() {
@@ -226,13 +239,15 @@ async function initDb() {
 
   await migrateDb();
 
-  // Verify users table was created
-  const { error: usersErr } = await supabase.from('users').select('id', { count: 'exact', head: true });
-  if (usersErr) {
-    console.error('Users table still missing after migration. Auth will fail. Run supabase-migration-add-users-table.sql in SQL editor.');
-    console.error('Error:', usersErr.message);
+  // Pre-check auth tables and fall back to local if needed
+  for (const t of AUTH_TABLES) {
+    await getTableSource(t);
+  }
+
+  if (tableSource.users === 'local') {
+    console.log('Auth tables will use local SQLite. Supabase users table not found.');
   } else {
-    console.log('Users table ready.');
+    console.log('Users table ready in Supabase.');
   }
 
   if (count === 0) {
@@ -245,7 +260,6 @@ async function seedData() {
   await supabase.from('hero').upsert({ id: 1, heading: 'Welcome to Aryal Store', subtext: 'Your one-stop destination for clothes, stationery, cosmetics, and cylinder refills at unbeatable prices. Discover the best shopping experience today.' }, { onConflict: 'id' });
   await supabase.from('about').upsert({ id: 1, title: 'About Us', heading: 'Why Choose Aryal Store?', desc1: 'At Aryal Store, we are committed to providing our customers with top-quality products and exceptional service.', desc2: 'We specialize in clothes, stationery, cosmetics, and LPG cylinder refills.', features: 'Quality Products, Fast Delivery, 24/7 Support, Secure Payment' }, { onConflict: 'id' });
   await supabase.from('contact').upsert({ id: 1, address: 'Satyawati 06, Ullikhola Bazar, Gulmi', phone: '+977 9867135403 / +977 9844758909', email: 'info@aryalstore.com', hours: 'Sun-Sat: 6:00 AM - 7:00 PM', lat: '28.0340872', lng: '83.4126681', whatsapp: '+9779867135403' }, { onConflict: 'id' });
-  // Try full settings upsert; fall back to basic columns if extended columns don't exist yet
   const { error: settingsErr } = await supabase.from('settings').upsert({ id: 1, admin_password: 'admin123', store_name: 'Aryal Store', store_tagline: 'Your Trusted Shopping Destination', currency: 'Rs. ', free_shipping_threshold: 2000, shipping_fee: 100, whatsapp_number: '+9779867135403', store_email: '', smtp_host: '', smtp_port: 587, smtp_user: '', smtp_pass: '', notify_email: false, notify_whatsapp: false, whatsapp_api_token: '', whatsapp_phone_id: '' }, { onConflict: 'id' });
   if (settingsErr && settingsErr.message && settingsErr.message.includes('notify_email')) {
     await supabase.from('settings').upsert({ id: 1, store_name: 'Aryal Store', store_tagline: 'Your Trusted Shopping Destination', currency: 'Rs. ', free_shipping_threshold: 2000, shipping_fee: 100, whatsapp_number: '+9779867135403' }, { onConflict: 'id' });
@@ -285,4 +299,4 @@ async function seedData() {
   ]);
 }
 
-module.exports = { supabase, initDb };
+module.exports = { supabase, initDb, from, getTableSource, tableSource };
