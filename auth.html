@@ -33,7 +33,7 @@
       border-radius: 50%;
       animation: authSpin 0.6s linear infinite;
     }
-    .google-btn-hidden { display: none !important; }
+
   </style>
 </head>
 <body>
@@ -386,23 +386,8 @@
     </div>
   </div>
 
-  <!-- Hidden Google Sign-In button (for GSI) -->
-  <div id="g_id_onload"
-       data-client_id="219926749680-b71tc4gv0odg7csjf7ajakggq5h0io2t.apps.googleusercontent.com"
-       data-context="signin"
-       data-ux_mode="popup"
-       data-callback="handleGoogleCredential"
-       data-auto_prompt="false">
-  </div>
-  <div class="google-btn-hidden"
-       id="g_id_signin"
-       data-type="standard"
-       data-shape="rectangular"
-       data-theme="outline"
-       data-text="signin_with"
-       data-size="large"
-       data-logo_alignment="left">
-  </div>
+  <!-- Hidden Google Sign-In Button Container (GSI renders here) -->
+  <div id="googleButtonContainer" style="display:none;"></div>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
@@ -1102,7 +1087,11 @@
       }
 
       // ==================== SOCIAL LOGIN ====================
+      var _activeGoogleBtn = null;
+      var _googlePromptInProgress = false;
+
       function handleGoogleCredential(response) {
+        _googlePromptInProgress = false;
         if (_activeGoogleBtn) {
           _activeGoogleBtn.classList.remove('loading');
           _activeGoogleBtn.disabled = false;
@@ -1112,46 +1101,78 @@
           showGlobalError('Google sign-in was cancelled or failed.');
           return;
         }
+        setBtnLoading('googleSignInBtn', true);
         fetchWithTimeout(SOCIAL_API + '/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ credential: response.credential })
         })
-        .then(r => r.json())
-        .then(data => {
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
           if (data.token) {
             saveAuth(data.token, data.user);
             showSuccessView('Welcome!', 'Signed in with Google. Redirecting...');
-            setTimeout(() => window.location.href = '/', 1000);
+            setTimeout(function() { window.location.href = '/'; }, 1000);
           } else {
-            showGlobalError(data.error || 'Google sign-in failed');
+            var errorMsg = 'Google sign-in failed.';
+            if (data.code === 'INVALID_TOKEN') errorMsg = 'Your Google session expired. Please try again.';
+            else if (data.code === 'ACCESS_DENIED') errorMsg = 'Google sign-in was denied. Please try again or use email.';
+            else if (data.code === 'INVALID_CLIENT') errorMsg = 'Google Client ID is misconfigured. Please contact support.';
+            else if (data.code === 'NO_EMAIL') errorMsg = 'Your Google account must have an email address.';
+            else if (data.error) errorMsg = data.error;
+            showGlobalError(errorMsg);
           }
         })
-        .catch(function() { showGlobalError('Google sign-in failed. Please try again.'); });
+        .catch(function() { showGlobalError('Network error. Please check your connection and try again.'); });
       }
 
       window.handleGoogleCredential = handleGoogleCredential;
 
-      var _activeGoogleBtn = null;
+      function triggerGoogleSignIn(btn) {
+        if (_googlePromptInProgress) return;
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+          showGlobalError('Google Sign-In is still loading. Please try again in a moment.');
+          return;
+        }
+        _activeGoogleBtn = btn;
+        btn.classList.add('loading');
+        btn.disabled = true;
+        _googlePromptInProgress = true;
+
+        // Try the GSI prompt (shows One Tap or sign-in popup)
+        google.accounts.id.prompt(function(notification) {
+          if (notification.isNotDisplayed()) {
+            _googlePromptInProgress = false;
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            _activeGoogleBtn = null;
+            showGlobalError('Google sign-in could not open. This may be because:\n1. Popups are blocked - please allow popups for this site\n2. The domain is not authorized in Google Cloud Console\n3. Third-party cookies are blocked\n\nPlease try signing in with email instead.');
+          }
+          if (notification.isSkippedMoment()) {
+            _googlePromptInProgress = false;
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            _activeGoogleBtn = null;
+            showGlobalError('Google sign-in popup was closed. Please try again.');
+          }
+        });
+
+        // Safety timeout - if no response after 15s, reset button state
+        setTimeout(function() {
+          if (_googlePromptInProgress) {
+            _googlePromptInProgress = false;
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            _activeGoogleBtn = null;
+            showGlobalError('Google sign-in timed out. This may be due to an origin_mismatch error in the popup. Please check that the current domain is added to the Authorized JavaScript Origins in Google Cloud Console.');
+          }
+        }, 15000);
+      }
 
       function setupGoogleButton(btn) {
         btn.addEventListener('click', function(e) {
           e.preventDefault();
-          if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            _activeGoogleBtn = btn;
-            btn.classList.add('loading');
-            btn.disabled = true;
-            google.accounts.id.prompt(function(notification) {
-              if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                btn.classList.remove('loading');
-                btn.disabled = false;
-                _activeGoogleBtn = null;
-                showGlobalError('Google sign-in is not available. Try using email instead.');
-              }
-            });
-          } else {
-            showGlobalError('Google Sign-In is loading. Please try again in a moment.');
-          }
+          triggerGoogleSignIn(btn);
         });
       }
 
@@ -1250,46 +1271,92 @@
         });
       }
 
-      // ==================== OAUTH CONFIG ====================
+      // ==================== OAUTH CONFIG ==================
       let googleClientId = '';
       let googleInitialized = false;
+      let googleInitFailed = false;
+
       function initGoogleClient() {
         if (googleInitialized) return;
-        if (googleClientId && typeof google !== 'undefined' && google.accounts) {
+        if (!googleClientId) {
+          googleInitFailed = true;
+          return;
+        }
+        if (typeof google === 'undefined' || !google.accounts) {
+          return;
+        }
+        try {
           google.accounts.id.initialize({
             client_id: googleClientId,
             callback: handleGoogleCredential,
-            auto_prompt: false
+            auto_prompt: false,
+            cancel_on_tap_outside: false
           });
           googleInitialized = true;
+          console.log('[OAuth] Google Sign-In initialized');
+        } catch (e) {
+          console.warn('[OAuth] Google init failed:', e);
+          googleInitFailed = true;
         }
       }
-      fetchWithTimeout('/api/config/oauth').then(r => r.json()).then(function(cfg) {
+
+      // Detect whether the current origin is likely misconfigured in Google Cloud Console
+      function checkGoogleOrigin() {
+        var currentOrigin = window.location.origin;
+        var knownOrigins = [
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'http://127.0.0.1:3000',
+          'http://127.0.0.1:3001',
+          'https://aryalstore.com.np',
+          'https://www.aryalstore.com.np'
+        ];
+        if (knownOrigins.indexOf(currentOrigin) === -1) {
+          console.warn('[OAuth] Warning: Current origin "' + currentOrigin + '" may not be in Google Cloud Console Authorized JavaScript Origins. If Google sign-in fails, add this URL to your Google Cloud Console.');
+        }
+      }
+      checkGoogleOrigin();
+
+      // Fetch OAuth config from server, then init Google
+      fetchWithTimeout('/api/config/oauth').then(function(r) { return r.json(); }).then(function(cfg) {
         googleClientId = cfg.google_client_id || '';
         window.facebookAppId = cfg.facebook_app_id || '';
-        initGoogleClient();
+        window.googleEnvironment = cfg.environment || 'development';
+        if (googleClientId) {
+          initGoogleClient();
+          if (!googleInitialized) {
+            // Wait for GSI library to load, then retry
+            var waitForGoogle = setInterval(function() {
+              if (typeof google !== 'undefined' && google.accounts) {
+                clearInterval(waitForGoogle);
+                initGoogleClient();
+              }
+            }, 200);
+            setTimeout(function() { clearInterval(waitForGoogle); }, 15000);
+          }
+        } else {
+          console.warn('[OAuth] No Google Client ID configured');
+          googleInitFailed = true;
+        }
         if (window.facebookAppId && typeof FB !== 'undefined') {
           FB.init({ appId: window.facebookAppId, cookie: true, xfbml: true, version: 'v18.0' });
         }
       }).catch(function(err) {
-        console.warn('Failed to load OAuth config:', err);
+        console.warn('[OAuth] Failed to load OAuth config:', err);
+        googleInitFailed = true;
+        // Fallback: use hardcoded client_id
+        var fallbackId = '219926749680-b71tc4gv0odg7csjf7ajakggq5h0io2t.apps.googleusercontent.com';
+        if (fallbackId) {
+          googleClientId = fallbackId;
+          var waitForFallback = setInterval(function() {
+            if (typeof google !== 'undefined' && google.accounts) {
+              clearInterval(waitForFallback);
+              initGoogleClient();
+            }
+          }, 200);
+          setTimeout(function() { clearInterval(waitForFallback); }, 15000);
+        }
       });
-
-      // Re-try Google init once GSI library finishes loading
-      function onGoogleLoaded() {
-        initGoogleClient();
-      }
-      if (typeof google !== 'undefined' && google.accounts) {
-        onGoogleLoaded();
-      } else {
-        var checkGoogleTimer = setInterval(function() {
-          if (typeof google !== 'undefined' && google.accounts) {
-            clearInterval(checkGoogleTimer);
-            onGoogleLoaded();
-          }
-        }, 200);
-        setTimeout(function() { clearInterval(checkGoogleTimer); }, 10000);
-      }
 
       // ==================== INIT ====================
       document.addEventListener('DOMContentLoaded', function() {

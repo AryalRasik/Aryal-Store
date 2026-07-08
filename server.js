@@ -42,7 +42,28 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'aryal-store-jwt-secret-2026';
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
-app.use(cors({ origin: true, credentials: true }));
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'https://aryalstore.com.np',
+  'https://www.aryalstore.com.np',
+  /\.netlify\.app$/,
+  /\.vercel\.app$/
+];
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || process.env.NODE_ENV !== 'production') return callback(null, true);
+    const allowed = ALLOWED_ORIGINS.some(o => {
+      if (typeof o === 'string') return origin === o;
+      if (o instanceof RegExp) return o.test(origin);
+      return false;
+    });
+    if (allowed) return callback(null, true);
+    callback(null, true);
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 if (process.env.VERCEL) {
@@ -257,30 +278,56 @@ app.post('/api/users/google', async (req, res) => {
     if (!credential) return res.status(400).json({ error: 'Google credential is required' });
 
     let profile;
+    const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+    const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+
     try {
-      const verifyRes = await axios.get('https://oauth2.googleapis.com/tokeninfo?id_token=' + credential, { timeout: 10000 });
+      const verifyRes = await axios.get('https://oauth2.googleapis.com/tokeninfo?id_token=' + credential, {
+        timeout: 10000
+      });
       profile = verifyRes.data;
+      if (profile && profile.aud && profile.aud !== GOOGLE_CLIENT_ID) {
+        return res.status(400).json({ error: 'Token audience mismatch. Google Client ID may be misconfigured.', code: 'INVALID_CLIENT' });
+      }
     } catch (verifyErr) {
+      if (verifyErr.response) {
+        const status = verifyErr.response.status;
+        const data = verifyErr.response.data;
+        if (status === 400 && data && data.error === 'invalid_token') {
+          return res.status(400).json({ error: 'Google token is invalid or expired. Please sign in again.', code: 'INVALID_TOKEN' });
+        }
+      }
       try {
         const parts = credential.split('.');
         if (parts.length === 3) {
           profile = JSON.parse(Buffer.from(parts[1], 'base64').toString());
         } else {
-          return res.status(400).json({ error: 'Invalid Google credential format' });
+          return res.status(400).json({ error: 'Invalid Google credential format', code: 'INVALID_FORMAT' });
         }
       } catch {
-        return res.status(400).json({ error: 'Google token verification failed' });
+        return res.status(400).json({ error: 'Google token verification failed. Please try signing in again.', code: 'VERIFY_FAILED' });
       }
     }
-    if (!profile || profile.error) return res.status(400).json({ error: 'Invalid Google token' });
+
+    if (!profile || profile.error) {
+      const errCode = profile && profile.error === 'access_denied' ? 'ACCESS_DENIED' : 'INVALID_TOKEN';
+      return res.status(400).json({ error: 'Google sign-in was denied or the token is invalid.', code: errCode });
+    }
+
     const googleEmail = (profile.email || '').toLowerCase();
     const googleId = profile.sub;
     const googleName = profile.name || 'Google User';
     const googlePicture = profile.picture || '';
+
+    if (!googleEmail) {
+      return res.status(400).json({ error: 'Your Google account does not have an email address associated with it.', code: 'NO_EMAIL' });
+    }
+
     const now = new Date().toISOString();
     const { data: existing } = await (await from('users')).select('*')
       .or('auth_provider_id.eq.' + googleId + ',email.eq.' + googleEmail)
       .maybeSingle();
+
     if (existing) {
       const updates = { last_login_at: now };
       if (existing.auth_provider !== 'google' || !existing.auth_provider_id) {
@@ -293,6 +340,7 @@ app.post('/api/users/google', async (req, res) => {
       const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email || googleEmail }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email || googleEmail, phone: existing.phone || '', address: existing.address || '', profile_picture: existing.profile_picture || googlePicture } });
     }
+
     const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
     const { error: insertErr } = await (await from('users')).insert({
       id, name: googleName, email: googleEmail, password: '',
@@ -303,7 +351,7 @@ app.post('/api/users/google', async (req, res) => {
     const token = jwt.sign({ role: 'user', id, email: googleEmail }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id, name: googleName, email: googleEmail, phone: '', address: '', profile_picture: googlePicture } });
   } catch (err) {
-    res.status(500).json({ error: 'Google authentication failed: ' + err.message });
+    res.status(500).json({ error: 'Google authentication failed: ' + err.message, code: 'SERVER_ERROR' });
   }
 });
 
@@ -311,7 +359,8 @@ app.post('/api/users/google', async (req, res) => {
 app.get('/api/config/oauth', (req, res) => {
   res.json({
     google_client_id: process.env.GOOGLE_CLIENT_ID || '',
-    facebook_app_id: process.env.FACEBOOK_APP_ID || ''
+    facebook_app_id: process.env.FACEBOOK_APP_ID || '',
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
