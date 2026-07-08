@@ -249,11 +249,11 @@
           <div class="auth-divider">or continue with</div>
 
           <div class="auth-social">
-            <button type="button" class="auth-social-btn google">
+            <button type="button" class="auth-social-btn google" id="signupGoogleBtn">
               <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
               Continue with Google
             </button>
-            <button type="button" class="auth-social-btn facebook">
+            <button type="button" class="auth-social-btn facebook" id="signupFacebookBtn">
               <i class="fab fa-facebook-f"></i> Continue with Facebook
             </button>
           </div>
@@ -388,8 +388,10 @@
 
   <!-- Hidden Google Sign-In button (for GSI) -->
   <div id="g_id_onload"
+       data-client_id="219926749680-b71tc4gv0odg7csjf7ajakggq5h0io2t.apps.googleusercontent.com"
        data-context="signin"
        data-ux_mode="popup"
+       data-callback="handleGoogleCredential"
        data-auto_prompt="false">
   </div>
   <div class="google-btn-hidden"
@@ -428,6 +430,15 @@
       const pageLoader = $('pageLoader');
 
       // ==================== UTILITY ====================
+      const FETCH_TIMEOUT = 15000;
+
+      function fetchWithTimeout(url, options, timeoutMs) {
+        const controller = new AbortController();
+        const timeout = setTimeout(function() { controller.abort(); }, timeoutMs || FETCH_TIMEOUT);
+        return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+          .finally(function() { clearTimeout(timeout); });
+      }
+
       function getToken() {
         return localStorage.getItem('aryal_token');
       }
@@ -751,7 +762,7 @@
         setBtnLoading('loginBtn', true);
 
         try {
-          const res = await fetch(AUTH_API + '/login', {
+          const res = await fetchWithTimeout(AUTH_API + '/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -844,7 +855,7 @@
         setBtnLoading('signupBtn', true);
 
         try {
-          const res = await fetch(AUTH_API + '/register', {
+          const res = await fetchWithTimeout(AUTH_API + '/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -885,7 +896,7 @@
         setBtnLoading('forgotBtn', true);
 
         try {
-          const res = await fetch(AUTH_API + '/forgot-password', {
+          const res = await fetchWithTimeout(AUTH_API + '/forgot-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: email.toLowerCase() })
@@ -934,7 +945,7 @@
         setBtnLoading('resetBtn', true);
 
         try {
-          const res = await fetch(AUTH_API + '/reset-password', {
+          const res = await fetchWithTimeout(AUTH_API + '/reset-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, password, confirmPassword: confirm })
@@ -992,14 +1003,18 @@
 
       async function sendOtp(phone) {
         try {
-          const res = await fetch(AUTH_API + '/send-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone })
-          });
-          const data = await res.json();
-          if (!res.ok) showGlobalError(data.error || 'Failed to send OTP');
-          else if (data.debug) console.log('[OTP Debug]', data.debug);
+          try {
+            const res = await fetchWithTimeout(AUTH_API + '/send-otp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phone })
+            });
+            const data = await res.json();
+            if (!res.ok) showGlobalError(data.error || 'Failed to send OTP');
+            else if (data.debug) console.log('[OTP Debug]', data.debug);
+          } catch (e) {
+            showGlobalError('Network error. Please try again.');
+          }
         } catch {
           showGlobalError('Network error. Please try again.');
         }
@@ -1052,7 +1067,7 @@
         setBtnLoading('otpVerifyBtn', true);
 
         try {
-          const res = await fetch(AUTH_API + '/verify-otp', {
+          const res = await fetchWithTimeout(AUTH_API + '/verify-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone, otp })
@@ -1088,8 +1103,16 @@
 
       // ==================== SOCIAL LOGIN ====================
       function handleGoogleCredential(response) {
-        if (!response || !response.credential) { if (_activeGoogleBtn) { _activeGoogleBtn.classList.remove('loading'); _activeGoogleBtn.disabled = false; _activeGoogleBtn = null; } return; }
-        fetch(SOCIAL_API + '/google', {
+        if (_activeGoogleBtn) {
+          _activeGoogleBtn.classList.remove('loading');
+          _activeGoogleBtn.disabled = false;
+          _activeGoogleBtn = null;
+        }
+        if (!response || !response.credential) {
+          showGlobalError('Google sign-in was cancelled or failed.');
+          return;
+        }
+        fetchWithTimeout(SOCIAL_API + '/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ credential: response.credential })
@@ -1102,86 +1125,59 @@
             setTimeout(() => window.location.href = '/', 1000);
           } else {
             showGlobalError(data.error || 'Google sign-in failed');
-            if (_activeGoogleBtn) { _activeGoogleBtn.classList.remove('loading'); _activeGoogleBtn.disabled = false; }
           }
         })
-        .catch(function() { showGlobalError('Google sign-in failed'); if (_activeGoogleBtn) { _activeGoogleBtn.classList.remove('loading'); _activeGoogleBtn.disabled = false; } })
-        .finally(function() { _activeGoogleBtn = null; });
+        .catch(function() { showGlobalError('Google sign-in failed. Please try again.'); });
       }
 
       window.handleGoogleCredential = handleGoogleCredential;
 
-      // Track which Google button was clicked
       var _activeGoogleBtn = null;
 
-      // Render hidden Google button via renderButton, then proxy clicks from our custom button
-      function renderGoogleButton(containerId, customBtn) {
-        if (!googleClientId || !googleInitialized) return false;
-        var hiddenDiv = document.getElementById(containerId);
-        if (!hiddenDiv) {
-          hiddenDiv = document.createElement('div');
-          hiddenDiv.id = containerId;
-          hiddenDiv.style.display = 'none';
-          customBtn.parentNode.insertBefore(hiddenDiv, customBtn);
-        }
-        google.accounts.id.renderButton(hiddenDiv, {
-          type: 'standard',
-          shape: 'rectangular',
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with'
-        });
-        var googleBtn = hiddenDiv.querySelector('div[role=button]');
-        if (googleBtn) {
-          customBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            _activeGoogleBtn = customBtn;
-            customBtn.classList.add('loading');
-            customBtn.disabled = true;
-            googleBtn.click();
-          });
-          return true;
-        }
-        return false;
-      }
-
-      function triggerGoogleSignIn() {
-        if (googleClientId && googleInitialized) {
-          google.accounts.id.prompt();
-          return true;
-        }
-        return false;
-      }
-
-      function retryGoogleConfig(customBtn) {
-        fetch('/api/config/oauth').then(function(r) { return r.json(); }).then(function(cfg) {
-          googleClientId = cfg.google_client_id || '';
-          initGoogleClient();
-          if (googleClientId && googleInitialized) {
-            renderGoogleButton('gBtnHidden', customBtn);
-          } else {
-            showGlobalError('Google Sign-In is not configured. Contact the administrator.');
-          }
-        }).catch(function() {
-          showGlobalError('Could not connect to server. Make sure the server is running (npm start).');
-        });
-      }
-
-      // Initialize per-button: try renderButton first, fall back to prompt
       function setupGoogleButton(btn) {
-        if (!renderGoogleButton('gBtn_' + (btn.id || Math.random().toString(36).slice(2)), btn)) {
-          // Fall back to prompt-based approach
-          btn.addEventListener('click', function() {
-            if (!triggerGoogleSignIn()) {
-              retryGoogleConfig(btn);
-            }
-          });
-        }
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            _activeGoogleBtn = btn;
+            btn.classList.add('loading');
+            btn.disabled = true;
+            google.accounts.id.prompt(function(notification) {
+              if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+                _activeGoogleBtn = null;
+                showGlobalError('Google sign-in is not available. Try using email instead.');
+              }
+            });
+          } else {
+            showGlobalError('Google Sign-In is loading. Please try again in a moment.');
+          }
+        });
       }
 
       setupGoogleButton($('googleLoginBtn'));
+      setupGoogleButton($('signupGoogleBtn'));
 
-      document.querySelectorAll('#signupForm .auth-social-btn.google').forEach(setupGoogleButton);
+      function initFacebookSDK() {
+        if (typeof FB !== 'undefined') return;
+        var fbScript = document.getElementById('facebookSdk');
+        if (!fbScript) {
+          fbScript = document.createElement('script');
+          fbScript.id = 'facebookSdk';
+          fbScript.src = 'https://connect.facebook.net/en_US/sdk.js';
+          fbScript.onload = function() {
+            if (typeof FB !== 'undefined') {
+              FB.init({
+                appId: window.facebookAppId || '',
+                cookie: true,
+                xfbml: true,
+                version: 'v18.0'
+              });
+            }
+          };
+          document.body.appendChild(fbScript);
+        }
+      }
 
       $('facebookLoginBtn').addEventListener('click', function() {
         var fbBtn = this;
@@ -1190,17 +1186,17 @@
             if (response.authResponse) {
               fbBtn.classList.add('loading');
               fbBtn.disabled = true;
-              fetch(SOCIAL_API + '/facebook', {
+              fetchWithTimeout(SOCIAL_API + '/facebook', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ accessToken: response.authResponse.accessToken })
               })
-              .then(r => r.json())
-              .then(data => {
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
                 if (data.token) {
                   saveAuth(data.token, data.user);
                   showSuccessView('Welcome!', 'Signed in with Facebook. Redirecting...');
-                  setTimeout(() => window.location.href = '/', 1000);
+                  setTimeout(function() { window.location.href = '/'; }, 1000);
                 } else {
                   showGlobalError(data.error || 'Facebook sign-in failed');
                   fbBtn.classList.remove('loading');
@@ -1208,17 +1204,24 @@
                 }
               })
               .catch(function() { showGlobalError('Facebook sign-in failed'); fbBtn.classList.remove('loading'); fbBtn.disabled = false; });
+            } else {
+              showGlobalError('Facebook sign-in cancelled');
             }
           }, { scope: 'public_profile,email' });
         } else {
-          showGlobalError('Facebook SDK not loaded');
+          initFacebookSDK();
+          setTimeout(function() {
+            if (typeof FB !== 'undefined') {
+              fbBtn.click();
+            } else {
+              showGlobalError('Facebook SDK could not be loaded. Please try again.');
+            }
+          }, 2000);
         }
       });
 
-      document.querySelectorAll('#signupForm .auth-social-btn.facebook').forEach(btn => {
-        btn.addEventListener('click', function() {
-          $('facebookLoginBtn').click();
-        });
+      $('signupFacebookBtn').addEventListener('click', function() {
+        $('facebookLoginBtn').click();
       });
 
       // ==================== THEME TOGGLE ====================
@@ -1261,35 +1264,15 @@
           googleInitialized = true;
         }
       }
-      fetch('/api/config/oauth').then(r => r.json()).then(function(cfg) {
+      fetchWithTimeout('/api/config/oauth').then(r => r.json()).then(function(cfg) {
         googleClientId = cfg.google_client_id || '';
+        window.facebookAppId = cfg.facebook_app_id || '';
         initGoogleClient();
+        if (window.facebookAppId && typeof FB !== 'undefined') {
+          FB.init({ appId: window.facebookAppId, cookie: true, xfbml: true, version: 'v18.0' });
+        }
       }).catch(function(err) {
         console.warn('Failed to load OAuth config:', err);
-      });
-
-      // ==================== INIT ====================
-      document.addEventListener('DOMContentLoaded', function() {
-        const token = getToken();
-        if (token) {
-          fetch(COOKIE_CHECK, {
-            headers: { 'Authorization': 'Bearer ' + token }
-          })
-          .then(r => {
-            if (r.ok) {
-              window.location.href = '/';
-            } else {
-              clearAuth();
-            }
-          })
-          .catch(() => {});
-        }
-
-        setTimeout(function() {
-          pageLoader.classList.add('hidden');
-        }, 400);
-
-        initFloatingLabels();
       });
 
       // Re-try Google init once GSI library finishes loading
@@ -1307,6 +1290,30 @@
         }, 200);
         setTimeout(function() { clearInterval(checkGoogleTimer); }, 10000);
       }
+
+      // ==================== INIT ====================
+      document.addEventListener('DOMContentLoaded', function() {
+        const token = getToken();
+        if (token) {
+          fetchWithTimeout(COOKIE_CHECK, {
+            headers: { 'Authorization': 'Bearer ' + token }
+          })
+          .then(r => {
+            if (r.ok) {
+              window.location.href = '/';
+            } else {
+              clearAuth();
+            }
+          })
+          .catch(function() {});
+        }
+
+        setTimeout(function() {
+          pageLoader.classList.add('hidden');
+        }, 400);
+
+        initFloatingLabels();
+      });
 
     })();
   </script>

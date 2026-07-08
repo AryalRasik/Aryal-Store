@@ -52,9 +52,22 @@ if (process.env.VERCEL) {
 }
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// Mount auth routes (supports both /api/auth/* and /api/users/* for backward compatibility)
-app.use('/api/auth', authRoutes);
-app.use('/api/users', authRoutes);
+// Timeout middleware to prevent hanging requests
+function requestTimeout(ms) {
+  return function(req, res, next) {
+    const timer = setTimeout(function() {
+      if (!res.headersSent) {
+        res.status(408).json({ error: 'Request timed out. Please try again.' });
+      }
+    }, ms);
+    res.on('finish', function() { clearTimeout(timer); });
+    next();
+  };
+}
+
+// Mount auth routes with timeout (supports both /api/auth/* and /api/users/* for backward compatibility)
+app.use('/api/auth', requestTimeout(25000), authRoutes);
+app.use('/api/users', requestTimeout(25000), authRoutes);
 
 // Rate limiter for login/register endpoints
 const { rateLimiter } = require('./server/middleware/rateLimiter');
@@ -179,10 +192,10 @@ app.get('/api/users/profile', authMiddleware, async (req, res) => {
 
 app.post('/api/users/facebook', async (req, res) => {
   try {
-    const { access_token } = req.body;
-    if (!access_token) return res.status(400).json({ error: 'Facebook access token is required' });
+    const accessToken = req.body.accessToken || req.body.access_token;
+    if (!accessToken) return res.status(400).json({ error: 'Facebook access token is required' });
     const fbRes = await axios.get('https://graph.facebook.com/v18.0/me', {
-      params: { fields: 'id,name,email,picture.type(large)', access_token }
+      params: { fields: 'id,name,email,picture.type(large)', access_token: accessToken }
     });
     const fbData = fbRes.data;
     if (!fbData || !fbData.id) return res.status(400).json({ error: 'Invalid Facebook token' });
@@ -191,8 +204,8 @@ app.post('/api/users/facebook', async (req, res) => {
     const fbName = fbData.name || 'Facebook User';
     const fbPicture = (fbData.picture && fbData.picture.data && fbData.picture.data.url) || '';
     const now = new Date().toISOString();
-    const { data: existing } = await supabase.from('users').select('*')
-      .or('auth_provider_id.eq.' + fbId + (fbEmail ? ',email.eq.' + fbEmail : ''))
+    const { data: existing } = await (await from('users')).select('*')
+      .or('auth_provider_id.eq.' + fbId + ',email.eq.' + fbEmail)
       .maybeSingle();
     if (existing) {
       const updates = { last_login_at: now };
@@ -202,12 +215,12 @@ app.post('/api/users/facebook', async (req, res) => {
       }
       if (fbPicture && !existing.profile_picture) updates.profile_picture = fbPicture;
       if (!existing.email && fbEmail) updates.email = fbEmail;
-      await supabase.from('users').update(updates).eq('id', existing.id);
+      await (await from('users')).update(updates).eq('id', existing.id);
       const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email || fbEmail }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email || fbEmail, phone: existing.phone || '', address: existing.address || '', profile_picture: existing.profile_picture || fbPicture } });
     }
     const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-    const { error: insertErr } = await supabase.from('users').insert({
+    const { error: insertErr } = await (await from('users')).insert({
       id, name: fbName, email: fbEmail, password: '',
       phone: '', address: '', auth_provider: 'facebook', auth_provider_id: fbId,
       profile_picture: fbPicture, created_at: now, last_login_at: now
@@ -265,7 +278,7 @@ app.post('/api/users/google', async (req, res) => {
     const googleName = profile.name || 'Google User';
     const googlePicture = profile.picture || '';
     const now = new Date().toISOString();
-    const { data: existing } = await supabase.from('users').select('*')
+    const { data: existing } = await (await from('users')).select('*')
       .or('auth_provider_id.eq.' + googleId + ',email.eq.' + googleEmail)
       .maybeSingle();
     if (existing) {
@@ -276,12 +289,12 @@ app.post('/api/users/google', async (req, res) => {
       }
       if (googlePicture && !existing.profile_picture) updates.profile_picture = googlePicture;
       if (!existing.email && googleEmail) updates.email = googleEmail;
-      await supabase.from('users').update(updates).eq('id', existing.id);
+      await (await from('users')).update(updates).eq('id', existing.id);
       const token = jwt.sign({ role: 'user', id: existing.id, email: existing.email || googleEmail }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({ token, user: { id: existing.id, name: existing.name, email: existing.email || googleEmail, phone: existing.phone || '', address: existing.address || '', profile_picture: existing.profile_picture || googlePicture } });
     }
     const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-    const { error: insertErr } = await supabase.from('users').insert({
+    const { error: insertErr } = await (await from('users')).insert({
       id, name: googleName, email: googleEmail, password: '',
       phone: '', address: '', auth_provider: 'google', auth_provider_id: googleId,
       profile_picture: googlePicture, created_at: now, last_login_at: now
