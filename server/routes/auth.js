@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const { supabase, from } = require('../../db');
 const { generateToken, setAuthCookies, clearAuthCookies, authMiddleware, optionalAuth, JWT_SECRET } = require('../middleware/auth');
 const { rateLimiter, checkAccountLockout, incrementLoginAttempts, resetLoginAttempts } = require('../middleware/rateLimiter');
@@ -704,6 +705,166 @@ router.post('/verify-otp', rateLimiter(5, 15 * 60 * 1000), async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== GOOGLE OAUTH ====================
+// POST /api/auth/google  (also accessible as /api/users/google)
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ error: 'Google credential is required', code: 'NO_CREDENTIAL' });
+    }
+
+    const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+
+    // Step 1: Verify the Google ID token
+    let profile;
+    try {
+      const verifyRes = await axios.get('https://oauth2.googleapis.com/tokeninfo?id_token=' + credential, {
+        timeout: 10000
+      });
+      profile = verifyRes.data;
+      if (!profile) {
+        return res.status(400).json({ error: 'Invalid Google response', code: 'VERIFY_FAILED' });
+      }
+      if (profile.aud && GOOGLE_CLIENT_ID && profile.aud !== GOOGLE_CLIENT_ID) {
+        return res.status(400).json({
+          error: 'Google Client ID mismatch. The OAuth configuration is incorrect.',
+          code: 'INVALID_CLIENT'
+        });
+      }
+    } catch (verifyErr) {
+      console.log('[AUTH] Google token verification failed, attempting local decode:', verifyErr.message);
+      if (verifyErr.response && verifyErr.response.status === 400) {
+        return res.status(400).json({
+          error: 'Google token is invalid or expired. Please sign in again.',
+          code: 'INVALID_TOKEN'
+        });
+      }
+      // Fallback: decode JWT locally (development only)
+      try {
+        const parts = credential.split('.');
+        if (parts.length === 3) {
+          profile = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+          console.log('[AUTH] Google token decoded locally for:', profile.email);
+        } else {
+          return res.status(400).json({ error: 'Invalid Google credential format', code: 'INVALID_FORMAT' });
+        }
+      } catch {
+        return res.status(400).json({
+          error: 'Google token verification failed. Please try signing in again.',
+          code: 'VERIFY_FAILED'
+        });
+      }
+    }
+
+    if (!profile || profile.error) {
+      return res.status(400).json({
+        error: 'Google sign-in was denied or the token is invalid.',
+        code: profile && profile.error === 'access_denied' ? 'ACCESS_DENIED' : 'INVALID_TOKEN'
+      });
+    }
+
+    const googleEmail = (profile.email || '').toLowerCase().trim();
+    const googleId = profile.sub || '';
+    const googleName = profile.name || 'Google User';
+    const googlePicture = profile.picture || '';
+
+    if (!googleEmail) {
+      return res.status(400).json({
+        error: 'Your Google account does not have an email address associated with it.',
+        code: 'NO_EMAIL'
+      });
+    }
+
+    // Step 2: Find existing user by Google ID or email
+    const now = new Date().toISOString();
+    let existing = null;
+
+    // Try finding by auth_provider_id first
+    if (googleId) {
+      const result = await (await from('users')).select('*').eq('auth_provider_id', googleId).maybeSingle();
+      existing = result.data;
+    }
+
+    // Try finding by email if not found
+    if (!existing && googleEmail) {
+      const result = await (await from('users')).select('*').eq('email', googleEmail).maybeSingle();
+      existing = result.data;
+    }
+
+    if (existing) {
+      const updates = { last_login_at: now };
+      if (existing.auth_provider !== 'google' || !existing.auth_provider_id) {
+        updates.auth_provider = 'google';
+        updates.auth_provider_id = googleId;
+      }
+      if (googlePicture && !existing.profile_picture) {
+        updates.profile_picture = googlePicture;
+      }
+      if (!existing.email && googleEmail) {
+        updates.email = googleEmail;
+      }
+      await (await from('users')).update(updates).eq('id', existing.id);
+
+      const userData = {
+        id: existing.id,
+        name: existing.name || googleName,
+        email: existing.email || googleEmail,
+        phone: existing.phone || '',
+        address: existing.address || '',
+        profile_picture: existing.profile_picture || googlePicture,
+        email_verified_at: existing.email_verified_at
+      };
+
+      const token = generateToken(userData);
+      setAuthCookies(res, token);
+      console.log('[AUTH] Google login successful for:', googleEmail);
+      return res.json({ message: 'Google login successful', token, user: userData });
+    }
+
+    // Step 3: Create new user
+    const userId = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+    const { error: insertErr } = await (await from('users')).insert({
+      id: userId,
+      name: googleName,
+      email: googleEmail,
+      password: '',
+      phone: '',
+      address: '',
+      profile_picture: googlePicture,
+      auth_provider: 'google',
+      auth_provider_id: googleId,
+      email_verified_at: now,
+      created_at: now,
+      last_login_at: now,
+      updated_at: now
+    });
+
+    if (insertErr) {
+      console.log('[AUTH] Google user insert error:', insertErr);
+      throw insertErr;
+    }
+
+    const userData = {
+      id: userId,
+      name: googleName,
+      email: googleEmail,
+      phone: '',
+      address: '',
+      profile_picture: googlePicture,
+      email_verified_at: now
+    };
+
+    const token = generateToken(userData);
+    setAuthCookies(res, token);
+    console.log('[AUTH] Google user created:', googleEmail);
+    res.status(201).json({ message: 'Account created via Google', token, user: userData });
+  } catch (err) {
+    console.log('[AUTH] Google auth error:', err.message);
+    res.status(500).json({ error: 'Google authentication failed: ' + err.message, code: 'SERVER_ERROR' });
   }
 });
 

@@ -1306,27 +1306,47 @@
       try { return JSON.parse(atob(token.split('.')[1])); } catch { return null; }
     }
 
+    // Listen for OAuth popup callback via postMessage (from auth.html)
+    window.addEventListener('message', function(event) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data && event.data.type === 'GOOGLE_OAUTH_TOKEN') {
+        handleGoogleCredential({ credential: event.data.credential });
+      }
+      if (event.data && event.data.type === 'GOOGLE_OAUTH_ERROR') {
+        showAuthError('Google sign-in failed: ' + (event.data.error || 'Unknown error').replace(/_/g, ' '));
+        var btn = document.querySelector('.auth-social-btn.google');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0;"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg> Google'; }
+      }
+    });
+
     function handleGoogleCredential(response) {
       if (!response || !response.credential) { showAuthError('Google login failed.'); return; }
       var btn = document.querySelector('.auth-social-btn.google');
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Google...'; }
-      var payload = decodeJwt(response.credential);
-      if (!payload) { showAuthError('Invalid Google credential.'); return; }
       fetch('/api/users/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential: response.credential })
       }).then(function(r) { return r.json(); }).then(function(data) {
-        if (data.error) { showAuthError(data.error); return; }
+        if (data.error) {
+          var errorMsg = data.error;
+          if (data.code === 'INVALID_TOKEN') errorMsg = 'Your Google session expired. Please sign in again.';
+          else if (data.code === 'ACCESS_DENIED') errorMsg = 'Google sign-in was denied. Please try again or use email.';
+          else if (data.code === 'INVALID_CLIENT') errorMsg = 'Google OAuth is misconfigured. Please contact support.';
+          else if (data.code === 'NO_EMAIL') errorMsg = 'Your Google account must have an email address.';
+          else if (data.code === 'VERIFY_FAILED') errorMsg = 'Could not verify your Google credentials. Please try again.';
+          showAuthError(errorMsg);
+          return;
+        }
         saveAuth(data.token, data.user);
         closeAuthModal();
         updateUserMenu();
         toast('Welcome, ' + (data.user.name || data.user.email) + '!', 'success');
         redirectAfterLogin();
       }).catch(function() {
-        showAuthError('Google login failed. Please try again.');
+        showAuthError('Network error. Please check your connection and try again.');
       }).finally(function() {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0;"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg> Google'; });
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0;"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg> Google'; }
       });
     }
   </script>
@@ -5563,6 +5583,8 @@ function initCarousel() {
 
   // Initialize Google Sign-In buttons
   var _googleInitialized = false;
+  var _googlePopupTimer = null;
+  var _googlePopup = null;
   function initGoogleBtn() {
     if (typeof google !== 'undefined' && google.accounts && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
       google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
@@ -5570,17 +5592,97 @@ function initCarousel() {
     }
   }
   function handleGoogleSignIn() {
-    if (typeof google !== 'undefined' && google.accounts && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
-      if (!_googleInitialized) google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
-      var tmp = document.createElement('div');
-      tmp.style.display = 'none';
-      document.body.appendChild(tmp);
-      google.accounts.id.renderButton(tmp, { theme: 'outline', size: 'large', type: 'standard', shape: 'rectangular' });
-      tmp.querySelector('div[role=button]')?.click();
-      setTimeout(function() { tmp.remove(); }, 1000);
-    } else {
+    var GOOGLE_CLIENT_ID2 = GOOGLE_CLIENT_ID;
+    if (!GOOGLE_CLIENT_ID2 || GOOGLE_CLIENT_ID2 === 'YOUR_GOOGLE_CLIENT_ID') {
       showAuthError('Google Sign-In is not configured. Please contact the administrator.');
+      return;
     }
+    var btn = document.querySelector('.auth-social-btn.google');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening Google...'; }
+
+    // Try GSI prompt first if available
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id && _googleInitialized) {
+      google.accounts.id.prompt(function(notification) {
+        if (notification.isNotDisplayed()) {
+          // GSI failed — fall back to direct OAuth popup
+          openGoogleOAuthPopup(btn);
+        }
+        if (notification.isSkippedMoment()) {
+          if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0;"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg> Google'; }
+        }
+      });
+    } else {
+      openGoogleOAuthPopup(btn);
+    }
+  }
+  function openGoogleOAuthPopup(btn) {
+    var state = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    sessionStorage.setItem('google_oauth_state', state);
+
+    var params = new URLSearchParams();
+    params.set('client_id', GOOGLE_CLIENT_ID);
+    params.set('redirect_uri', window.location.origin + '/auth.html');
+    params.set('response_type', 'id_token token');
+    params.set('scope', 'openid email profile');
+    params.set('nonce', state);
+    params.set('state', state);
+    params.set('prompt', 'select_account');
+
+    var url = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+    var popup = window.open(url, 'google-oauth', 'width=520,height=700,menubar=no,toolbar=no,location=no');
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      showAuthError('Popup blocked! Please allow popups for this site to sign in with Google, or use email login instead.');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0;"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg> Google'; }
+      return;
+    }
+
+    _googlePopup = popup;
+    var attempts = 0;
+    _googlePopupTimer = setInterval(function() {
+      attempts++;
+      if (popup.closed) {
+        clearInterval(_googlePopupTimer);
+        _googlePopupTimer = null;
+        _googlePopup = null;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0;"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg> Google'; }
+        return;
+      }
+
+      try {
+        if (popup.location.origin === window.location.origin) {
+          clearInterval(_googlePopupTimer);
+          _googlePopupTimer = null;
+          var hash = popup.location.hash.substring(1);
+          if (hash) {
+            var hashParams = new URLSearchParams(hash);
+            var errorParam = hashParams.get('error');
+            if (errorParam) {
+              showAuthError('Google sign-in denied: ' + errorParam.replace(/_/g, ' '));
+              popup.close();
+              _googlePopup = null;
+              if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0;"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg> Google'; }
+              return;
+            }
+            var idToken = hashParams.get('id_token');
+            if (idToken) {
+              popup.close();
+              _googlePopup = null;
+              handleGoogleCredential({ credential: idToken });
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (attempts > 600) {
+        clearInterval(_googlePopupTimer);
+        _googlePopupTimer = null;
+        if (!popup.closed) popup.close();
+        _googlePopup = null;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 48 48" style="width:18px;height:18px;flex-shrink:0;"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg> Google'; }
+        showAuthError('Google sign-in timed out. Make sure the domain is authorized in Google Cloud Console.');
+      }
+    }, 200);
   }
   if (typeof google !== 'undefined' && google.accounts) { initGoogleBtn(); }
   else { setTimeout(initGoogleBtn, 2000); }

@@ -168,12 +168,42 @@ function table(name) {
           };
         },
         or(filter) {
-          try {
-            const rows = d.prepare(`SELECT ${columns} FROM ${name}`).all();
-            return { data: rows, error: null };
-          } catch (err) {
-            return { data: null, error: err };
-          }
+          var self = this;
+          return {
+            maybeSingle: function() {
+              try {
+                var parts = filter.split(',');
+                var conditions = [];
+                var params = [];
+                for (var i = 0; i < parts.length; i++) {
+                  var match = parts[i].match(/^(\w+)\.(eq|neq|gt|gte|lt|lte|like|ilike)\.(.+)$/);
+                  if (match) {
+                    var field = match[1];
+                    var op = match[2];
+                    var val = match[3];
+                    if (op === 'eq') {
+                      conditions.push(field + ' = ?');
+                      params.push(val);
+                    } else if (op === 'ilike' || op === 'like') {
+                      conditions.push(field + ' LIKE ?');
+                      params.push(val.replace(/%/g, '%'));
+                    }
+                  }
+                }
+                if (conditions.length) {
+                  var row = d.prepare('SELECT ' + columns + ' FROM ' + name + ' WHERE (' + conditions.join(' OR ') + ') LIMIT 1').get(...params);
+                  return { data: row || null, error: null };
+                }
+                var row = d.prepare('SELECT ' + columns + ' FROM ' + name + ' LIMIT 1').get();
+                return { data: row || null, error: null };
+              } catch (err) {
+                return { data: null, error: err };
+              }
+            },
+            order: function() { return self; },
+            eq: function() { return self; },
+            ilike: function() { return self; }
+          };
         },
         limit: (n) => {
           try {
