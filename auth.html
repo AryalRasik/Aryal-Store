@@ -1217,6 +1217,13 @@
       var GOOGLE_REDIRECT_URI = window.location.origin + '/auth.html';
 
       function openGoogleOAuthPopup(btn) {
+        if (!googleClientId) {
+          showGlobalError('Google sign-in configuration is still loading. Please wait a moment and try again.');
+          if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+          _googlePromptInProgress = false;
+          _activeGoogleBtn = null;
+          return;
+        }
         var state = Math.random().toString(36).substring(2) + Date.now().toString(36);
         sessionStorage.setItem('google_oauth_state', state);
 
