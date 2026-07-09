@@ -1217,8 +1217,11 @@
       var GOOGLE_REDIRECT_URI = window.location.origin + '/auth.html';
 
       function openGoogleOAuthPopup(btn) {
-        if (!googleClientId) {
-          showGlobalError('Google sign-in configuration is still loading. Please wait a moment and try again.');
+        if (!googleClientId || !googleInitialized) {
+          var reason = !googleClientId ? 'Client ID not configured' : 'Not yet initialized';
+          var tip = googleInitFailed ? 'Try refreshing the page or contact support if the issue persists.' : 'Please wait a moment and try again.';
+          console.warn('[OAuth] Google Sign-In blocked: ' + reason + ' (step=' + googleInitStep + ')');
+          showGlobalError('Google Sign-In is not ready yet. ' + tip);
           if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
           _googlePromptInProgress = false;
           _activeGoogleBtn = null;
@@ -1457,21 +1460,39 @@
         });
       }
 
-      // ==================== OAUTH CONFIG ==================
-      let googleClientId = '';
-      let googleInitialized = false;
-      let googleInitFailed = false;
+      // ==================== GOOGLE OAUTH INITIALIZATION ====================
+      // Hardcoded Google Client ID as ultimate fallback (public value embedded in page)
+      var HARDCODED_CLIENT_ID = '219926749680-b71tc4gv0odg7csjf7ajakggq5h0io2t.apps.googleusercontent.com';
+
+      var googleClientId = '';
+      var googleInitialized = false;
+      // Steps: 'loading' -> 'config_loaded' -> 'sdk_loaded' -> 'initialized' | 'failed'
+      var googleInitFailed = false;
+      var googleInitStep = 'loading';
+
+      function logOAuth(step, ok, detail) {
+        var icon = ok ? '✓' : '✗';
+        console.log('[OAuth] ' + icon + ' ' + step + (detail ? ': ' + detail : ''));
+      }
+
+      function setGoogleStatus(step, failed) {
+        googleInitStep = step;
+        if (failed) googleInitFailed = true;
+      }
 
       function initGoogleClient() {
         if (googleInitialized) return;
         if (!googleClientId) {
-          googleInitFailed = true;
+          logOAuth('Google Client ID check', false, 'Client ID is empty');
+          setGoogleStatus('failed', true);
           return;
         }
         if (typeof google === 'undefined' || !google.accounts) {
+          logOAuth('Google SDK availability', false, 'SDK not loaded yet');
           return;
         }
         try {
+          logOAuth('Initializing Google Identity Services', true, 'client_id=' + googleClientId.substring(0, 10) + '...');
           google.accounts.id.initialize({
             client_id: googleClientId,
             callback: handleGoogleCredential,
@@ -1479,10 +1500,11 @@
             cancel_on_tap_outside: false
           });
           googleInitialized = true;
-          console.log('[OAuth] Google Sign-In initialized');
+          setGoogleStatus('initialized');
+          logOAuth('Google Sign-In initialized successfully', true);
         } catch (e) {
-          console.warn('[OAuth] Google init failed:', e);
-          googleInitFailed = true;
+          logOAuth('Google initialization', false, e.message || e);
+          setGoogleStatus('failed', true);
         }
       }
 
@@ -1495,53 +1517,99 @@
           'http://127.0.0.1:3000',
           'http://127.0.0.1:3001',
           'https://aryalstore.com.np',
-          'https://www.aryalstore.com.np'
+          'https://www.aryalstore.com.np',
+          'https://aryalstores.vercel.app'
         ];
         if (knownOrigins.indexOf(currentOrigin) === -1) {
           console.warn('[OAuth] Warning: Current origin "' + currentOrigin + '" may not be in Google Cloud Console Authorized JavaScript Origins. If Google sign-in fails, add this URL to your Google Cloud Console.');
+        } else {
+          console.log('[OAuth] Origin "' + currentOrigin + '" is in known origins list.');
         }
       }
       checkGoogleOrigin();
 
-      // Fetch OAuth config from server, then init Google
+      // Wait for Google SDK to be available, then call callback
+      function waitForGoogleSdk(callback, timeoutMs) {
+        if (typeof google !== 'undefined' && google.accounts) {
+          logOAuth('Google SDK already available', true);
+          callback();
+          return;
+        }
+        logOAuth('Waiting for Google SDK to load...', true);
+        var waited = 0;
+        var interval = setInterval(function() {
+          waited += 200;
+          if (typeof google !== 'undefined' && google.accounts) {
+            clearInterval(interval);
+            logOAuth('Google SDK loaded', true, 'waited ' + waited + 'ms');
+            callback();
+          } else if (waited >= (timeoutMs || 20000)) {
+            clearInterval(interval);
+            logOAuth('Google SDK load timeout', false, 'SDK did not load within ' + (timeoutMs || 20000) + 'ms');
+            setGoogleStatus('failed', true);
+          }
+        }, 200);
+      }
+
+      // Try to initialize Google with whatever client_id we have
+      function tryInitGoogle(clientId) {
+        googleClientId = clientId || HARDCODED_CLIENT_ID;
+        if (!googleClientId) {
+          logOAuth('Google Client ID', false, 'No Client ID available');
+          setGoogleStatus('failed', true);
+          return;
+        }
+        logOAuth('Google Client ID', true, googleClientId.substring(0, 10) + '...');
+        setGoogleStatus('config_loaded');
+        waitForGoogleSdk(function() {
+          initGoogleClient();
+        });
+      }
+
+      // Load OAuth config from server, then init Google
+      logOAuth('Loading OAuth config from server...', true);
       fetchWithTimeout('/api/config/oauth').then(function(r) { return r.json(); }).then(function(cfg) {
-        googleClientId = cfg.google_client_id || '';
+        var serverClientId = cfg.google_client_id || '';
         window.facebookAppId = cfg.facebook_app_id || '';
         window.googleEnvironment = cfg.environment || 'development';
-        if (googleClientId) {
-          initGoogleClient();
-          if (!googleInitialized) {
-            var waitForGoogle = setInterval(function() {
-              if (typeof google !== 'undefined' && google.accounts) {
-                clearInterval(waitForGoogle);
-                initGoogleClient();
-              }
-            }, 200);
-            setTimeout(function() { clearInterval(waitForGoogle); }, 15000);
-          }
+
+        if (serverClientId) {
+          logOAuth('Server config loaded', true, 'client_id from server');
+          tryInitGoogle(serverClientId);
         } else {
-          console.warn('[OAuth] No Google Client ID configured');
-          googleInitFailed = true;
+          logOAuth('Server config loaded', false, 'server returned empty client_id, using fallback');
+          tryInitGoogle(HARDCODED_CLIENT_ID);
         }
+
         if (window.facebookAppId && typeof FB !== 'undefined') {
           FB.init({ appId: window.facebookAppId, cookie: true, xfbml: true, version: 'v18.0' });
         }
       }).catch(function(err) {
-        console.warn('[OAuth] Failed to load OAuth config from server:', err);
-        // Fallback: use hardcoded client_id from .env as last resort
-        var fallbackId = '219926749680-b71tc4gv0odg7csjf7ajakggq5h0io2t.apps.googleusercontent.com';
-        if (fallbackId) {
-          googleClientId = fallbackId;
-          console.log('[OAuth] Using fallback Google Client ID');
-          var waitForFallback = setInterval(function() {
-            if (typeof google !== 'undefined' && google.accounts) {
-              clearInterval(waitForFallback);
-              initGoogleClient();
-            }
-          }, 200);
-          setTimeout(function() { clearInterval(waitForFallback); }, 15000);
-        }
+        logOAuth('Server config fetch failed', false, err.message || 'Network error');
+        // Fallback: use hardcoded client_id
+        console.warn('[OAuth] Cannot reach /api/config/oauth. Using hardcoded fallback Client ID.');
+        tryInitGoogle(HARDCODED_CLIENT_ID);
       });
+
+      // Expose retry function for the UI
+      window.retryGoogleInit = function() {
+        if (googleInitialized) return;
+        logOAuth('Manual retry initiated', true);
+        googleInitFailed = false;
+        setGoogleStatus('loading');
+        // Force re-check with whatever client_id we have
+        if (googleClientId) {
+          waitForGoogleSdk(function() {
+            initGoogleClient();
+            if (!googleInitialized) {
+              logOAuth('Retry: re-initializing...', true);
+              try { google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleCredential, cancel_on_tap_outside: false }); googleInitialized = true; setGoogleStatus('initialized'); logOAuth('Google initialized on retry', true); } catch(e) { logOAuth('Retry failed', false, e.message); setGoogleStatus('failed', true); }
+            }
+          });
+        } else {
+          tryInitGoogle(HARDCODED_CLIENT_ID);
+        }
+      };
 
       // ==================== INIT ====================
       document.addEventListener('DOMContentLoaded', function() {

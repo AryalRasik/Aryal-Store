@@ -46,8 +46,10 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
   'https://aryalstore.com.np',
   'https://www.aryalstore.com.np',
+  'https://aryalstores.vercel.app',
   /\.netlify\.app$/,
   /\.vercel\.app$/
 ];

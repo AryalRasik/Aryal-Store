@@ -1255,16 +1255,21 @@
     var OAUTH_CFG = { google_client_id: '', facebook_app_id: '' };
     var GOOGLE_CLIENT_ID = OAUTH_CFG.google_client_id || '';
     var FB_APP_ID = OAUTH_CFG.facebook_app_id || '';
+    var HARDCODED_CLIENT_ID = '219926749680-b71tc4gv0odg7csjf7ajakggq5h0io2t.apps.googleusercontent.com';
     fetch('/api/config/oauth').then(function(r) { return r.json(); }).then(function(cfg) {
       OAUTH_CFG = cfg;
-      GOOGLE_CLIENT_ID = cfg.google_client_id || '';
+      GOOGLE_CLIENT_ID = cfg.google_client_id || HARDCODED_CLIENT_ID;
       FB_APP_ID = cfg.facebook_app_id || '';
+      console.log('[OAuth] Config loaded' + (cfg.google_client_id ? ' (from server)' : ' (using fallback)'));
       if (cfg.facebook_app_id) {
         if (typeof FB !== 'undefined') {
           FB.init({ appId: FB_APP_ID, cookie: true, xfbml: true, version: 'v18.0' });
         }
       }
-    }).catch(function() {});
+    }).catch(function() {
+      console.warn('[OAuth] Config fetch failed, using fallback Client ID');
+      GOOGLE_CLIENT_ID = HARDCODED_CLIENT_ID;
+    });
     window.fbAsyncInit = function() {
       if (!FB_APP_ID) return;
       FB.init({ appId: FB_APP_ID, cookie: true, xfbml: true, version: 'v18.0' });
@@ -5587,15 +5592,24 @@ function initCarousel() {
   var _googlePopup = null;
   function initGoogleBtn() {
     if (typeof google !== 'undefined' && google.accounts && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
+      console.log('[OAuth] Initializing Google Sign-In');
       google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
       _googleInitialized = true;
+      console.log('[OAuth] Google Sign-In initialized successfully');
+    } else {
+      console.warn('[OAuth] Cannot initialize Google: SDK=' + (typeof google !== 'undefined' && !!google.accounts) + ' ID=' + (GOOGLE_CLIENT_ID ? 'set' : 'missing'));
     }
   }
   function handleGoogleSignIn() {
-    var GOOGLE_CLIENT_ID2 = GOOGLE_CLIENT_ID;
+    var GOOGLE_CLIENT_ID2 = GOOGLE_CLIENT_ID || '';
     if (!GOOGLE_CLIENT_ID2 || GOOGLE_CLIENT_ID2 === 'YOUR_GOOGLE_CLIENT_ID') {
-      showAuthError('Google Sign-In is not configured. Please contact the administrator.');
-      return;
+      // Config not loaded yet: try to use fallback directly
+      GOOGLE_CLIENT_ID2 = HARDCODED_CLIENT_ID;
+      GOOGLE_CLIENT_ID = HARDCODED_CLIENT_ID;
+      if (!GOOGLE_CLIENT_ID2) {
+        showAuthError('Google Sign-In is not configured. Please contact the administrator.');
+        return;
+      }
     }
     var btn = document.querySelector('.auth-social-btn.google');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening Google...'; }
@@ -5684,8 +5698,27 @@ function initCarousel() {
       }
     }, 200);
   }
-  if (typeof google !== 'undefined' && google.accounts) { initGoogleBtn(); }
-  else { setTimeout(initGoogleBtn, 2000); }
+  function waitAndInitGoogle() {
+    if (typeof google !== 'undefined' && google.accounts) {
+      console.log('[OAuth] Google SDK available, initializing...');
+      initGoogleBtn();
+    } else {
+      console.log('[OAuth] Waiting for Google SDK...');
+      var checkCount = 0;
+      var checkInterval = setInterval(function() {
+        checkCount++;
+        if (typeof google !== 'undefined' && google.accounts) {
+          clearInterval(checkInterval);
+          console.log('[OAuth] Google SDK loaded, initializing...');
+          initGoogleBtn();
+        } else if (checkCount > 50) {
+          clearInterval(checkInterval);
+          console.warn('[OAuth] Google SDK failed to load after 10 seconds');
+        }
+      }, 200);
+    }
+  }
+  waitAndInitGoogle();
 
   // Bottom nav active state tracking
   function closeMobileMenu() { document.querySelector('.hamburger')?.classList.remove('active'); document.querySelector('nav ul')?.classList.remove('show'); }
