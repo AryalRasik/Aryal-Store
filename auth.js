@@ -257,6 +257,31 @@ async function verifyOtp(phone, otp) {
   } catch { showToast('Network error', 'error'); return null; }
 }
 
+async function sendGoogleEmailOtp(credential) {
+  try {
+    const res = await fetch(USERS_API + '/google', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Failed to send code', 'error'); return null; }
+    return data;
+  } catch { showToast('Network error', 'error'); return null; }
+}
+
+async function verifyGoogleEmailOtp(credential, otp) {
+  try {
+    const res = await fetch(AUTH_API + '/verify-google-otp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential, otp })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Invalid code', 'error'); return null; }
+    saveAuth(data.token, data.user);
+    updateUserMenu();
+    mergeGuestCart();
+    return data;
+  } catch { showToast('Network error', 'error'); return null; }
+}
+
 // ==================== CART MERGE ====================
 async function mergeGuestCart() {
   const sessionId = localStorage.getItem('aryal_session_id');
@@ -380,6 +405,70 @@ function showOtpModal(phone) {
     const result = await verifyOtp(phone, otp);
     this.disabled = false; this.textContent = 'Verify';
     if (result) { overlay.remove(); clearInterval(timer); closeAuthModal(); }
+  });
+}
+
+function showEmailOtpModal(credential, email) {
+  const existing = document.getElementById('otpModalOverlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'otpModalOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.15);">
+      <div style="text-align:center;margin-bottom:20px;">
+        <h3 style="margin-bottom:6px;font-size:1.2rem;">Verify Email</h3>
+        <p style="color:#888;font-size:0.88rem;word-break:break-all;">Enter the code sent to ${email}</p>
+      </div>
+      <div id="otpInputs" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
+        ${[1,2,3,4,5,6].map(i => `<input type="text" maxlength="1" class="otp-digit" data-idx="${i-1}" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;border:1.5px solid #ddd;border-radius:8px;outline:none;font-family:inherit;">`).join('')}
+      </div>
+      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#888;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#e94560;font-weight:700;">05:00</span></div>
+      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#e94560;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
+      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#e94560;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const inputs = overlay.querySelectorAll('.otp-digit');
+  inputs.forEach((inp, idx) => {
+    inp.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '');
+      if (this.value && idx < 5) inputs[idx+1].focus();
+    });
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value && idx > 0) inputs[idx-1].focus();
+    });
+    inp.addEventListener('paste', function(e) {
+      e.preventDefault();
+      const paste = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      paste.split('').forEach((c,i) => { if(inputs[i]) inputs[i].value=c; });
+      inputs[Math.min(paste.length,5)].focus();
+    });
+  });
+  inputs[0].focus();
+  let expiresAt = Date.now() + 300000;
+  const timer = setInterval(() => {
+    const remaining = Math.max(0, Math.floor((expiresAt - Date.now())/1000));
+    document.getElementById('otpCountdown').textContent = String(Math.floor(remaining/60)).padStart(2,'0')+':'+String(remaining%60).padStart(2,'0');
+    if (remaining <= 0) { clearInterval(timer); document.getElementById('resendOtpModal').disabled = false; }
+  }, 1000);
+  document.getElementById('resendOtpModal').addEventListener('click', function() {
+    sendGoogleEmailOtp(credential); expiresAt = Date.now() + 300000; this.disabled = true;
+    inputs.forEach(i => i.value = '');
+    inputs[0].focus();
+  });
+  document.getElementById('verifyOtpBtn').addEventListener('click', async function() {
+    const otp = Array.from(inputs).map(i => i.value).join('');
+    if (otp.length !== 6) { showToast('Enter all 6 digits', 'error'); return; }
+    this.disabled = true; this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+    const result = await verifyGoogleEmailOtp(credential, otp);
+    this.disabled = false; this.textContent = 'Verify';
+    if (result) {
+      overlay.remove(); clearInterval(timer);
+      if (typeof closeAuthModal === 'function') closeAuthModal();
+      if (typeof redirectAfterLogin === 'function') redirectAfterLogin();
+      else window.location.href = '/';
+    }
   });
 }
 

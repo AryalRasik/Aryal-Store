@@ -6,7 +6,7 @@ const { supabase, from } = require('../../db');
 const { generateToken, setAuthCookies, clearAuthCookies, authMiddleware, optionalAuth, JWT_SECRET } = require('../middleware/auth');
 const { rateLimiter, checkAccountLockout, incrementLoginAttempts, resetLoginAttempts } = require('../middleware/rateLimiter');
 const { validateSignupBody, validateLoginBody, sanitizeObject } = require('../middleware/validate');
-const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/email');
+const { sendVerificationEmail, sendPasswordResetEmail, sendEmail } = require('../utils/email');
 const { generateCsrfToken } = require('../utils/csrf');
 
 const router = express.Router();
@@ -709,162 +709,249 @@ router.post('/verify-otp', rateLimiter(5, 15 * 60 * 1000), async (req, res) => {
 });
 
 // ==================== GOOGLE OAUTH ====================
-// POST /api/auth/google  (also accessible as /api/users/google)
-router.post('/google', async (req, res) => {
+
+function googleError(message, code) {
+  const err = new Error(message);
+  err.oauthCode = code;
+  return err;
+}
+
+async function verifyGoogleCredential(credential) {
+  if (!credential) {
+    throw googleError('Google credential is required', 'NO_CREDENTIAL');
+  }
+
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+  let profile;
+
   try {
-    const { credential } = req.body;
-    if (!credential) {
-      return res.status(400).json({ error: 'Google credential is required', code: 'NO_CREDENTIAL' });
-    }
-
-    const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-
-    // Step 1: Verify the Google ID token
-    let profile;
-    try {
-      const verifyRes = await axios.get('https://oauth2.googleapis.com/tokeninfo?id_token=' + credential, {
-        timeout: 10000
-      });
-      profile = verifyRes.data;
-      if (!profile) {
-        return res.status(400).json({ error: 'Invalid Google response', code: 'VERIFY_FAILED' });
-      }
-      if (profile.aud && GOOGLE_CLIENT_ID && profile.aud !== GOOGLE_CLIENT_ID) {
-        return res.status(400).json({
-          error: 'Google Client ID mismatch. The OAuth configuration is incorrect.',
-          code: 'INVALID_CLIENT'
-        });
-      }
-    } catch (verifyErr) {
-      console.log('[AUTH] Google token verification failed, attempting local decode:', verifyErr.message);
-      if (verifyErr.response && verifyErr.response.status === 400) {
-        return res.status(400).json({
-          error: 'Google token is invalid or expired. Please sign in again.',
-          code: 'INVALID_TOKEN'
-        });
-      }
-      // Fallback: decode JWT locally (development only)
-      try {
-        const parts = credential.split('.');
-        if (parts.length === 3) {
-          profile = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-          console.log('[AUTH] Google token decoded locally for:', profile.email);
-        } else {
-          return res.status(400).json({ error: 'Invalid Google credential format', code: 'INVALID_FORMAT' });
-        }
-      } catch {
-        return res.status(400).json({
-          error: 'Google token verification failed. Please try signing in again.',
-          code: 'VERIFY_FAILED'
-        });
-      }
-    }
-
-    if (!profile || profile.error) {
-      return res.status(400).json({
-        error: 'Google sign-in was denied or the token is invalid.',
-        code: profile && profile.error === 'access_denied' ? 'ACCESS_DENIED' : 'INVALID_TOKEN'
-      });
-    }
-
-    const googleEmail = (profile.email || '').toLowerCase().trim();
-    const googleId = profile.sub || '';
-    const googleName = profile.name || 'Google User';
-    const googlePicture = profile.picture || '';
-
-    if (!googleEmail) {
-      return res.status(400).json({
-        error: 'Your Google account does not have an email address associated with it.',
-        code: 'NO_EMAIL'
-      });
-    }
-
-    // Step 2: Find existing user by Google ID or email
-    const now = new Date().toISOString();
-    let existing = null;
-
-    // Try finding by auth_provider_id first
-    if (googleId) {
-      const result = await (await from('users')).select('*').eq('auth_provider_id', googleId).maybeSingle();
-      existing = result.data;
-    }
-
-    // Try finding by email if not found
-    if (!existing && googleEmail) {
-      const result = await (await from('users')).select('*').eq('email', googleEmail).maybeSingle();
-      existing = result.data;
-    }
-
-    if (existing) {
-      const updates = { last_login_at: now };
-      if (existing.auth_provider !== 'google' || !existing.auth_provider_id) {
-        updates.auth_provider = 'google';
-        updates.auth_provider_id = googleId;
-      }
-      if (googlePicture && !existing.profile_picture) {
-        updates.profile_picture = googlePicture;
-      }
-      if (!existing.email && googleEmail) {
-        updates.email = googleEmail;
-      }
-      await (await from('users')).update(updates).eq('id', existing.id);
-
-      const userData = {
-        id: existing.id,
-        name: existing.name || googleName,
-        email: existing.email || googleEmail,
-        phone: existing.phone || '',
-        address: existing.address || '',
-        profile_picture: existing.profile_picture || googlePicture,
-        email_verified_at: existing.email_verified_at
-      };
-
-      const token = generateToken(userData);
-      setAuthCookies(res, token);
-      console.log('[AUTH] Google login successful for:', googleEmail);
-      return res.json({ message: 'Google login successful', token, user: userData });
-    }
-
-    // Step 3: Create new user
-    const userId = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-    const { error: insertErr } = await (await from('users')).insert({
-      id: userId,
-      name: googleName,
-      email: googleEmail,
-      password: '',
-      phone: '',
-      address: '',
-      profile_picture: googlePicture,
-      auth_provider: 'google',
-      auth_provider_id: googleId,
-      email_verified_at: now,
-      created_at: now,
-      last_login_at: now,
-      updated_at: now
+    const verifyRes = await axios.get('https://oauth2.googleapis.com/tokeninfo?id_token=' + credential, {
+      timeout: 10000
     });
-
-    if (insertErr) {
-      console.log('[AUTH] Google user insert error:', insertErr);
-      throw insertErr;
+    profile = verifyRes.data;
+    if (!profile) {
+      throw googleError('Invalid Google response', 'VERIFY_FAILED');
     }
+    if (profile.aud && GOOGLE_CLIENT_ID && profile.aud !== GOOGLE_CLIENT_ID) {
+      throw googleError('Google Client ID mismatch. The OAuth configuration is incorrect.', 'INVALID_CLIENT');
+    }
+  } catch (verifyErr) {
+    if (verifyErr.oauthCode) throw verifyErr;
+    console.log('[AUTH] Google token verification failed, attempting local decode:', verifyErr.message);
+    if (verifyErr.response && verifyErr.response.status === 400) {
+      throw googleError('Google token is invalid or expired. Please sign in again.', 'INVALID_TOKEN');
+    }
+    // Fallback: decode JWT locally (development only)
+    try {
+      const parts = credential.split('.');
+      if (parts.length !== 3) {
+        throw googleError('Invalid Google credential format', 'INVALID_FORMAT');
+      }
+      profile = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+      console.log('[AUTH] Google token decoded locally for:', profile.email);
+    } catch (decodeErr) {
+      if (decodeErr.oauthCode) throw decodeErr;
+      throw googleError('Google token verification failed. Please try signing in again.', 'VERIFY_FAILED');
+    }
+  }
+
+  if (!profile || profile.error) {
+    throw googleError(
+      'Google sign-in was denied or the token is invalid.',
+      profile && profile.error === 'access_denied' ? 'ACCESS_DENIED' : 'INVALID_TOKEN'
+    );
+  }
+
+  const googleEmail = (profile.email || '').toLowerCase().trim();
+  if (!googleEmail) {
+    throw googleError('Your Google account does not have an email address associated with it.', 'NO_EMAIL');
+  }
+
+  return profile;
+}
+
+async function sendOtpEmail(email, otp) {
+  return sendEmail({
+    to: email,
+    subject: `Your Aryal Store login code: ${otp}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+        <div style="background:#e94560;color:#fff;padding:20px;text-align:center;border-radius:8px 8px 0 0;">
+          <h2 style="margin:0;">Aryal Store Sign-In</h2>
+        </div>
+        <div style="border:1px solid #ddd;border-top:0;padding:30px;border-radius:0 0 8px 8px;">
+          <p>Hello,</p>
+          <p>Use the following code to complete your Google sign-in:</p>
+          <div style="text-align:center;margin:30px 0;">
+            <span style="display:inline-block;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:16px 28px;font-size:2rem;font-weight:700;letter-spacing:8px;color:#e94560;">${otp}</span>
+          </div>
+          <p>This code expires in 5 minutes.</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+          <p style="font-size:0.85rem;color:#888;">If you did not attempt to sign in with Google, please ignore this email.</p>
+        </div>
+      </div>
+    `
+  });
+}
+
+async function completeGoogleLogin(profile, res) {
+  const googleEmail = (profile.email || '').toLowerCase().trim();
+  const googleId = profile.sub || '';
+  const googleName = profile.name || 'Google User';
+  const googlePicture = profile.picture || '';
+  const now = new Date().toISOString();
+  let existing = null;
+
+  // Step 1: Find existing user by Google ID or email
+  if (googleId) {
+    const result = await (await from('users')).select('*').eq('auth_provider_id', googleId).maybeSingle();
+    existing = result.data;
+  }
+
+  if (!existing && googleEmail) {
+    const result = await (await from('users')).select('*').eq('email', googleEmail).maybeSingle();
+    existing = result.data;
+  }
+
+  if (existing) {
+    const updates = { last_login_at: now };
+    if (existing.auth_provider !== 'google' || !existing.auth_provider_id) {
+      updates.auth_provider = 'google';
+      updates.auth_provider_id = googleId;
+    }
+    if (googlePicture && !existing.profile_picture) {
+      updates.profile_picture = googlePicture;
+    }
+    if (!existing.email && googleEmail) {
+      updates.email = googleEmail;
+    }
+    await (await from('users')).update(updates).eq('id', existing.id);
 
     const userData = {
-      id: userId,
-      name: googleName,
-      email: googleEmail,
-      phone: '',
-      address: '',
-      profile_picture: googlePicture,
-      email_verified_at: now
+      id: existing.id,
+      name: existing.name || googleName,
+      email: existing.email || googleEmail,
+      phone: existing.phone || '',
+      address: existing.address || '',
+      profile_picture: existing.profile_picture || googlePicture,
+      email_verified_at: existing.email_verified_at
     };
 
     const token = generateToken(userData);
     setAuthCookies(res, token);
-    console.log('[AUTH] Google user created:', googleEmail);
-    res.status(201).json({ message: 'Account created via Google', token, user: userData });
+    console.log('[AUTH] Google login successful for:', googleEmail);
+    return res.json({ message: 'Google login successful', token, user: userData });
+  }
+
+  // Step 2: Create new user
+  const userId = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+  const { error: insertErr } = await (await from('users')).insert({
+    id: userId,
+    name: googleName,
+    email: googleEmail,
+    password: '',
+    phone: '',
+    address: '',
+    profile_picture: googlePicture,
+    auth_provider: 'google',
+    auth_provider_id: googleId,
+    email_verified_at: now,
+    created_at: now,
+    last_login_at: now,
+    updated_at: now
+  });
+
+  if (insertErr) {
+    console.log('[AUTH] Google user insert error:', insertErr);
+    throw insertErr;
+  }
+
+  const userData = {
+    id: userId,
+    name: googleName,
+    email: googleEmail,
+    phone: '',
+    address: '',
+    profile_picture: googlePicture,
+    email_verified_at: now
+  };
+
+  const token = generateToken(userData);
+  setAuthCookies(res, token);
+  console.log('[AUTH] Google user created:', googleEmail);
+  return res.status(201).json({ message: 'Account created via Google', token, user: userData });
+}
+
+// POST /api/auth/google (also accessible as /api/users/google)
+// Sends an email OTP to the selected Google account; sign-in completes on /verify-google-otp.
+router.post('/google', async (req, res) => {
+  try {
+    const profile = await verifyGoogleCredential(req.body.credential);
+    const googleEmail = (profile.email || '').toLowerCase().trim();
+
+    const otp = generateOTP();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    otpStore.set('email:' + googleEmail, { otp, expiresAt, attempts: 0 });
+
+    const sent = await sendOtpEmail(googleEmail, otp);
+    console.log(`[AUTH] Google OTP for ${googleEmail}: ${otp}${sent ? '' : ' (SMTP not configured — see settings table)'}`);
+
+    return res.json({
+      needsOtp: true,
+      email: googleEmail,
+      expiresIn: 300,
+      message: 'Enter the 6-digit code sent to your email to complete sign-in.',
+      debug: process.env.NODE_ENV !== 'production' ? otp : undefined
+    });
   } catch (err) {
-    console.log('[AUTH] Google auth error:', err.message);
-    res.status(500).json({ error: 'Google authentication failed: ' + err.message, code: 'SERVER_ERROR' });
+    console.log('[AUTH] Google OTP send error:', err.message);
+    return res.status(err.oauthCode ? 400 : 500).json({
+      error: err.message,
+      code: err.oauthCode || 'SERVER_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/verify-google-otp
+router.post('/verify-google-otp', rateLimiter(5, 15 * 60 * 1000), async (req, res) => {
+  try {
+    const { credential, otp } = req.body;
+    if (!otp) {
+      return res.status(400).json({ error: 'OTP is required' });
+    }
+
+    const profile = await verifyGoogleCredential(credential);
+    const googleEmail = (profile.email || '').toLowerCase().trim();
+    const key = 'email:' + googleEmail;
+    const stored = otpStore.get(key);
+
+    if (!stored) {
+      return res.status(400).json({ error: 'No OTP sent to this email. Please request a new one.' });
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(key);
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    stored.attempts++;
+    if (stored.attempts > 5) {
+      otpStore.delete(key);
+      return res.status(429).json({ error: 'Too many invalid attempts. Please request a new OTP.' });
+    }
+
+    if (stored.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
+    }
+
+    otpStore.delete(key);
+    return completeGoogleLogin(profile, res);
+  } catch (err) {
+    console.log('[AUTH] Verify Google OTP error:', err.message);
+    return res.status(err.oauthCode ? 400 : 500).json({
+      error: err.message,
+      code: err.oauthCode || 'SERVER_ERROR'
+    });
   }
 });
 

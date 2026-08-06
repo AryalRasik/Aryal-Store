@@ -344,7 +344,7 @@
             <i class="fas fa-arrow-left"></i> Back
           </a>
           <div class="auth-form-header" style="text-align:left;margin-bottom:24px;">
-            <h1 style="font-size:1.35rem;">Verify Phone</h1>
+            <h1 style="font-size:1.35rem;" id="otpTitle">Verify Phone</h1>
             <p style="font-size:0.88rem;" id="otpSentTo">Enter the 6-digit code sent to your phone.</p>
           </div>
 
@@ -955,6 +955,7 @@
       const otpInputs = ['otp1','otp2','otp3','otp4','otp5','otp6'].map(id => $(id));
       let otpTimerInterval = null;
       let otpExpiresAt = 0;
+      var _googlePending = null;
 
       otpInputs.forEach((input, idx) => {
         input.addEventListener('input', function() {
@@ -976,14 +977,15 @@
         input.addEventListener('focus', function() { this.select(); });
       });
 
-      function showOtpForm(phone) {
-        $('otpPhone').value = phone;
-        $('otpSentTo').textContent = 'Enter the 6-digit code sent to ' + phone;
+      function showOtpForm(identifier, isEmail) {
+        $('otpPhone').value = identifier;
+        $('otpTitle').textContent = isEmail ? 'Verify Email' : 'Verify Phone';
+        $('otpSentTo').textContent = 'Enter the 6-digit code sent to ' + identifier + '.';
         showForm(otpForm);
         otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled', 'error'); });
         otpInputs[0].focus();
         startOtpTimer(300);
-        sendOtp(phone);
+        if (!isEmail) sendOtp(identifier);
       }
 
       async function sendOtp(phone) {
@@ -1000,6 +1002,22 @@
           } catch (e) {
             showGlobalError('Network error. Please try again.');
           }
+        } catch {
+          showGlobalError('Network error. Please try again.');
+        }
+      }
+
+      async function resendGoogleOtp() {
+        if (!_googlePending) return;
+        try {
+          const res = await fetchWithTimeout(SOCIAL_API + '/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: _googlePending.credential })
+          });
+          const data = await res.json();
+          if (!res.ok) showGlobalError(data.error || 'Failed to resend code');
+          else if (data.debug) console.log('[OTP Debug]', data.debug);
         } catch {
           showGlobalError('Network error. Please try again.');
         }
@@ -1025,12 +1043,16 @@
       }
 
       $('resendOtpBtn').addEventListener('click', function() {
-        const phone = $('otpPhone').value;
-        if (!phone) return;
+        const identifier = $('otpPhone').value;
+        if (!identifier) return;
         otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled', 'error'); });
         otpInputs[0].focus();
         startOtpTimer(300);
-        sendOtp(phone);
+        if (_googlePending && _googlePending.email === identifier) {
+          resendGoogleOtp();
+        } else {
+          sendOtp(identifier);
+        }
       });
 
       otpForm.addEventListener('submit', async function(e) {
@@ -1040,7 +1062,7 @@
         otpInputs.forEach(i => i.classList.remove('error'));
 
         const otp = otpInputs.map(i => i.value).join('');
-        const phone = $('otpPhone').value;
+        const identifier = $('otpPhone').value;
 
         if (otp.length !== 6) {
           $('otpError').querySelector('span').textContent = 'Please enter all 6 digits';
@@ -1052,11 +1074,20 @@
         setBtnLoading('otpVerifyBtn', true);
 
         try {
-          const res = await fetchWithTimeout(AUTH_API + '/verify-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone, otp })
-          });
+          let res;
+          if (_googlePending && _googlePending.email === identifier) {
+            res = await fetchWithTimeout(AUTH_API + '/verify-google-otp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ credential: _googlePending.credential, otp })
+            });
+          } else {
+            res = await fetchWithTimeout(AUTH_API + '/verify-otp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phone: identifier, otp })
+            });
+          }
           const data = await res.json();
 
           if (!res.ok) {
@@ -1066,6 +1097,7 @@
             return;
           }
 
+          _googlePending = null;
           saveAuth(data.token, data.user);
           showSuccessView('Verified!', 'Redirecting to your account...');
           setTimeout(() => {
@@ -1196,6 +1228,9 @@
               localStorage.removeItem('aryal_redirect');
               window.location.href = redirect;
             }, 1000);
+          } else if (data.needsOtp && data.email) {
+            _googlePending = { credential: response.credential, email: data.email };
+            showOtpForm(data.email, true);
           } else {
             var errorMsg = 'Google sign-in failed.';
             if (data.code === 'INVALID_TOKEN') errorMsg = 'Your Google session expired. Please sign in again.';

@@ -1343,6 +1343,10 @@
           showAuthError(errorMsg);
           return;
         }
+        if (data.needsOtp && data.email) {
+          showEmailOtpModal(response.credential, data.email);
+          return;
+        }
         saveAuth(data.token, data.user);
         closeAuthModal();
         updateUserMenu();
