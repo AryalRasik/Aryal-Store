@@ -5,3 +5,7 @@ temp_uploads/
 *.db
 uploads/
 data/
+*.db-shm
+*.db-wal
+*.db-journal
+

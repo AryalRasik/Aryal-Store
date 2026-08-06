@@ -464,7 +464,7 @@ router.get('/addresses', authMiddleware, async (req, res) => {
 router.post('/addresses', authMiddleware, async (req, res) => {
   try {
     const sanitized = sanitizeObject(req.body);
-    const { label, full_name, phone, address, city, state, zip_code, country, is_default } = sanitized;
+    const { label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, zip_code, country, is_default } = sanitized;
 
     if (!full_name || !phone || !address) {
       return res.status(400).json({ error: 'Full name, phone, and address are required' });
@@ -479,13 +479,19 @@ router.post('/addresses', authMiddleware, async (req, res) => {
       label: label || 'Home',
       full_name,
       phone,
+      email: email || '',
       address,
       city: city || '',
       state: state || '',
+      district: district || '',
+      municipality: municipality || '',
+      ward: ward || '',
+      tole: tole || '',
+      landmark: landmark || '',
       zip_code: zip_code || '',
       country: country || 'Nepal',
       is_default: !!is_default
-    }).select();
+    });
 
     if (error) throw error;
     res.status(201).json(data[0]);
@@ -498,14 +504,14 @@ router.post('/addresses', authMiddleware, async (req, res) => {
 router.put('/addresses/:id', authMiddleware, async (req, res) => {
   try {
     const sanitized = sanitizeObject(req.body);
-    const { label, full_name, phone, address, city, state, zip_code, country, is_default } = sanitized;
+    const { label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, zip_code, country, is_default } = sanitized;
 
     if (is_default) {
       await (await from('user_addresses')).update({ is_default: false }).eq('user_id', req.user.id);
     }
 
     const { error } = await (await from('user_addresses')).update({
-      label, full_name, phone, address, city, state, zip_code, country,
+      label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, zip_code, country,
       is_default: !!is_default,
       updated_at: new Date().toISOString()
     }).eq('id', req.params.id).eq('user_id', req.user.id);

@@ -44,9 +44,15 @@ function migrate() {
       label TEXT NOT NULL DEFAULT 'Home',
       full_name TEXT NOT NULL DEFAULT '',
       phone TEXT NOT NULL DEFAULT '',
+      email TEXT DEFAULT '',
       address TEXT NOT NULL DEFAULT '',
       city TEXT DEFAULT '',
       state TEXT DEFAULT '',
+      district TEXT DEFAULT '',
+      municipality TEXT DEFAULT '',
+      ward TEXT DEFAULT '',
+      tole TEXT DEFAULT '',
+      landmark TEXT DEFAULT '',
       zip_code TEXT DEFAULT '',
       country TEXT DEFAULT 'Nepal',
       is_default INTEGER DEFAULT 0,
@@ -101,191 +107,167 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_user_cart_user ON user_cart(user_id);
     CREATE INDEX IF NOT EXISTS idx_user_cart_session ON user_cart(session_id);
   `);
+
+  const addressCols = db.prepare('PRAGMA table_info(user_addresses)').all().map(c => c.name);
+  const addressAdds = [
+    { name: 'email', def: "TEXT DEFAULT ''" },
+    { name: 'district', def: "TEXT DEFAULT ''" },
+    { name: 'municipality', def: "TEXT DEFAULT ''" },
+    { name: 'ward', def: "TEXT DEFAULT ''" },
+    { name: 'tole', def: "TEXT DEFAULT ''" },
+    { name: 'landmark', def: "TEXT DEFAULT ''" }
+  ];
+  for (const col of addressAdds) {
+    if (!addressCols.includes(col.name)) {
+      db.exec(`ALTER TABLE user_addresses ADD COLUMN ${col.name} ${col.def}`);
+    }
+  }
 }
 
 function table(name) {
   const d = getDb();
   return {
     select(columns = '*') {
-      return {
-        eq(field, value) {
-          return {
-            maybeSingle: () => {
-              try {
-                const row = d.prepare(`SELECT ${columns} FROM ${name} WHERE ${field} = ? LIMIT 1`).get(value);
-                return { data: row || null, error: null };
-              } catch (err) {
-                return { data: null, error: err };
-              }
-            },
-            single: () => {
-              try {
-                const row = d.prepare(`SELECT ${columns} FROM ${name} WHERE ${field} = ? LIMIT 1`).get(value);
-                return { data: row || null, error: null };
-              } catch (err) {
-                return { data: null, error: err };
-              }
-            },
-            order(column, { ascending } = {}) {
-              return {
-                limit: (n) => {
-                  try {
-                    const rows = d.prepare(`SELECT ${columns} FROM ${name} WHERE ${field} = ? ORDER BY ${column} ${ascending === false ? 'DESC' : 'ASC'} LIMIT ?`).all(value, n);
-                    return { data: rows, error: null };
-                  } catch (err) {
-                    return { data: null, error: err };
-                  }
-                }
-              };
-            },
-            async then(resolve) {
-              const result = await this.maybeSingle();
-              resolve(result);
+      const q = { conditions: [], orGroups: [], orders: [], limitValue: null };
+      const opMap = { eq: '=', neq: '!=', gt: '>', gte: '>=', lt: '<', lte: '<=' };
+
+      const run = (single) => {
+        let sql = `SELECT ${columns} FROM ${name}`;
+        const params = [];
+        if (q.conditions.length) {
+          const where = q.conditions.map(c => {
+            if (c.op === 'in') {
+              params.push(...c.value);
+              return `${c.field} IN (${c.value.map(() => '?').join(',')})`;
             }
-          };
-        },
-        in: (field, values) => {
-          const placeholders = values.map(() => '?').join(',');
-          try {
-            const rows = d.prepare(`SELECT ${columns} FROM ${name} WHERE ${field} IN (${placeholders})`).all(...values);
-            return { data: rows, error: null };
-          } catch (err) {
-            return { data: null, error: err };
-          }
-        },
-        neq(field, value) {
-          return this;
-        },
-        is(field, value) {
-          return this;
-        },
-        like: function() { return this; },
-        ilike(field, pattern) {
-          return {
-            eq: () => this,
-            maybeSingle: () => this.maybeSingle(),
-            order: () => this
-          };
-        },
-        or(filter) {
-          var self = this;
-          return {
-            maybeSingle: function() {
-              try {
-                var parts = filter.split(',');
-                var conditions = [];
-                var params = [];
-                for (var i = 0; i < parts.length; i++) {
-                  var match = parts[i].match(/^(\w+)\.(eq|neq|gt|gte|lt|lte|like|ilike)\.(.+)$/);
-                  if (match) {
-                    var field = match[1];
-                    var op = match[2];
-                    var val = match[3];
-                    if (op === 'eq') {
-                      conditions.push(field + ' = ?');
-                      params.push(val);
-                    } else if (op === 'ilike' || op === 'like') {
-                      conditions.push(field + ' LIKE ?');
-                      params.push(val.replace(/%/g, '%'));
-                    }
-                  }
-                }
-                if (conditions.length) {
-                  var row = d.prepare('SELECT ' + columns + ' FROM ' + name + ' WHERE (' + conditions.join(' OR ') + ') LIMIT 1').get(...params);
-                  return { data: row || null, error: null };
-                }
-                var row = d.prepare('SELECT ' + columns + ' FROM ' + name + ' LIMIT 1').get();
-                return { data: row || null, error: null };
-              } catch (err) {
-                return { data: null, error: err };
-              }
-            },
-            order: function() { return self; },
-            eq: function() { return self; },
-            ilike: function() { return self; }
-          };
-        },
-        limit: (n) => {
-          try {
-            const rows = d.prepare(`SELECT ${columns} FROM ${name} LIMIT ?`).all(n);
-            return { data: rows, error: null };
-          } catch (err) {
-            return { data: null, error: err };
-          }
-        },
-        order(column, { ascending } = {}) {
-          return {
-            limit: (n) => {
-              try {
-                const rows = d.prepare(`SELECT ${columns} FROM ${name} ORDER BY ${column} ${ascending === false ? 'DESC' : 'ASC'} LIMIT ?`).all(n);
-                return { data: rows, error: null };
-              } catch (err) {
-                return { data: null, error: err };
-              }
+            if (c.op === 'ilike' || c.op === 'like') {
+              params.push(`%${c.value}%`);
+              return `${c.field} LIKE ?`;
             }
-          };
-        },
-        then(resolve) {
-          return this.maybeSingle().then(resolve);
+            if (c.op === 'is') {
+              if (c.value === null) return `${c.field} IS NULL`;
+              params.push(c.value);
+              return `${c.field} IS ?`;
+            }
+            params.push(c.value);
+            return `${c.field} ${opMap[c.op] || '='} ?`;
+          }).join(' AND ');
+          sql += ' WHERE ' + where;
+        }
+        if (q.orGroups.length) {
+          const orSql = q.orGroups.map(g => {
+            const conds = g.split(',').map(p => {
+              const m = p.match(/^(\w+)\.(eq|neq|gt|gte|lt|lte|like|ilike)\.(.+)$/);
+              if (!m) return null;
+              const field = m[1], op = m[2], val = m[3];
+              if (op === 'ilike' || op === 'like') {
+                params.push(`%${val.replace(/%/g, '')}%`);
+                return `${field} LIKE ?`;
+              }
+              params.push(val);
+              return `${field} ${opMap[op] || '='} ?`;
+            }).filter(Boolean);
+            return '(' + conds.join(' OR ') + ')';
+          });
+          sql += (q.conditions.length ? ' AND ' : ' WHERE ') + orSql.join(' AND ');
+        }
+        if (q.orders.length) {
+          sql += ' ORDER BY ' + q.orders.map(o => `${o.column} ${o.ascending === false ? 'DESC' : 'ASC'}`).join(', ');
+        }
+        if (q.limitValue != null) sql += ` LIMIT ${Number(q.limitValue)}`;
+        if (single && q.limitValue == null) sql += ' LIMIT 1';
+        try {
+          if (single) {
+            const row = d.prepare(sql).get(...params);
+            return { data: row || null, error: null };
+          }
+          const rows = d.prepare(sql).all(...params);
+          return { data: rows, error: null };
+        } catch (err) {
+          return { data: null, error: err };
         }
       };
+
+      const chain = {
+        eq(field, value) { q.conditions.push({ field, op: 'eq', value }); return chain; },
+        neq(field, value) { q.conditions.push({ field, op: 'neq', value }); return chain; },
+        is(field, value) { q.conditions.push({ field, op: 'is', value }); return chain; },
+        in(field, values) { q.conditions.push({ field, op: 'in', value: values || [] }); return chain; },
+        like(field, value) { q.conditions.push({ field, op: 'like', value }); return chain; },
+        ilike(field, value) { q.conditions.push({ field, op: 'ilike', value }); return chain; },
+        or(filter) { q.orGroups.push(filter); return chain; },
+        order(column, opts = {}) { q.orders.push({ column, ascending: opts.ascending }); return chain; },
+        limit(n) { q.limitValue = n; return chain; },
+        maybeSingle() { return Promise.resolve(run(true)); },
+        single() { return Promise.resolve(run(true)); },
+        then(resolve, reject) { return Promise.resolve(run(false)).then(resolve, reject); }
+      };
+      return chain;
     },
     insert(data) {
       const keys = Object.keys(data);
-      const values = Object.values(data);
+      const values = Object.values(data).map(v => typeof v === 'boolean' ? (v ? 1 : 0) : v);
       const placeholders = keys.map(() => '?').join(',');
       try {
         const stmt = d.prepare(`INSERT INTO ${name} (${keys.join(',')}) VALUES (${placeholders})`);
-        stmt.run(...values);
-        return { data: data, error: null };
+        const info = stmt.run(...values);
+        const id = info.lastInsertRowid;
+        const row = d.prepare(`SELECT * FROM ${name} WHERE id = ?`).get(id);
+        return { data: [row || data], error: null };
       } catch (err) {
         return { data: null, error: err };
       }
     },
     update(updates) {
-      return {
-        eq: (field, value) => {
-          try {
-            const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(',');
-            const values = [...Object.values(updates), value];
-            d.prepare(`UPDATE ${name} SET ${setClauses} WHERE ${field} = ?`).run(...values);
-            return { error: null };
-          } catch (err) {
-            return { error: err };
+      const conds = [];
+      const run = () => {
+        const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(',');
+        const params = [...Object.values(updates).map(v => typeof v === 'boolean' ? (v ? 1 : 0) : v)];
+        const where = conds.map(c => {
+          if (c.op === 'in') {
+            const placeholders = c.value.map(() => '?').join(',');
+            params.push(...c.value);
+            return `${c.field} IN (${placeholders})`;
           }
-        },
-        in: (field, values) => {
-          try {
-            const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(',');
-            const placeholders = values.map(() => '?').join(',');
-            d.prepare(`UPDATE ${name} SET ${setClauses} WHERE ${field} IN (${placeholders})`).run(...Object.values(updates), ...values);
-            return { error: null };
-          } catch (err) {
-            return { error: err };
-          }
+          params.push(c.value);
+          return `${c.field} = ?`;
+        }).join(' AND ');
+        d.prepare(`UPDATE ${name} SET ${setClauses} WHERE ${where}`).run(...params);
+        return { error: null };
+      };
+      const chain = {
+        eq(field, value) { conds.push({ field, value }); return chain; },
+        in(field, values) { conds.push({ field, op: 'in', value: values || [] }); return chain; },
+        then(resolve, reject) {
+          try { resolve(run()); } catch (e) { reject(e); }
         }
       };
+      return chain;
     },
     delete() {
-      return {
-        eq: (field, value) => {
-          try {
-            d.prepare(`DELETE FROM ${name} WHERE ${field} = ?`).run(value);
-            return { error: null };
-          } catch (err) {
-            return { error: err };
+      const conds = [];
+      const run = () => {
+        const params = [];
+        const where = conds.map(c => {
+          if (c.op === 'in') {
+            const placeholders = c.value.map(() => '?').join(',');
+            params.push(...c.value);
+            return `${c.field} IN (${placeholders})`;
           }
-        },
-        in: (field, values) => {
-          try {
-            const placeholders = values.map(() => '?').join(',');
-            d.prepare(`DELETE FROM ${name} WHERE ${field} IN (${placeholders})`).run(...values);
-            return { error: null };
-          } catch (err) {
-            return { error: err };
-          }
+          params.push(c.value);
+          return `${c.field} = ?`;
+        }).join(' AND ');
+        d.prepare(`DELETE FROM ${name} WHERE ${where}`).run(...params);
+        return { error: null };
+      };
+      const chain = {
+        eq(field, value) { conds.push({ field, value }); return chain; },
+        in(field, values) { conds.push({ field, op: 'in', value: values || [] }); return chain; },
+        then(resolve, reject) {
+          try { resolve(run()); } catch (e) { reject(e); }
         }
       };
+      return chain;
     }
   };
 }

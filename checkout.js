@@ -46,12 +46,62 @@
     { id: 'card', label: 'Credit/Debit Card', icon: 'fa-credit-card', desc: 'Visa, Mastercard, etc.' }
   ];
 
+  const LOCATIONS = window.NEPAL_LOCATIONS || { provinces: [] };
+
+  function getProvince(name) { return LOCATIONS.provinces.find(p => p.name === name); }
+  function getDistrictData(province, name) { const p = getProvince(province); return p ? p.districts.find(d => d.name === name) : null; }
+
+  function populateAddressSelects() {
+    const provSel = $('addrProvince');
+    if (!provSel) return;
+    provSel.innerHTML = '<option value="">Select Province</option>' + LOCATIONS.provinces.map(p =>
+      `<option value="${p.name}">${p.name}${p.nameNp ? ' (' + p.nameNp + ')' : ''}</option>`).join('');
+    populateDistricts();
+  }
+
+  function populateDistricts() {
+    const provSel = $('addrProvince');
+    const distSel = $('addrDistrict');
+    if (!distSel) return;
+    const province = provSel.value;
+    const districts = province ? (getProvince(province) || {}).districts || [] : [];
+    distSel.innerHTML = '<option value="">Select District</option>' + districts.map(d =>
+      `<option value="${d.name}">${d.name}${d.nameNp ? ' (' + d.nameNp + ')' : ''}</option>`).join('');
+    distSel.disabled = !province;
+    populateMunicipalities();
+  }
+
+  function populateMunicipalities() {
+    const distSel = $('addrDistrict');
+    const munSel = $('addrMunicipality');
+    if (!munSel) return;
+    const district = distSel.value;
+    const muns = district ? (getDistrictData($('addrProvince').value, district) || {}).municipalities || [] : [];
+    munSel.innerHTML = '<option value="">Select Municipality</option>' + muns.map(m =>
+      `<option value="${m.name}">${m.name}${m.nameNp ? ' (' + m.nameNp + ')' : ''}</option>`).join('');
+    munSel.disabled = !district;
+  }
+
+  function formatAddress(a) {
+    if (!a) return '';
+    const parts = [
+      a.municipality || '',
+      a.district || a.city || '',
+      a.ward ? 'Ward ' + a.ward : '',
+      a.tole || a.address || ''
+    ].filter(Boolean);
+    const line = parts.join(', ');
+    const prov = a.state || a.province || '';
+    return line + (prov ? ', ' + prov : '');
+  }
+
   function $(id) { return document.getElementById(id); }
 
   // ==================== INIT ====================
   function init() {
     createToastContainer();
     createAuthModal();
+    populateAddressSelects();
     renderSteps();
     loadCart();
     checkAuth();
@@ -98,7 +148,7 @@
     if (!token) { updateAuthUI(); return; }
     try {
       const res = await fetch(API_ME, { headers: { 'Authorization': 'Bearer ' + token } });
-      if (res.ok) { const d = await res.json(); state.user = d; state.token = token; }
+      if (res.ok) { const d = await res.json(); state.user = d; state.token = token; await loadAddresses(); }
       else { clearAuth(); }
     } catch { clearAuth(); }
     updateAuthUI();
@@ -114,6 +164,7 @@
       if (!res.ok) throw new Error(d.error || 'Login failed');
       saveAuth(d.token, d.user);
       await loadCart();
+      await loadAddresses();
       updateAuthUI();
       closeAuthModal();
       showToast('Welcome back, ' + (d.user.name || d.user.email) + '!', 'success');
@@ -130,6 +181,7 @@
       if (!res.ok) throw new Error(d.error || 'Registration failed');
       saveAuth(d.token, d.user);
       await loadCart();
+      await loadAddresses();
       updateAuthUI();
       closeAuthModal();
       showToast('Account created! Welcome to Aryal Store.', 'success');
@@ -321,6 +373,9 @@
       if (res.ok) state.addresses = await res.json();
       else state.addresses = [];
     } catch { state.addresses = []; }
+    if (state.addresses.length && !state.address) {
+      state.address = state.addresses.find(a => a.is_default) || state.addresses[0];
+    }
     renderAddresses();
   }
 
@@ -337,7 +392,7 @@
             <div>
               <div class="addr-label">${addr.label || 'Home'}</div>
               <div class="addr-name">${addr.full_name}</div>
-              <div class="addr-detail">${addr.address}, ${addr.city || ''}${addr.state ? ', ' + addr.state : ''}${addr.zip_code ? ' - ' + addr.zip_code : ''}${addr.country ? ', ' + addr.country : ''}</div>
+              <div class="addr-detail">${formatAddress(addr)}${addr.zip_code ? ' - ' + addr.zip_code : ''}</div>
               <div class="addr-detail">Phone: ${addr.phone}</div>
               <div class="addr-actions">
                 <button onclick="event.stopPropagation();window._coEditAddress(${i})">Edit</button>
@@ -368,10 +423,15 @@
     container.querySelector('.co-card-title').textContent = isEdit ? 'Edit Address' : 'New Address';
     $('addrFullName').value = data ? (data.full_name || '') : '';
     $('addrPhone').value = data ? (data.phone || '') : '';
-    $('addrProvince').value = data ? (data.state || '') : '';
-    $('addrCity').value = data ? (data.city || '') : '';
-    $('addrArea').value = data ? (data.address || '') : '';
-    $('addrStreet').value = data ? (data.address || '') : '';
+    $('addrEmail').value = data ? (data.email || '') : '';
+    $('addrProvince').value = data ? (data.state || data.province || '') : '';
+    populateDistricts();
+    $('addrDistrict').value = data ? (data.district || data.city || '') : '';
+    populateMunicipalities();
+    $('addrMunicipality').value = data ? (data.municipality || '') : '';
+    $('addrWard').value = data ? (data.ward || '') : '';
+    $('addrStreet').value = data ? (data.tole || '') : '';
+    $('addrLandmark').value = data ? (data.landmark || '') : '';
     $('addrZip').value = data ? (data.zip_code || '') : '';
     $('addrLabel').value = data ? (data.label || 'Home') : 'Home';
     $('coAddressForm').dataset.editId = data ? data.id : '';
@@ -382,21 +442,29 @@
   function saveAddress() {
     const fullName = $('addrFullName').value.trim();
     const phone = $('addrPhone').value.trim();
-    const province = $('addrProvince').value.trim();
-    const city = $('addrCity').value.trim();
-    const area = $('addrArea').value.trim();
-    const street = $('addrStreet').value.trim();
+    const email = $('addrEmail').value.trim();
+    const province = $('addrProvince').value;
+    const district = $('addrDistrict').value;
+    const municipality = $('addrMunicipality').value;
+    const ward = $('addrWard').value.trim();
+    const tole = $('addrStreet').value.trim();
+    const landmark = $('addrLandmark').value.trim();
     const zip = $('addrZip').value.trim();
     const label = $('addrLabel').value;
     if (!fullName) { showToast('Full name is required', 'error'); return; }
     if (!phone) { showToast('Phone number is required', 'error'); return; }
-    if (!city) { showToast('City is required', 'error'); return; }
-    if (!area && !street) { showToast('Address is required', 'error'); return; }
+    if (!province) { showToast('Please select a province', 'error'); return; }
+    if (!district) { showToast('Please select a district', 'error'); return; }
+    if (!municipality) { showToast('Please select a municipality', 'error'); return; }
+    if (!ward && !tole) { showToast('Ward number or Tole/Street is required', 'error'); return; }
+    const address = [tole, ward ? 'Ward ' + ward : '', municipality, district].filter(Boolean).join(', ');
     const user = getCurrentUser();
     if (!user) { showToast('Please sign in first', 'error'); return; }
     const addrData = {
-      full_name: fullName, phone, state: province, city,
-      address: area || street, zip_code: zip, label, country: 'Nepal'
+      full_name: fullName, phone, email,
+      state: province, city: district,
+      district, municipality, ward, tole, landmark,
+      address, zip_code: zip, label, country: 'Nepal'
     };
     const editId = $('coAddressForm').dataset.editId;
     const token = getToken();
@@ -586,7 +654,7 @@
     container.innerHTML = `
       <div class="co-card" style="margin-bottom:12px;">
         <div class="co-card-title">Shipping Address</div>
-        ${addr ? `<p style="font-size:0.9rem;color:var(--co-text-secondary);">${addr.full_name}, ${addr.phone}<br>${addr.address}${addr.city ? ', ' + addr.city : ''}${addr.state ? ', ' + addr.state : ''}</p>` : '<p style="color:var(--co-error);">No address selected</p>'}
+        ${addr ? `<p style="font-size:0.9rem;color:var(--co-text-secondary);">${addr.full_name}, ${addr.phone}${addr.email ? '<br>Email: ' + addr.email : ''}<br>${formatAddress(addr)}</p>` : '<p style="color:var(--co-error);">No address selected</p>'}
       </div>
       <div class="co-card" style="margin-bottom:12px;">
         <div class="co-card-title">Delivery Method</div>
@@ -643,8 +711,14 @@
     const body = {
       customer_name: state.address.full_name || user?.name || 'Guest',
       customer_phone: state.address.phone || user?.phone || '',
-      customer_email: user?.email || '',
-      customer_address: [state.address.address, state.address.city, state.address.state].filter(Boolean).join(', '),
+      customer_email: state.address.email || user?.email || '',
+      customer_address: formatAddress(state.address),
+      customer_province: state.address.state || state.address.province || '',
+      customer_district: state.address.district || state.address.city || '',
+      customer_municipality: state.address.municipality || '',
+      customer_ward: state.address.ward || '',
+      customer_tole: state.address.tole || '',
+      customer_landmark: state.address.landmark || '',
       payment_method: state.payment,
       shipping_method: state.shipping.label,
       shipping_cost: displayShip,
@@ -719,6 +793,7 @@
       if (btn) {
         const step = parseInt(btn.dataset.goto);
         if (step === 3 && !getCurrentUser()) { openAuthModal(); return; }
+        if (step === 3 && getCurrentUser()) { loadAddresses(); }
         if (step === 4 && !state.address) { showToast('Please select a shipping address', 'error'); return; }
         goToStep(step);
       }
@@ -761,6 +836,8 @@
     // Address form
     $('coSaveAddressBtn').addEventListener('click', saveAddress);
     $('coCancelAddressBtn').addEventListener('click', function() { $('coAddressForm').classList.add('co-hidden'); });
+    $('addrProvince').addEventListener('change', populateDistricts);
+    $('addrDistrict').addEventListener('change', populateMunicipalities);
 
     // Place order
     $('coPlaceOrderBtn').addEventListener('click', placeOrder);

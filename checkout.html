@@ -68,15 +68,22 @@
               <div class="co-field"><label>Phone Number</label><input type="tel" id="addrPhone" placeholder="98XXXXXXXX"></div>
             </div>
             <div class="co-row">
-              <div class="co-field"><label>Province/State</label><input type="text" id="addrProvince" placeholder="Province 5"></div>
-              <div class="co-field"><label>District/City</label><input type="text" id="addrCity" placeholder="Gulmi"></div>
+              <div class="co-field"><label>Province</label><select id="addrProvince"><option value="">Select Province</option></select></div>
+              <div class="co-field"><label>District</label><select id="addrDistrict"><option value="">Select District</option></select></div>
             </div>
             <div class="co-row">
-              <div class="co-field"><label>Area/Locality</label><input type="text" id="addrArea" placeholder="Tansen Road"></div>
-              <div class="co-field"><label>Street Address</label><input type="text" id="addrStreet" placeholder="Ward No. 4"></div>
+              <div class="co-field"><label>Municipality</label><select id="addrMunicipality"><option value="">Select Municipality</option></select></div>
+              <div class="co-field"><label>Ward Number</label><input type="text" id="addrWard" placeholder="Ward No. 4"></div>
             </div>
             <div class="co-row">
+              <div class="co-field"><label>Tole/Street</label><input type="text" id="addrStreet" placeholder="Tansen Road"></div>
+              <div class="co-field"><label>Landmark <span style="color:var(--co-text-muted);font-weight:400;">(optional)</span></label><input type="text" id="addrLandmark" placeholder="Near the temple"></div>
+            </div>
+            <div class="co-row">
+              <div class="co-field"><label>Email <span style="color:var(--co-text-muted);font-weight:400;">(optional)</span></label><input type="email" id="addrEmail" placeholder="you@example.com"></div>
               <div class="co-field"><label>Postal Code <span style="color:var(--co-text-muted);font-weight:400;">(optional)</span></label><input type="text" id="addrZip" placeholder="33000"></div>
+            </div>
+            <div class="co-row">
               <div class="co-field"><label>Address Label</label>
                 <select id="addrLabel">
                   <option value="Home">Home</option>
@@ -172,6 +179,7 @@
     </div>
   </div>
 
+  <script src="nepal-locations.js"></script>
   <script src="checkout.js"></script>
 </body>
 </html>
