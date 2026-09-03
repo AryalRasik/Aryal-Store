@@ -491,19 +491,38 @@ async function supaSingle(table, params) {
 }
 
 async function supaInsert(table, data) {
-  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
-    method: 'POST', headers: { ...SB_HEADERS, Prefer: 'return=representation' }, body: JSON.stringify(data)
-  });
-  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.status), 'error'); throw new Error(e.message || res.status); }
-  return res.json();
+  return supaRequest('POST', SUPABASE_URL + '/rest/v1/' + table, data, { Prefer: 'return=representation' });
 }
 
 async function supaUpdate(table, id, data) {
-  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
-    method: 'PATCH', headers: { ...SB_HEADERS, Prefer: 'return=representation' }, body: JSON.stringify(data)
-  });
-  if (!res.ok) { const e = await res.json().catch(() => ({})); showMsg('Error: ' + (e.message || res.status), 'error'); throw new Error(e.message || res.status); }
-  return res.json();
+  return supaRequest('PATCH', SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), data, { Prefer: 'return=representation' });
+}
+
+function stripUnknownCols(data, msg) {
+  const text = msg || '';
+  let m = text.match(/could not find the '([^']+)' column/i) || text.match(/column\s+\w+\.(\w+)\s+does not exist/i);
+  if (!m) return null;
+  const col = m[1];
+  if (!(col in data)) return null;
+  const copy = Object.assign({}, data);
+  delete copy[col];
+  return copy;
+}
+
+async function supaRequest(method, url, data, extraHeaders) {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const res = await fetch(url, {
+      method, headers: { ...SB_HEADERS, ...(extraHeaders || {}) }, body: JSON.stringify(data)
+    });
+    if (res.ok) return res.json();
+    const e = await res.json().catch(() => ({}));
+    const stripped = stripUnknownCols(data, e.message || e.details || e.hint || '');
+    if (stripped) { data = stripped; continue; }
+    showMsg('Error: ' + (e.message || res.status), 'error');
+    throw new Error(e.message || res.status);
+  }
+  showMsg('Could not save: too many unknown fields', 'error');
+  throw new Error('Too many unknown fields');
 }
 
 async function supaDelete(table, id) {

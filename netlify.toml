@@ -2,6 +2,16 @@
   publish = "."
 
 [[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/api/index.js"
   status = 200

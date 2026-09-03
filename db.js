@@ -25,43 +25,42 @@ function from(tableName) {
 }
 
 async function runSql(sql) {
-  try {
-    await supabase.rpc('exec_sql', { query_text: sql });
-    return true;
-  } catch {
+  for (const rpcArgs of [{ query_text: sql }, { query: sql }]) {
     try {
-      await supabase.rpc('exec_sql', { query: sql });
-      return true;
-    } catch {
-      try {
-        const url = SUPABASE_URL.replace(/\/$/, '') + '/pg/pg-api/v1/query';
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' },
-          body: JSON.stringify({ query: sql })
-        });
-        if (resp.ok) return true;
-        const text = await resp.text();
-        console.warn('pg-api fallback failed:', resp.status, text);
-      } catch (e) {
-        console.warn('pg-api error:', e.message);
-      }
-      try {
-        const DB_URL = process.env.DATABASE_URL;
-        if (DB_URL) {
-          const { Client } = require('pg');
-          const client = new Client({ connectionString: DB_URL });
-          await client.connect();
-          await client.query(sql);
-          await client.end();
-          return true;
-        }
-      } catch (e2) {
-        console.warn('Direct SQL fallback failed:', e2.message);
-      }
-      return false;
+      const { error } = await supabase.rpc('exec_sql', rpcArgs);
+      if (!error) return true;
+      console.warn('exec_sql rpc returned error:', error.message);
+    } catch (e) {
+      // RPC not found — fall through to next option
     }
   }
+  try {
+    const url = SUPABASE_URL.replace(/\/$/, '') + '/pg/pg-api/v1/query';
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Accept': 'application/json' },
+      body: JSON.stringify({ query: sql })
+    });
+    if (resp.ok) return true;
+    const text = await resp.text();
+    console.warn('pg-api fallback failed:', resp.status, text);
+  } catch (e) {
+    console.warn('pg-api error:', e.message);
+  }
+  try {
+    const DB_URL = process.env.DATABASE_URL;
+    if (DB_URL) {
+      const { Client } = require('pg');
+      const client = new Client({ connectionString: DB_URL });
+      await client.connect();
+      await client.query(sql);
+      await client.end();
+      return true;
+    }
+  } catch (e2) {
+    console.warn('Direct SQL fallback failed:', e2.message);
+  }
+  return false;
 }
 
 async function runMigration(sql) {
@@ -123,10 +122,22 @@ async function migrateDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount NUMERIC DEFAULT 0;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT DEFAULT '';
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]';
-    ALTER TABLE products ADD COLUMN IF NOT EXISTS desc TEXT;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS "desc" TEXT;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS image TEXT;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_count INTEGER DEFAULT 0;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS subcategory TEXT DEFAULT '';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS compare_price NUMERIC;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS sizes TEXT DEFAULT '';
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS colors TEXT DEFAULT '';
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS material TEXT DEFAULT '';
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT DEFAULT '';
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS is_featured INTEGER DEFAULT 0;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS is_new INTEGER DEFAULT 0;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS is_best_seller INTEGER DEFAULT 0;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS is_trending INTEGER DEFAULT 0;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT '';
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS gradient TEXT DEFAULT '';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS video_url TEXT DEFAULT '';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS care_instructions TEXT DEFAULT '';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS fit_info TEXT DEFAULT '';
@@ -135,6 +146,58 @@ async function migrateDb() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS review_count INTEGER DEFAULT 0;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS admin_email TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS admin_email_verified_at TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS sms_api_url TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS delivery_text TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS logo_light TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS logo_dark TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS favicon TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS shipping_fee_text TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS free_shipping_text TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_phone TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_email TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_address TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_map_lat TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_map_lng TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_hours TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS facebook_url TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS instagram_url TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS tiktok_url TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS youtube_url TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS twitter_url TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS service_exp_text TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS service_exp_seats_text TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS shipping_policy TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS return_policy TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS refund_policy TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS privacy_policy TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS terms_policy TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS free_shipping_text2 TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS currency_symbol TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS currency_code TEXT DEFAULT 'NPR';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS store_phone TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS store_address TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS store_goolemap_embed TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_goolemap_embed TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS facebook_pixel_id TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS google_analytics_id TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS tiktok_pixel_id TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS hotjar_id TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS ga4_measurement_id TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS meta_pixel_id TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS whatsapp_chat_enabled INTEGER DEFAULT 1;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS whatsapp_chat_number TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS store_general_email TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS buy_whatsapp_number TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement_enabled INTEGER DEFAULT 0;
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement_type TEXT DEFAULT 'none';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement_link TEXT DEFAULT '';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement_text_color TEXT DEFAULT '#ffffff';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement_bg_color TEXT DEFAULT '#1a1a2e';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement_btn_text TEXT DEFAULT 'Shop Now';
+    ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement_btn_link TEXT DEFAULT 'shop.html';
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
     ALTER TABLE coupons ADD COLUMN IF NOT EXISTS used_count INTEGER DEFAULT 0;
     ALTER TABLE coupons ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ;
@@ -231,7 +294,7 @@ async function initDb() {
 
   if (error) {
     if (error.message.includes('relation') && error.message.includes('does not exist')) {
-      console.error('Supabase tables not found. Please run the migration SQL in supabase-schema-full.sql first.');
+      console.error('Supabase tables not found. Please run the migration SQL in supabase-FIX-migration.sql first.');
       throw error;
     }
     throw error;

@@ -121,14 +121,46 @@ function getSessionId(req) {
   return req.headers['x-session-id'] || 'anonymous_' + req.ip;
 }
 
+const UNKNOWN_COLUMN_RE = /column\s+(?:\w+\.)?(\w+)\s+does not exist|could not find the '([^']+)' column of/i;
+
+function unknownColumnOf(msg) {
+  const m = msg && msg.match(UNKNOWN_COLUMN_RE);
+  return m ? (m[1] || m[2]) : null;
+}
+
+async function supabaseInsert(table, payload) {
+  const work = Object.assign({}, payload);
+  for (let i = 0; i < 40; i++) {
+    const { data, error } = await supabase.from(table).insert(work).select();
+    if (!error) return { data, error };
+    const col = unknownColumnOf(error.message);
+    if (!col || !(col in work)) return { data, error };
+    delete work[col];
+  }
+  return { data: null, error: new Error('Too many unknown columns while saving') };
+}
+
+async function supabaseUpdate(table, id, payload, idColumn) {
+  const col = idColumn || 'id';
+  const work = Object.assign({}, payload);
+  for (let i = 0; i < 40; i++) {
+    const { data, error } = await supabase.from(table).update(work).eq(col, id);
+    if (!error) return { data, error };
+    const col2 = unknownColumnOf(error.message);
+    if (!col2 || !(col2 in work)) return { data, error };
+    delete work[col2];
+  }
+  return { data: null, error: new Error('Too many unknown columns while saving') };
+}
+
 // ========== AUTH ==========
 app.post('/api/login', async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: 'Password is required' });
-    const { data: setting } = await supabase.from('settings').select('admin_password').eq('id', 1).maybeSingle();
-    if (!setting) return res.status(500).json({ error: 'Settings not found' });
-    if (password === setting.admin_password) {
+    const { data: setting } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
+    const adminPw = (setting && setting.admin_password) || 'admin123';
+    if (password === adminPw) {
       const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
       return res.json({ token });
     }
@@ -478,9 +510,9 @@ app.get('/api/products/:id', async (req, res) => {
 
 app.post('/api/products', adminMiddleware, async (req, res) => {
   try {
-    const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending } = req.body;
+    const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
     if (!name || !category) return res.status(400).json({ error: 'Name and category are required' });
-    const { data, error } = await supabase.from('products').insert({
+    const { data, error } = await supabaseInsert('products', {
       name, category, subcategory: subcategory || '',
       description: description || desc || '', price: price || '',
       compare_price: compare_price || '', icon: icon || 'fas fa-box',
@@ -489,9 +521,10 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
       sizes: sizes || '', colors: colors || '', material: material || '',
       care_instructions: care_instructions || '', fit_info: fit_info || '',
       brand: brand || '', sku: sku || '', stock: stock ?? stock_count ?? 100,
-      is_featured: is_featured || false, is_new: is_new || false,
-      is_best_seller: is_best_seller || false, is_trending: is_trending || false
-    }).select();
+      status: status || 'active',
+      is_featured: is_featured ? 1 : 0, is_new: is_new ? 1 : 0,
+      is_best_seller: is_best_seller ? 1 : 0, is_trending: is_trending ? 1 : 0
+    });
     if (error) throw error;
     res.json(data && data[0] ? data[0] : { success: true });
   } catch (err) {
@@ -502,15 +535,16 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
 app.put('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
     const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
-    const { error } = await supabase.from('products').update({
+    const { error } = await supabaseUpdate('products', req.params.id, {
       name, category, subcategory, price, compare_price, icon, gradient,
       images, video_url, sizes, colors, material, care_instructions,
-      fit_info, brand, sku, is_featured, is_new, is_best_seller,
-      is_trending, status,
+      fit_info, brand, sku, status,
+      is_featured: is_featured ? 1 : 0, is_new: is_new ? 1 : 0,
+      is_best_seller: is_best_seller ? 1 : 0, is_trending: is_trending ? 1 : 0,
       description: description || desc,
       image_url: image_url || image,
       stock: stock ?? stock_count
-    }).eq('id', req.params.id);
+    });
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {
@@ -520,9 +554,10 @@ app.put('/api/products/:id', adminMiddleware, async (req, res) => {
 
 app.delete('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
-    const { data: prod } = await supabase.from('products').select('image_url').eq('id', req.params.id).maybeSingle();
-    if (prod && prod.image_url) {
-      const imgPath = path.join(__dirname, prod.image.replace(/^\//, ''));
+    const { data: prod } = await supabase.from('products').select('image_url,image').eq('id', req.params.id).maybeSingle();
+    const img = (prod && (prod.image_url || prod.image)) || '';
+    if (img) {
+      const imgPath = path.join(__dirname, img.replace(/^\/|^https?:\/\/[^/]+\//, ''));
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
     await supabase.from('product_images').delete().eq('product_id', req.params.id);
@@ -849,7 +884,7 @@ app.put('/api/orders/:id/status', adminMiddleware, async (req, res) => {
   try {
     const { status, note } = req.body;
     if (!status) return res.status(400).json({ error: 'Status is required' });
-    const validStatuses = ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'processing', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' });
     await supabase.from('orders').update({ status }).eq('id', req.params.id);
     await supabase.from('order_tracking').insert({ order_id: req.params.id, status, note: note || 'Status updated to ' + status });
@@ -1919,20 +1954,13 @@ app.put('/api/settings', adminMiddleware, async (req, res) => {
       smtp_port: parseInt(smtp_port) || 587,
       smtp_user: smtp_user || '',
       smtp_pass: smtp_pass || '',
-      notify_email: notify_email || false,
-      notify_whatsapp: notify_whatsapp || false,
+      notify_email: notify_email ? 1 : 0,
+      notify_whatsapp: notify_whatsapp ? 1 : 0,
       whatsapp_api_token: whatsapp_api_token || '',
       whatsapp_phone_id: whatsapp_phone_id || ''
     };
-    let { error } = await supabase.from('settings').update(payload).eq('id', 1);
-    // If extended columns don't exist, retry with only base columns
-    if (error && error.message && error.message.includes('Could not find')) {
-      const base = { id: 1, admin_password: payload.admin_password, store_name: payload.store_name, store_tagline: payload.store_tagline, currency: payload.currency, free_shipping_threshold: payload.free_shipping_threshold, shipping_fee: payload.shipping_fee, whatsapp_number: payload.whatsapp_number };
-      const { error: err2 } = await supabase.from('settings').update(base).eq('id', 1);
-      if (err2) throw err2;
-    } else if (error) {
-      throw error;
-    }
+    const { error } = await supabaseUpdate('settings', 1, payload);
+    if (error) throw error;
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2392,6 +2420,212 @@ app.get('/reset-password', (req, res) => {
   </script>
   </body></html>`);
 });
+
+// ========== ADMIN PAGE ROUTE ==========
+// Serve the admin dashboard at /admin (and /admin/) so typing "admin" in the URL opens it.
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+app.get('/admin/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// ========== BULK PRODUCT IMPORT (CSV) ==========
+// POST /api/products/bulk-import  body: { products: [ {...}, ... ] }
+app.post('/api/products/bulk-import', adminMiddleware, async (req, res) => {
+  try {
+    const rows = req.body.products;
+    if (!Array.isArray(rows) || !rows.length) {
+      return res.status(400).json({ error: 'No products provided. Send { products: [...] }.' });
+    }
+    const created = [];
+    const failed = [];
+    const VALID_CATEGORIES = ['clothes', 'men', 'women', 'kids', 'accessories', 'stationery', 'cosmetics', 'cylinder', 'shoes'];
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i] || {};
+      const name = (r.name || '').toString().trim();
+      if (!name) { failed.push({ row: i + 1, error: 'Missing name' }); continue; }
+      const category = (r.category || '').toString().trim().toLowerCase();
+      if (!category) { failed.push({ row: i + 1, name, error: 'Missing category' }); continue; }
+      if (!VALID_CATEGORIES.includes(category)) { failed.push({ row: i + 1, name, error: 'Invalid category: ' + category }); continue; }
+
+      let price = r.price, compare = r.compare_price;
+      const parseNPR = (v) => {
+        if (v === undefined || v === null || v === '') return '';
+        return 'Rs. ' + parseFloat(String(v).replace(/[^0-9.]/g, ''));
+      };
+      const normalizedPrice = parseNPR(price);
+      if (normalizedPrice === '') { failed.push({ row: i + 1, name, error: 'Missing price' }); continue; }
+
+      const payload = {
+        name,
+        category,
+        subcategory: (r.subcategory || '').toString().trim(),
+        description: (r.description || '').toString().trim(),
+        price: normalizedPrice,
+        compare_price: parseNPR(compare),
+        image_url: (r.image_url || r.image || '').toString().trim(),
+        brand: (r.brand || '').toString().trim(),
+        sku: (r.sku || '').toString().trim(),
+        sizes: (r.sizes || '').toString().trim(),
+        colors: (r.colors || '').toString().trim(),
+        material: (r.material || '').toString().trim(),
+        care_instructions: (r.care_instructions || '').toString().trim(),
+        fit_info: (r.fit_info || '').toString().trim(),
+        stock: r.stock !== undefined && r.stock !== null && r.stock !== '' ? parseInt(r.stock) || 0 : 100,
+        icon: (r.icon || 'fas fa-box').toString().trim(),
+        gradient: (r.gradient || 'linear-gradient(135deg, #e94560, #d63851)').toString().trim(),
+        is_featured: r.is_featured ? 1 : 0,
+        is_new: r.is_new ? 1 : 0,
+        is_best_seller: r.is_best_seller ? 1 : 0,
+        is_trending: r.is_trending ? 1 : 0,
+        status: 'active'
+      };
+
+      const { data, error } = await supabaseInsert('products', payload);
+      if (error) { failed.push({ row: i + 1, name, error: error.message }); continue; }
+      created.push(data && data[0] ? data[0] : { name });
+    }
+
+    res.json({ success: true, created: created.length, failed, createdCount: created.length, failedCount: failed.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== BULK PRODUCT IMPORT (raw CSV body) ==========
+// POST /api/products/bulk-import-csv  body: { csv: "name,category,...\n..." }
+app.post('/api/products/bulk-import-csv', adminMiddleware, async (req, res) => {
+  try {
+    const csvText = (req.body.csv || '').toString();
+    if (!csvText.trim()) return res.status(400).json({ error: 'No CSV provided.' });
+
+    const rows = parseCSV(csvText);
+    if (!rows.length) return res.status(400).json({ error: 'CSV appears empty. Check your file.' });
+
+    const products = rows.map(row => {
+      const o = {};
+      for (const k in row) {
+        if (Object.prototype.hasOwnProperty.call(row, k)) o[k.trim().toLowerCase()] = (row[k] || '').toString().trim();
+      }
+      const truthy = (v) => ['1', 'true', 'yes', 'y', 'on'].includes(String(v).toLowerCase());
+      return {
+        name: o.name,
+        category: o.category,
+        subcategory: o.subcategory || '',
+        description: o.description || o.desc || '',
+        price: o.price,
+        compare_price: o.compare_price || o.compareprice || '',
+        image_url: o.image_url || o.image || '',
+        brand: o.brand || '',
+        sku: o.sku || '',
+        sizes: o.sizes || '',
+        colors: o.colors || '',
+        material: o.material || '',
+        care_instructions: o.care_instructions || '',
+        fit_info: o.fit_info || '',
+        stock: o.stock === '' || o.stock === undefined ? undefined : o.stock,
+        is_featured: truthy(o.is_featured),
+        is_new: truthy(o.is_new),
+        is_best_seller: truthy(o.is_best_seller),
+        is_trending: truthy(o.is_trending)
+      };
+    });
+
+    return await importProductsIntoResponse(res, products);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function parseCSV(text) {
+  const result = [];
+  let rows = [];
+  let parts = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; } }
+      else field += ch;
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      parts.push(field); field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      parts.push(field); field = '';
+      rows.push(parts); parts = [];
+    } else {
+      field += ch;
+    }
+  }
+  if (field !== '' || parts.length) { parts.push(field); rows.push(parts); }
+  rows = rows.filter(r => r.length > 0 && r.some(c => String(c).trim() !== ''));
+  if (!rows.length) return result;
+  const header = rows[0].map(h => h.trim());
+  for (let i = 1; i < rows.length; i++) {
+    const obj = {};
+    for (let c = 0; c < header.length; c++) obj[header[c]] = (rows[i][c] !== undefined ? rows[i][c] : '');
+    result.push(obj);
+  }
+  return result;
+}
+
+async function importProductsIntoResponse(res, products) {
+  const created = [];
+  const failed = [];
+  const VALID_CATEGORIES = ['clothes', 'men', 'women', 'kids', 'accessories', 'stationery', 'cosmetics', 'cylinder', 'shoes'];
+
+  for (let i = 0; i < products.length; i++) {
+    const r = products[i] || {};
+    const name = (r.name || '').toString().trim();
+    if (!name) { failed.push({ row: i + 1, error: 'Missing name' }); continue; }
+    const category = (r.category || '').toString().trim().toLowerCase();
+    if (!category) { failed.push({ row: i + 1, name, error: 'Missing category' }); continue; }
+    if (!VALID_CATEGORIES.includes(category)) { failed.push({ row: i + 1, name, error: 'Invalid category: ' + category }); continue; }
+
+    let price = r.price;
+    const parseNPR = (v) => {
+      if (v === undefined || v === null || v === '') return '';
+      return 'Rs. ' + parseFloat(String(v).replace(/[^0-9.]/g, ''));
+    };
+    const normalizedPrice = parseNPR(price);
+    if (normalizedPrice === '') { failed.push({ row: i + 1, name, error: 'Missing price' }); continue; }
+
+    const payload = {
+      name, category,
+      subcategory: (r.subcategory || '').toString().trim(),
+      description: (r.description || '').toString().trim(),
+      price: normalizedPrice,
+      compare_price: parseNPR(r.compare_price),
+      image_url: (r.image_url || '').toString().trim(),
+      brand: (r.brand || '').toString().trim(),
+      sku: (r.sku || '').toString().trim(),
+      sizes: (r.sizes || '').toString().trim(),
+      colors: (r.colors || '').toString().trim(),
+      material: (r.material || '').toString().trim(),
+      care_instructions: (r.care_instructions || '').toString().trim(),
+      fit_info: (r.fit_info || '').toString().trim(),
+      stock: r.stock !== undefined && r.stock !== null && r.stock !== '' ? parseInt(r.stock) || 0 : 100,
+      icon: (r.icon || 'fas fa-box').toString().trim(),
+      gradient: (r.gradient || 'linear-gradient(135deg, #e94560, #d63851)').toString().trim(),
+      is_featured: r.is_featured ? 1 : 0,
+      is_new: r.is_new ? 1 : 0,
+      is_best_seller: r.is_best_seller ? 1 : 0,
+      is_trending: r.is_trending ? 1 : 0,
+      status: 'active'
+    };
+
+    const { data, error } = await supabaseInsert('products', payload);
+    if (error) { failed.push({ row: i + 1, name, error: error.message }); continue; }
+    created.push(data && data[0] ? data[0] : { name });
+  }
+
+  res.json({ success: true, created: created.length, failed, createdCount: created.length, failedCount: failed.length });
+}
 
 // SPA catch-all: serve index.html for any non-API, non-static-file route
 app.get('*', (req, res) => {

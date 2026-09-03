@@ -52,7 +52,7 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]';
 
 -- ---------- products ----------
 -- The codebase uses BOTH naming conventions. Add the missing ones so both work.
-ALTER TABLE products ADD COLUMN IF NOT EXISTS desc TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS "desc" TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS image TEXT;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_count INTEGER DEFAULT 0;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS compare_price NUMERIC;
