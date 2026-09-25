@@ -22,6 +22,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "assets/**",
+      "use": "@vercel/static"
+    },
+    {
       "src": "*.{json,woff,woff2,ttf,eot}",
       "use": "@vercel/static"
     }
