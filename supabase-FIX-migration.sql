@@ -117,6 +117,16 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_phone TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
+-- ---------- ONLINE PAYMENT (QR) ----------
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_token TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_submitted_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_verified_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_note TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS idempotency_key TEXT DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key ON orders(idempotency_key) WHERE idempotency_key <> '';
+
 -- ---------- OPTIONAL TABLES (only alter if the table exists) ----------
 DO $$
 BEGIN

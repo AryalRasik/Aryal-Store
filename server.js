@@ -12,6 +12,7 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 const { supabase, from, initDb } = require('./db');
 const authRoutes = require('./server/routes/auth');
+const payment = require('./server/payment');
 
 const UPLOADS_DIR = process.env.VERCEL
   ? '/tmp/uploads'
@@ -754,7 +755,7 @@ function sendOrderEmail(order, items, settings) {
       from: settings.smtp_user,
       to: settings.store_email,
       subject: 'New Order #' + order.id + ' - ' + order.customer_name,
-      html: '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><h2 style="background:#e94560;color:#fff;padding:16px;border-radius:8px 8px 0 0;margin:0;">New Order Received</h2><div style="border:1px solid #ddd;border-top:0;padding:20px;border-radius:0 0 8px 8px;"><p><strong>Order #:</strong> ' + order.id + '</p><p><strong>Date:</strong> ' + new Date(order.created_at).toLocaleString() + '</p><p><strong>Customer:</strong> ' + order.customer_name + '</p><p><strong>Phone:</strong> ' + order.customer_phone + '</p><p><strong>Email:</strong> ' + (order.customer_email || 'N/A') + '</p><p><strong>Address:</strong> ' + order.customer_address + '</p><p><strong>Payment:</strong> ' + order.payment_method + '</p><p><strong>Notes:</strong> ' + (order.notes || 'N/A') + '</p><table style="width:100%;border-collapse:collapse;margin-top:12px;"><thead><tr style="background:#f5f5f5;"><th style="padding:8px;text-align:left;">Item</th><th style="padding:8px;text-align:center;">Qty</th><th style="padding:8px;text-align:right;">Price</th><th style="padding:8px;text-align:right;">Total</th></tr></thead><tbody>' + itemsHtml + '</tbody></table><hr style="border:none;border-top:2px solid #eee;margin:12px 0;"><p style="font-size:1.1rem;text-align:right;"><strong>Total: Rs. ' + (parseInt(order.total_amount.replace(/[^0-9]/g,'')) || 0).toLocaleString() + '</strong></p><p style="font-size:1.1rem;text-align:right;"><strong>Status: Pending</strong></p><hr style="border:none;border-top:2px solid #eee;margin:12px 0;"><p style="font-size:0.85rem;color:#888;text-align:center;">This is an automated notification from ' + (settings.store_name || 'Aryal Store') + '.</p></div></div>'
+      html: '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><h2 style="background:#e94560;color:#fff;padding:16px;border-radius:8px 8px 0 0;margin:0;">New Order Received</h2><div style="border:1px solid #ddd;border-top:0;padding:20px;border-radius:0 0 8px 8px;"><p><strong>Order #:</strong> ' + order.id + '</p><p><strong>Date:</strong> ' + new Date(order.created_at).toLocaleString() + '</p><p><strong>Customer:</strong> ' + order.customer_name + '</p><p><strong>Phone:</strong> ' + order.customer_phone + '</p><p><strong>Email:</strong> ' + (order.customer_email || 'N/A') + '</p><p><strong>Address:</strong> ' + order.customer_address + '</p><p><strong>Payment:</strong> Online Payment (' + (order.payment_status || 'pending') + ')</p><p><strong>Notes:</strong> ' + (order.notes || 'N/A') + '</p><table style="width:100%;border-collapse:collapse;margin-top:12px;"><thead><tr style="background:#f5f5f5;"><th style="padding:8px;text-align:left;">Item</th><th style="padding:8px;text-align:center;">Qty</th><th style="padding:8px;text-align:right;">Price</th><th style="padding:8px;text-align:right;">Total</th></tr></thead><tbody>' + itemsHtml + '</tbody></table><hr style="border:none;border-top:2px solid #eee;margin:12px 0;"><p style="font-size:1.1rem;text-align:right;"><strong>Total: Rs. ' + (parseInt(order.total_amount.replace(/[^0-9]/g,'')) || 0).toLocaleString() + '</strong></p><p style="font-size:1.1rem;text-align:right;"><strong>Status: Pending</strong></p><hr style="border:none;border-top:2px solid #eee;margin:12px 0;"><p style="font-size:0.85rem;color:#888;text-align:center;">This is an automated notification from ' + (settings.store_name || 'Aryal Store') + '.</p></div></div>'
     };
     transporter.sendMail(mailOptions).catch(function() {});
   } catch(e) {}
@@ -765,7 +766,7 @@ function sendOrderWhatsApp(order, items, settings) {
   try {
     const itemsStr = items.map(function(i) { return '  ' + i.product_name + ' x' + (i.quantity || i.qty) + ' = Rs. ' + (parseInt((i.unit_price || i.price || '0').replace(/[^0-9]/g,'')) * (i.quantity || i.qty || 1)).toLocaleString(); }).join('\n');
     const total = (parseInt(order.total_amount.replace(/[^0-9]/g,'')) || 0).toLocaleString();
-    const message = 'New Order #' + order.id + '\n\nCustomer: ' + order.customer_name + '\nPhone: ' + order.customer_phone + '\nEmail: ' + (order.customer_email || 'N/A') + '\nAddress: ' + order.customer_address + '\nPayment: ' + order.payment_method + '\nNotes: ' + (order.notes || 'N/A') + '\n\nItems:\n' + itemsStr + '\n\nTotal: Rs. ' + total + '\nStatus: Pending';
+    const message = 'New Order #' + order.id + '\n\nCustomer: ' + order.customer_name + '\nPhone: ' + order.customer_phone + '\nEmail: ' + (order.customer_email || 'N/A') + '\nAddress: ' + order.customer_address + '\nPayment: Online Payment (' + (order.payment_status || 'pending') + ')\nNotes: ' + (order.notes || 'N/A') + '\n\nItems:\n' + itemsStr + '\n\nTotal: Rs. ' + total + '\nStatus: Pending';
     const waUrl = 'https://wa.me/' + settings.whatsapp_number.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(message);
     console.log('WhatsApp notification URL:', waUrl);
 
@@ -783,40 +784,166 @@ function sendOrderWhatsApp(order, items, settings) {
 }
 
 // ========== ORDERS ==========
+const PAYMENT_CONFIG_CACHE_MS = 5 * 60 * 1000;
+let cachedShippingSettings = { at: 0, threshold: null };
+
+async function getFreeShippingThreshold() {
+  if (Date.now() - cachedShippingSettings.at < PAYMENT_CONFIG_CACHE_MS) {
+    return cachedShippingSettings.threshold;
+  }
+  let threshold = null;
+  try {
+    const { data: settings } = await supabase.from('settings').select('free_shipping_threshold').eq('id', 1).maybeSingle();
+    if (settings) threshold = payment.toNumber(settings.free_shipping_threshold);
+  } catch (e) {
+    threshold = null;
+  }
+  cachedShippingSettings = { at: Date.now(), threshold };
+  return threshold;
+}
+
+// Public payment configuration (QR image, account label, instructions).
+// The free-shipping threshold is shared so the on-screen total always matches
+// the total the server stores on the order.
+async function buildPaymentConfigResponse() {
+  const config = payment.getPaymentConfig();
+  const threshold = await getFreeShippingThreshold();
+  return Object.assign({}, config, {
+    freeShippingThreshold: threshold === null ? payment.DEFAULT_FREE_SHIPPING_THRESHOLD : threshold
+  });
+}
+
+app.get('/api/payment-config', async (req, res) => {
+  res.json(await buildPaymentConfigResponse());
+});
+
+async function loadCouponForOrder(code, subtotal) {
+  const couponCode = String(code || '').trim().toUpperCase();
+  if (!couponCode) return null;
+  const { data: coupon } = await supabase
+    .from('coupons')
+    .select('*')
+    .eq('code', couponCode)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (!coupon) throw new Error('That coupon code is not valid.');
+  if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) throw new Error('That coupon has expired.');
+  if (coupon.starts_at && new Date(coupon.starts_at) > new Date()) throw new Error('That coupon is not active yet.');
+  const maxUses = payment.toNumber(coupon.max_uses);
+  const usedCount = payment.toNumber(coupon.used_count) || 0;
+  if (maxUses !== null && maxUses > 0 && usedCount >= maxUses) throw new Error('That coupon has reached its usage limit.');
+  const minOrder = payment.toNumber(coupon.min_order_amount) || 0;
+  if (subtotal < minOrder) throw new Error('This coupon requires a minimum order of Rs. ' + minOrder.toLocaleString() + '.');
+  return coupon;
+}
+
 app.post('/api/orders', async (req, res) => {
   try {
-    const { customer_name, customer_phone, customer_email, customer_address, payment_method, notes, items, total_amount, subtotal, discount, coupon_code, customer_id } = req.body;
-    if (!customer_name || !customer_phone || !customer_address || !payment_method || !items || !items.length) {
+    const { customer_name, customer_phone, customer_email, customer_address, notes, items, coupon_code, idempotency_key } = req.body;
+
+    if (!customer_name || !customer_phone || !customer_address || !Array.isArray(items) || !items.length) {
       return res.status(400).json({ error: 'Missing required order fields' });
     }
-    const { data: orderData, error: orderError } = await supabase.from('orders').insert({
+
+    // Online payment is the only accepted method (Cash on Delivery removed).
+    if (payment.normalizePaymentMethod(req.body.payment_method) !== payment.PAYMENT_METHOD) {
+      return res.status(400).json({ error: 'Online payment is the only available payment method. Cash on Delivery is not available.' });
+    }
+
+    // Duplicate submission protection: same idempotency key returns the same order.
+    const idemKey = String(idempotency_key || req.headers['idempotency-key'] || '').trim().slice(0, 100);
+    if (idemKey) {
+      const { data: existing } = await supabase.from('orders').select('*').eq('idempotency_key', idemKey).maybeSingle();
+      if (existing) {
+        return res.json({
+          success: true,
+          duplicate: true,
+          order_id: existing.id,
+          payment_status: existing.payment_status || 'pending',
+          payment_token: existing.payment_token || '',
+          amount: payment.formatAmount(payment.toNumber(existing.total_amount) || 0),
+          payment: await buildPaymentConfigResponse()
+        });
+      }
+    }
+
+    // Authoritative product data - client supplied names/prices are ignored.
+    const productIds = Array.from(new Set(items.map(i => String((i && i.product_id) || '').trim()).filter(Boolean)));
+    if (!productIds.length) return res.status(400).json({ error: 'Your cart is empty.' });
+    const { data: products, error: productsError } = await supabase.from('products').select('*').in('id', productIds);
+    if (productsError) throw productsError;
+    const productsById = new Map((products || []).map(p => [String(p.id), p]));
+
+    let orderItems;
+    try {
+      orderItems = payment.buildOrderItems(productsById, items);
+    } catch (itemErr) {
+      return res.status(400).json({ error: itemErr.message });
+    }
+
+    const delivery = payment.resolveDeliveryMethod(req.body.shipping_method) || payment.DELIVERY_METHODS[0];
+    const freeShippingThreshold = await getFreeShippingThreshold();
+    const itemSubtotal = payment.round2(orderItems.reduce((s, i) => s + (payment.toNumber(i.unit_price) || 0) * i.quantity, 0));
+
+    let coupon = null;
+    try {
+      coupon = await loadCouponForOrder(coupon_code, itemSubtotal);
+    } catch (couponErr) {
+      return res.status(400).json({ error: couponErr.message });
+    }
+
+    const totals = payment.computeOrderTotals(orderItems, delivery, freeShippingThreshold, coupon);
+    const paymentToken = payment.createPaymentToken();
+
+    const orderPayload = {
       customer_name, customer_phone, customer_email: customer_email || '',
-      customer_address, payment_method, notes: notes || '',
-      total_amount, subtotal: subtotal || total_amount, discount: discount || '0',
-      coupon_code: coupon_code || '', status: 'pending'
-    }).select();
+      customer_address, payment_method: payment.PAYMENT_METHOD,
+      payment_status: 'pending', payment_token: paymentToken, payment_submitted_at: null,
+      payment_reference: '', payment_verified_at: null, payment_note: '',
+      notes: notes || '',
+      total_amount: totals.total_amount, subtotal: totals.subtotal,
+      discount: totals.discount, coupon_code: coupon ? coupon.code : '',
+      shipping_method: delivery.id, shipping_cost: totals.shipping_cost,
+      idempotency_key: idemKey, status: 'pending'
+    };
+    Object.keys(orderPayload).forEach(k => { if (orderPayload[k] === null) delete orderPayload[k]; });
+
+    const { data: orderData, error: orderError } = await supabaseInsert('orders', orderPayload);
     if (orderError) throw orderError;
     const order = orderData[0];
-    for (const item of items) {
-      await supabase.from('order_items').insert({
-        order_id: order.id, product_id: item.product_id || null,
+
+    for (const item of orderItems) {
+      const { error: itemError } = await supabase.from('order_items').insert({
+        order_id: order.id, product_id: item.product_id,
         product_name: item.product_name, quantity: item.quantity,
         unit_price: item.unit_price, size: item.size || '', color: item.color || ''
       });
-      const { data: prod } = await supabase.from('products').select('sold_count').eq('id', item.product_id).maybeSingle();
-      if (prod) {
-        await supabase.from('products').update({ sold_count: (prod.sold_count || 0) + 1 }).eq('id', item.product_id);
+      if (itemError) {
+        await supabase.from('order_items').delete().eq('order_id', order.id);
+        await supabase.from('orders').delete().eq('id', order.id);
+        throw new Error('Could not save the order items. Please try again.');
+      }
+      const product = productsById.get(String(item.product_id));
+      if (product) {
+        await supabase.from('products')
+          .update({ sold_count: (payment.toNumber(product.sold_count) || 0) + item.quantity })
+          .eq('id', item.product_id);
       }
     }
-    await supabase.from('order_tracking').insert({ order_id: order.id, status: 'pending', note: 'Order placed successfully' });
+    await supabase.from('order_tracking').insert({ order_id: order.id, status: 'pending', note: 'Order placed successfully. Awaiting online payment.' });
+
+    if (coupon) {
+      const usedCount = payment.toNumber(coupon.used_count) || 0;
+      await supabase.from('coupons').update({ used_count: usedCount + 1 }).eq('id', coupon.id);
+    }
 
     if (customer_phone) {
       const { data: existing } = await supabase.from('customers').select('id').eq('phone', customer_phone).maybeSingle();
       if (existing) {
         const { data: c } = await supabase.from('customers').select('*').eq('id', existing.id).maybeSingle();
         if (c) {
-          const currentSpent = parseFloat(String(c.total_spent || '').replace(/[^0-9]/g, '') || '0');
-          const orderAmt = parseFloat(String(total_amount || '').replace(/[^0-9]/g, ''));
+          const currentSpent = payment.toNumber(c.total_spent) || 0;
+          const orderAmt = payment.toNumber(totals.total_amount) || 0;
           await supabase.from('customers').update({
             total_orders: (c.total_orders || 0) + 1,
             total_spent: String(currentSpent + orderAmt)
@@ -825,7 +952,7 @@ app.post('/api/orders', async (req, res) => {
       } else {
         await supabase.from('customers').insert({
           name: customer_name, email: customer_email || '', phone: customer_phone,
-          address: customer_address, total_orders: 1, total_spent: total_amount
+          address: customer_address, total_orders: 1, total_spent: totals.total_amount
         });
       }
     }
@@ -839,11 +966,20 @@ app.post('/api/orders', async (req, res) => {
       }
     } catch(e) {}
 
-    res.json({ success: true, order_id: order.id });
+    res.json({
+      success: true,
+      order_id: order.id,
+      payment_status: 'pending',
+      payment_token: paymentToken,
+      amount: totals.total_amount,
+      totals: totals,
+      payment: await buildPaymentConfigResponse()
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 app.get('/api/orders', adminMiddleware, async (req, res) => {
   try {
@@ -893,6 +1029,93 @@ app.put('/api/orders/:id/status', adminMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ========== PAYMENT SUBMISSION (customer) ==========
+// "I Have Paid" only flags the order as submitted - it is never auto-verified.
+app.post('/api/orders/:id/payment-submit', async (req, res) => {
+  try {
+    const token = String((req.body && req.body.payment_token) || '').trim();
+    if (!token) return res.status(400).json({ error: 'Missing payment token' });
+
+    const { data: order, error } = await supabase.from('orders').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (!order.payment_token || !payment.safeEquals(order.payment_token, token)) {
+      return res.status(403).json({ error: 'Invalid payment token' });
+    }
+    if (payment.normalizePaymentMethod(order.payment_method) !== payment.PAYMENT_METHOD) {
+      return res.status(400).json({ error: 'This order is not an online payment order.' });
+    }
+
+    const current = order.payment_status || 'pending';
+    if (current === 'verified') {
+      return res.json({ success: true, payment_status: 'verified', message: 'Payment already verified.' });
+    }
+    if (current === 'submitted') {
+      return res.json({ success: true, payment_status: 'submitted', message: 'Payment already submitted.' });
+    }
+
+    const reference = String((req.body && req.body.payment_reference) || '').trim().slice(0, 120);
+    const { error: updateError } = await supabaseUpdate('orders', order.id, {
+      payment_status: 'submitted',
+      payment_submitted_at: new Date().toISOString(),
+      payment_reference: reference
+    });
+    if (updateError) throw updateError;
+
+    await supabase.from('order_tracking').insert({
+      order_id: order.id,
+      status: order.status || 'pending',
+      note: 'Customer submitted online payment for verification'
+    });
+
+    res.json({
+      success: true,
+      payment_status: 'submitted',
+      message: 'Payment submitted. Our team will verify it shortly.',
+      amount: payment.formatAmount(payment.toNumber(order.total_amount) || 0)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== PAYMENT VERIFICATION (admin) ==========
+app.put('/api/orders/:id/payment-status', adminMiddleware, async (req, res) => {
+  try {
+    const status = String((req.body && req.body.payment_status) || '').trim().toLowerCase();
+    const note = String((req.body && req.body.note) || '').trim().slice(0, 300);
+    if (!payment.ADMIN_SETTABLE_PAYMENT_STATUSES.includes(status)) {
+      return res.status(400).json({ error: 'Invalid payment status' });
+    }
+
+    const { data: order, error } = await supabase.from('orders').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const now = new Date().toISOString();
+    const patch = { payment_status: status, payment_note: note };
+    if (status === 'verified') patch.payment_verified_at = now;
+    if (status === 'rejected') patch.payment_verified_at = null;
+
+    const { error: updateError } = await supabaseUpdate('orders', order.id, patch);
+    if (updateError) throw updateError;
+
+    const label = status === 'verified' ? 'Payment verified by admin'
+      : status === 'rejected' ? 'Payment rejected by admin'
+      : 'Payment marked as submitted by admin';
+    await supabase.from('order_tracking').insert({
+      order_id: order.id,
+      status: order.status || 'pending',
+      note: note ? label + ': ' + note : label
+    });
+
+    res.json({ success: true, payment_status: status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 app.delete('/api/orders/:id', adminMiddleware, async (req, res) => {
   try {
@@ -2080,17 +2303,21 @@ app.post('/api/orders/:id/reorder', async (req, res) => {
     if (orderError) throw orderError;
     if (!order) return res.status(404).json({ error: 'Order not found' });
     const { data: items } = await supabase.from('order_items').select('*').eq('order_id', req.params.id);
-    const { data: newOrderData, error: insertError } = await supabase.from('orders').insert({
+    const { data: newOrderData, error: insertError } = await supabaseInsert('orders', {
       customer_name: order.customer_name,
       customer_phone: order.customer_phone,
       customer_email: order.customer_email,
       customer_address: order.customer_address,
-      payment_method: order.payment_method,
+      payment_method: payment.PAYMENT_METHOD,
+      payment_status: 'pending',
+      payment_token: payment.createPaymentToken(),
       notes: 'Reorder from #' + order.id,
       total_amount: order.total_amount,
       subtotal: order.subtotal,
+      shipping_method: order.shipping_method || 'standard',
+      shipping_cost: order.shipping_cost || 0,
       status: 'pending'
-    }).select();
+    });
     if (insertError) throw insertError;
     const newOrder = newOrderData[0];
     for (const item of items || []) {

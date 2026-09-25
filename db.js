@@ -122,6 +122,15 @@ async function migrateDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount NUMERIC DEFAULT 0;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT DEFAULT '';
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]';
+    -- Online payment (QR) support
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_token TEXT DEFAULT '';
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference TEXT DEFAULT '';
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_submitted_at TIMESTAMPTZ;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_verified_at TIMESTAMPTZ;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_note TEXT DEFAULT '';
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS idempotency_key TEXT DEFAULT '';
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key ON orders(idempotency_key) WHERE idempotency_key <> '';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS "desc" TEXT;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS image TEXT;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_count INTEGER DEFAULT 0;

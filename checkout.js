@@ -7,6 +7,8 @@
   const API_COUPON = '/api/coupons/validate';
   const API_ADDR = '/api/users/addresses';
   const API_ME = '/api/auth/me';
+  const API_PAYMENT_CONFIG = '/api/payment-config';
+  const DEFAULT_FREE_SHIPPING_THRESHOLD = 2000;
 
   let state = {
     step: 1,
@@ -14,12 +16,16 @@
     user: null,
     token: null,
     shipping: { method: 'standard', cost: 0, label: 'Standard Delivery' },
-    payment: 'cod',
+    payment: null,
+    paymentConfig: null,
+    freeShippingThreshold: DEFAULT_FREE_SHIPPING_THRESHOLD,
     coupon: null,
     discount: 0,
     address: null,
     addresses: [],
     orderId: null,
+    paymentToken: '',
+    idempotencyKey: '',
     loading: false
   };
 
@@ -38,12 +44,9 @@
     { id: 'same_day', label: 'Same Day Delivery', eta: 'Today (order before 2PM)', cost: 500 }
   ];
 
+  // Cash on Delivery was removed: online payment (shop QR) is the only method.
   const paymentMethods = [
-    { id: 'cod', label: 'Cash on Delivery', icon: 'fa-money-bill-wave', desc: 'Pay when you receive' },
-    { id: 'esewa', label: 'eSewa', icon: 'fa-mobile-alt', desc: 'Pay via eSewa wallet' },
-    { id: 'khalti', label: 'Khalti', icon: 'fa-mobile-alt', desc: 'Pay via Khalti wallet' },
-    { id: 'fonepay', label: 'Fonepay', icon: 'fa-university', desc: 'Pay via Fonepay' },
-    { id: 'card', label: 'Credit/Debit Card', icon: 'fa-credit-card', desc: 'Visa, Mastercard, etc.' }
+    { id: 'online', label: 'Online Payment', icon: 'fa-qrcode', desc: 'Pay by scanning the shop QR code' }
   ];
 
   const LOCATIONS = window.NEPAL_LOCATIONS || { provinces: [] };
@@ -104,8 +107,25 @@
     populateAddressSelects();
     renderSteps();
     loadCart();
+    loadPaymentConfig();
     checkAuth();
     bindEvents();
+  }
+
+  // ==================== PAYMENT CONFIG ====================
+  async function loadPaymentConfig() {
+    try {
+      const res = await fetch(API_PAYMENT_CONFIG);
+      if (!res.ok) throw new Error('failed');
+      const cfg = await res.json();
+      state.paymentConfig = cfg;
+      if (cfg && Number(cfg.freeShippingThreshold) > 0) {
+        state.freeShippingThreshold = Number(cfg.freeShippingThreshold);
+      }
+    } catch (e) {
+      state.paymentConfig = { methodLabel: 'Online Payment', qrUrl: '', accountName: '', instructions: '', accountDetails: '', isPlaceholder: true };
+    }
+    renderPayment();
   }
 
   // ==================== TOAST ====================
@@ -289,9 +309,14 @@
     return state.cart.reduce((sum, c) => sum + (parseFloat(c.price) || 0) * (c.qty || 1), 0);
   }
 
-  function getShippingCost() { return state.shipping.cost; }
+  // Standard delivery is free above the store's free-shipping threshold
+  // (the server uses the same value when it stores the order).
+  function isFreeShippingEligible() { return getSubtotal() >= state.freeShippingThreshold; }
+  function getShippingCost() {
+    if (state.shipping.id === 'standard' && isFreeShippingEligible()) return 0;
+    return state.shipping.cost;
+  }
   function getDiscount() { return state.discount; }
-  function getTotal() { return Math.max(0, getSubtotal() + getShippingCost() - getDiscount()); }
 
   // ==================== STEPS ====================
   function renderSteps() {
@@ -323,6 +348,7 @@
       else if (id < n) { el.classList.add('done'); el.querySelector('.co-step-circle').innerHTML = '<i class="fas fa-check"></i>'; }
       else { el.classList.remove('done'); el.querySelector('.co-step-circle').textContent = id; }
     });
+    if (n === 5) renderPayment();
     if (n === 6) renderReview();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -510,14 +536,14 @@
     shippingMethods.forEach(m => {
       const selected = state.shipping.method === m.id ? ' selected' : '';
       const costLabel = m.cost === 0 ? '<span class="co-delivery-cost free">Free</span>' : '<span class="co-delivery-cost">Rs. ' + m.cost.toLocaleString() + '</span>';
-      const freeEligible = getSubtotal() >= 2000 && m.id === 'standard';
+      const freeEligible = isFreeShippingEligible() && m.id === 'standard';
       const displayCost = freeEligible ? '<span class="co-delivery-cost free">Free</span>' : costLabel;
       html += `<div class="co-delivery-option${selected}" onclick="window._coSelectShipping('${m.id}')">
         <label>
-          <input type="radio" name="co_shipping" ${selected ? 'checked' : ''}>
+          <input type="radio" name="co_shipping" value="${m.id}" ${selected ? 'checked' : ''}>
           <div class="co-delivery-info">
             <div class="co-delivery-name">${m.label}</div>
-            <div class="co-delivery-eta">${m.eta}${freeEligible ? ' · Free shipping on orders above Rs. 2,000' : ''}</div>
+            <div class="co-delivery-eta">${m.eta}${freeEligible ? ' · Free shipping on orders above Rs. ' + state.freeShippingThreshold.toLocaleString() : ''}</div>
           </div>
           ${displayCost}
         </label>
@@ -544,19 +570,25 @@
     let html = '<div class="co-payment-options">';
     paymentMethods.forEach(m => {
       const selected = state.payment === m.id ? ' selected' : '';
-      html += `<div class="co-payment-option${selected}" onclick="window._coSelectPayment('${m.id}')">
+      html += `<div class="co-payment-option${selected}" data-value="${m.id}" role="radio" tabindex="0" aria-checked="${state.payment === m.id}" onclick="window._coSelectPayment('${m.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window._coSelectPayment('${m.id}')}">
         <i class="fas ${m.icon}"></i>
         <span>${m.label}</span>
         <span class="pay-label">${m.desc}</span>
       </div>`;
     });
-    html += '</div><div class="co-payment-logos" style="margin-top:10px;"><span>Visa</span><span>Mastercard</span><span>eSewa</span><span>Khalti</span><span>Fonepay</span><span>COD</span></div>';
+    html += '</div>';
     container.innerHTML = html;
   }
 
   function selectPayment(id) {
-    state.payment = id;
-    document.querySelectorAll('.co-payment-option').forEach(el => el.classList.toggle('selected', el.dataset.value === id));
+    const method = paymentMethods.find(m => m.id === id);
+    if (!method) return;
+    state.payment = method.id;
+    document.querySelectorAll('.co-payment-option').forEach(el => {
+      const active = el.dataset.value === method.id;
+      el.classList.toggle('selected', active);
+      el.setAttribute('aria-checked', active ? 'true' : 'false');
+    });
   }
   window._coSelectPayment = selectPayment;
 
@@ -601,11 +633,8 @@
   // ==================== SUMMARY ====================
   function updateSummary() {
     const sub = getSubtotal();
-    const ship = getShippingCost();
+    const displayShip = getShippingCost();
     const disc = getDiscount();
-    const total = getTotal();
-    const freeShip = sub >= 2000;
-    const displayShip = freeShip && state.shipping.id === 'standard' ? 0 : ship;
     const finalTotal = Math.max(0, sub + displayShip - disc);
 
     if ($('coSummarySubtotal')) $('coSummarySubtotal').textContent = 'Rs. ' + sub.toLocaleString();
@@ -649,8 +678,7 @@
     const container = $('coReviewContent');
     if (!container) return;
     const addr = state.address;
-    const freeShip = getSubtotal() >= 2000 && state.shipping.id === 'standard';
-    const displayShip = freeShip ? 0 : state.shipping.cost;
+    const displayShip = getShippingCost();
     container.innerHTML = `
       <div class="co-card" style="margin-bottom:12px;">
         <div class="co-card-title">Shipping Address</div>
@@ -662,7 +690,7 @@
       </div>
       <div class="co-card" style="margin-bottom:12px;">
         <div class="co-card-title">Payment Method</div>
-        <p style="font-size:0.9rem;color:var(--co-text-secondary);">${paymentMethods.find(m => m.id === state.payment)?.label || state.payment}</p>
+        <p style="font-size:0.9rem;color:var(--co-text-secondary);">${paymentMethods[0].label} (shop QR code) — Cash on Delivery is no longer available.</p>
       </div>
       <div class="co-card">
         <div class="co-card-title">Items (${state.cart.reduce((s, c) => s + (c.qty || 1), 0)})</div>
@@ -688,22 +716,22 @@
     if (state.loading) return;
     if (!state.cart.length) { showToast('Your cart is empty', 'error'); return; }
     if (!state.address) { showToast('Please select a shipping address', 'error'); goToStep(3); return; }
+    if (!state.payment) { showToast('Please select Online Payment to continue', 'error'); goToStep(5); return; }
 
     state.loading = true;
     const btn = $('coPlaceOrderBtn');
     btn.disabled = true; btn.classList.add('loading');
 
-    const sub = getSubtotal();
-    const freeShip = sub >= 2000 && state.shipping.id === 'standard';
-    const displayShip = freeShip ? 0 : state.shipping.cost;
-    const finalTotal = Math.max(0, sub + displayShip - state.discount);
     const user = getCurrentUser();
+    if (!state.idempotencyKey) {
+      state.idempotencyKey = 'co_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+    }
 
+    // Only product references are sent: names, prices and totals are recalculated
+    // by the server so the amount shown on the QR always matches the stored order.
     const items = state.cart.map(item => ({
       product_id: item.id,
-      product_name: item.name,
       quantity: item.qty || 1,
-      unit_price: String(item.price),
       size: item.size || '',
       color: item.color || ''
     }));
@@ -719,15 +747,12 @@
       customer_ward: state.address.ward || '',
       customer_tole: state.address.tole || '',
       customer_landmark: state.address.landmark || '',
-      payment_method: state.payment,
-      shipping_method: state.shipping.label,
-      shipping_cost: displayShip,
+      payment_method: 'online',
+      shipping_method: state.shipping.id,
       notes: '',
       items,
-      subtotal: String(sub),
-      discount: String(state.discount),
       coupon_code: state.coupon || '',
-      total_amount: String(finalTotal)
+      idempotency_key: state.idempotencyKey
     };
 
     try {
@@ -738,10 +763,15 @@
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed to place order');
       state.orderId = d.order_id;
+      state.paymentToken = d.payment_token || '';
+      if (d.payment) state.paymentConfig = d.payment;
+      // Clear the key so a later order in this session is not treated as a duplicate.
+      state.idempotencyKey = '';
+      const serverTotal = Number(d.amount) || 0;
       state.cart = [];
       localStorage.removeItem('aryal_cart');
-      showConfirmation(d.order_id, finalTotal);
-      showToast('Order placed successfully!', 'success');
+      showConfirmation(d.order_id, serverTotal, d.payment_status || 'pending');
+      showToast(d.duplicate ? 'This order was already placed' : 'Order placed successfully!', 'success');
     } catch (e) {
       showToast(e.message, 'error');
     } finally {
@@ -750,28 +780,74 @@
     }
   }
 
-  function showConfirmation(orderId, total) {
+  function renderQrPanel(orderId, amount, paymentStatus) {
+    const cfg = state.paymentConfig || {};
+    const amountLabel = 'Rs. ' + (Number(amount) || 0).toLocaleString();
+    const submitted = paymentStatus === 'submitted' || paymentStatus === 'verified';
+    const statusNote = paymentStatus === 'verified'
+      ? '<div class="co-pay-state verified"><i class="fas fa-circle-check"></i> Payment verified. We are preparing your order.</div>'
+      : submitted
+        ? '<div class="co-pay-state submitted"><i class="fas fa-hourglass-half"></i> Payment submitted. Our team will verify it shortly.</div>'
+        : '<div class="co-pay-state"><i class="fas fa-clock"></i> Payment not submitted yet.</div>';
+
+    return `
+      <div class="co-qr-panel">
+        <div class="co-qr-header">
+          <div class="co-qr-title"><i class="fas fa-qrcode"></i> Pay Online</div>
+          <div class="co-qr-amount">${amountLabel}</div>
+          <div class="co-qr-amount-label">Exact amount for order #${escapeHtml(String(orderId).substring(0, 8))}</div>
+        </div>
+        <div class="co-qr-body">
+          <div class="co-qr-image-wrap">
+            <img class="co-qr-image" src="${escapeHtml(cfg.qrUrl || '')}" alt="Shop payment QR code" onerror="this.outerHTML='<div class=&quot;co-qr-missing&quot;><i class=&quot;fas fa-triangle-exclamation&quot;></i> Shop QR not configured yet</div>'">
+          </div>
+          <div class="co-qr-details">
+            ${cfg.accountName ? '<div class="co-qr-row"><span>Account name</span><strong>' + escapeHtml(cfg.accountName) + '</strong></div>' : ''}
+            ${cfg.accountDetails ? '<div class="co-qr-note">' + escapeHtml(cfg.accountDetails) + '</div>' : ''}
+            <div class="co-qr-note">${escapeHtml(cfg.instructions || 'Scan the QR code with your payment app, then tap "I Have Paid".')}</div>
+            ${cfg.isPlaceholder ? '<div class="co-qr-warning"><i class="fas fa-triangle-exclamation"></i> Shop QR image is not configured yet. Please contact the store before paying.</div>' : ''}
+            ${statusNote}
+          </div>
+        </div>
+        <div class="co-qr-actions">
+          <button class="co-btn co-btn-primary co-btn-lg co-btn-full" id="coPaidBtn" ${submitted ? 'disabled' : ''}>
+            <i class="fas fa-check-circle"></i> ${submitted ? 'Payment submitted' : 'I Have Paid'}
+          </button>
+          <p class="co-qr-fine">Submitting payment does not confirm it automatically. Our team verifies every online payment manually before your order is dispatched.</p>
+        </div>
+      </div>`;
+  }
+
+  function escapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function showConfirmation(orderId, total, paymentStatus) {
     const container = $('coMainContent');
     if (!container) return;
     const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const deliveryDate = new Date();
     deliveryDate.setDate(deliveryDate.getDate() + (state.shipping.id === 'same_day' ? 0 : state.shipping.id === 'express' ? 3 : 7));
     const addr = state.address;
+    const qrHtml = renderQrPanel(orderId, total, paymentStatus);
 
     container.innerHTML = `
       <div class="co-steps" id="coSteps"></div>
       <div class="co-card">
         <div class="co-confirmation">
           <div class="co-confirmation-icon"><i class="fas fa-check"></i></div>
-          <h2>Order Confirmed!</h2>
+          <h2>Order Placed!</h2>
           <p class="order-id">Order ID: <strong>#${orderId}</strong></p>
           <p class="delivery-estimate">Estimated delivery: ${days[deliveryDate.getDay()]}, ${deliveryDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>
           <div class="co-confirmation-details">
-            <div class="detail-row"><span class="detail-label">Payment</span><span>${paymentMethods.find(m => m.id === state.payment)?.label || state.payment}</span></div>
-            <div class="detail-row"><span class="detail-label">Payment Status</span><span>${state.payment === 'cod' ? 'Pending' : 'Processing'}</span></div>
-            <div class="detail-row"><span class="detail-label">Total Charged</span><span>Rs. ${total.toLocaleString()}</span></div>
+            <div class="detail-row"><span class="detail-label">Payment Method</span><span>${paymentMethods[0].label}</span></div>
+            <div class="detail-row"><span class="detail-label">Payment Status</span><span id="coPayStatusText">${paymentStatusLabel(paymentStatus)}</span></div>
+            <div class="detail-row"><span class="detail-label">Total Charged</span><span>Rs. ${(Number(total) || 0).toLocaleString()}</span></div>
             <div class="detail-row"><span class="detail-label">Shipping</span><span>${addr ? addr.full_name + ', ' + addr.address : ''}</span></div>
           </div>
+          ${qrHtml}
           <div class="co-confirmation-actions">
             <a href="/" class="co-btn co-btn-primary co-btn-lg">Continue Shopping</a>
             <a href="?track=${orderId}" class="co-btn co-btn-secondary co-btn-lg">View Order</a>
@@ -783,6 +859,49 @@
     document.querySelector('.co-page').style.gridTemplateColumns = '1fr';
     const summary = $('coSummary');
     if (summary) summary.style.display = 'none';
+
+    const paidBtn = $('coPaidBtn');
+    if (paidBtn && !paidBtn.disabled) paidBtn.addEventListener('click', submitPaymentConfirmation);
+  }
+
+  function paymentStatusLabel(status) {
+    const labels = {
+      pending: 'Pending (awaiting your payment)',
+      submitted: 'Submitted (awaiting verification)',
+      verified: 'Verified',
+      rejected: 'Rejected'
+    };
+    return labels[status] || 'Pending';
+  }
+
+  async function submitPaymentConfirmation() {
+    const btn = $('coPaidBtn');
+    if (!btn || btn.disabled) return;
+    if (!state.orderId || !state.paymentToken) { showToast('This order session expired. Please place a new order.', 'error'); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Submitting...';
+    try {
+      const res = await fetch(API_ORDERS + '/' + encodeURIComponent(state.orderId) + '/payment-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_token: state.paymentToken })
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Could not submit payment');
+      btn.innerHTML = '<i class="fas fa-check-circle"></i> Payment submitted';
+      const statusText = $('coPayStatusText');
+      if (statusText) statusText.textContent = paymentStatusLabel(d.payment_status || 'submitted');
+      const stateEl = document.querySelector('.co-qr-state');
+      if (stateEl) {
+        stateEl.className = 'co-pay-state submitted';
+        stateEl.innerHTML = '<i class="fas fa-hourglass-half"></i> ' + escapeHtml(d.message || 'Payment submitted. Our team will verify it shortly.');
+      }
+      showToast('Payment submitted for verification', 'success');
+    } catch (e) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check-circle"></i> I Have Paid';
+      showToast(e.message, 'error');
+    }
   }
 
   // ==================== EVENTS ====================
@@ -795,6 +914,7 @@
         if (step === 3 && !getCurrentUser()) { openAuthModal(); return; }
         if (step === 3 && getCurrentUser()) { loadAddresses(); }
         if (step === 4 && !state.address) { showToast('Please select a shipping address', 'error'); return; }
+        if (step === 6 && !state.payment) { showToast('Please select Online Payment to continue', 'error'); goToStep(5); return; }
         goToStep(step);
       }
     });

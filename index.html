@@ -356,6 +356,7 @@
     .cm-payment-option div, .cm-shipping-option div { flex:1; }
     .cm-payment-option strong, .cm-shipping-option strong { display:block; font-size:0.85rem; color:#1a1a2e; }
     .cm-payment-option p, .cm-shipping-option p { margin:2px 0 0; font-size:0.75rem; color:#999; }
+    .cm-pay-note { font-size:0.75rem; color:#888; line-height:1.5; margin-top:6px; }
     .cm-ship-cost { font-weight:700; color:#e94560; font-size:0.9rem; white-space:nowrap; }
     .cm-addr-option, .ord-addr-opt { padding:8px 12px; border:2px solid #eee; border-radius:8px; margin-bottom:6px; cursor:pointer; font-size:0.8rem; color:#555; transition:0.2s; }
     .cm-addr-option:hover, .ord-addr-opt:hover { border-color:#e94560; background:#fff5f7; }
@@ -377,6 +378,23 @@
     .payment-option:hover { border-color: #e94560; color: #e94560; }
     .payment-option.selected { border-color: #e94560; background: #fff5f5; color: #e94560; }
     .payment-option i { display: block; font-size: 1.1rem; margin-bottom: 2px; }
+
+    /* Online payment / QR modal */
+    .pay-modal-box { max-width:420px; }
+    .pay-amount { font-size:1.6rem; font-weight:800; text-align:center; margin:4px 0 2px; }
+    .pay-amount-label { text-align:center; font-size:0.72rem; color:#999; margin-bottom:14px; }
+    .pay-qr-wrap { width:210px; max-width:100%; margin:0 auto 14px; padding:8px; background:#fff; border:1px solid #eee; border-radius:12px; }
+    .pay-qr-wrap img { display:block; width:100%; height:auto; aspect-ratio:1/1; object-fit:contain; }
+    .pay-qr-missing { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; width:100%; aspect-ratio:1/1; color:#999; font-size:0.75rem; text-align:center; }
+    .pay-row { display:flex; justify-content:space-between; gap:12px; font-size:0.82rem; color:#666; padding:6px 0; border-bottom:1px dashed #eee; }
+    .pay-row strong { color:#1a1a2e; text-align:right; word-break:break-word; }
+    .pay-note { font-size:0.78rem; color:#777; line-height:1.5; margin-top:10px; white-space:pre-line; }
+    .pay-warning { font-size:0.75rem; color:#e67e22; background:#fff7ed; border-radius:8px; padding:8px 10px; margin-top:10px; }
+    .pay-state { font-size:0.8rem; font-weight:600; color:#666; background:#f5f5f5; border-radius:8px; padding:8px 10px; margin-top:10px; }
+    .pay-state.submitted { color:#e67e22; background:#fff7ed; }
+    .pay-state.verified { color:#27ae60; background:#eafaf1; }
+    .pay-fine { font-size:0.72rem; color:#999; line-height:1.5; text-align:center; margin-top:10px; }
+    @media (max-width: 480px) { .pay-qr-wrap { width:180px; } .pay-amount { font-size:1.35rem; } }
     .shipping-options { display: flex; flex-direction: column; gap: 6px; }
     .shipping-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 2px solid #eee; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: #fff; }
     .shipping-option:hover { border-color: #e94560; }
@@ -1766,7 +1784,7 @@
         <div class="ab-icon"><i class="fas fa-lock"></i></div>
         <div class="ab-text">
           <h4>Secure Payment</h4>
-          <p>COD & online options</p>
+          <p>Online payment via QR</p>
         </div>
       </div>
       <div class="about-badge">
@@ -1917,10 +1935,9 @@
     <div class="cm-step-content" id="cmStep3">
       <h4>Choose Payment Method</h4>
       <div class="cm-payment-options" id="cmPaymentOptions">
-        <div class="cm-payment-option selected" data-value="cod" onclick="cmSelectPayment(this)"><i class="fas fa-money-bill-wave"></i><div><strong>Cash on Delivery</strong><p>Pay when you receive</p></div></div>
-        <div class="cm-payment-option" data-value="esewa" onclick="cmSelectPayment(this)"><i class="fas fa-mobile-alt"></i><div><strong>eSewa</strong><p>Pay via eSewa</p></div></div>
-        <div class="cm-payment-option" data-value="khalti" onclick="cmSelectPayment(this)"><i class="fas fa-mobile-alt"></i><div><strong>Khalti</strong><p>Pay via Khalti</p></div></div>
+        <div class="cm-payment-option" data-value="online" onclick="cmSelectPayment(this)"><i class="fas fa-qrcode"></i><div><strong>Online Payment</strong><p>Pay by scanning the shop QR code</p></div></div>
       </div>
+      <div class="cm-pay-note">Cash on Delivery is no longer available. The shop QR code with your exact amount appears after you place the order.</div>
       <h4 style="margin-top:20px;">Delivery Method</h4>
       <div class="cm-shipping-options" id="cmShippingOptions">
         <div class="cm-shipping-option selected" data-value="standard" data-cost="0" onclick="cmSelectShipping(this)"><div><strong>Standard Delivery</strong><p>5-7 business days</p></div><div class="cm-ship-cost">Free</div></div>
@@ -2037,10 +2054,9 @@
       </div>
       <div class="form-group"><label>Payment Method *</label>
         <div class="payment-options" id="paymentOptions">
-          <div class="payment-option selected" data-value="cod" onclick="selectPayment(this)"><i class="fas fa-money-bill-wave"></i> Cash on Delivery</div>
-          <div class="payment-option" data-value="esewa" onclick="selectPayment(this)"><i class="fas fa-mobile-alt"></i> eSewa</div>
-          <div class="payment-option" data-value="khalti" onclick="selectPayment(this)"><i class="fas fa-mobile-alt"></i> Khalti</div>
+          <div class="payment-option" data-value="online" onclick="selectPayment(this)"><i class="fas fa-qrcode"></i> Online Payment</div>
         </div>
+        <div class="cm-pay-note">Cash on Delivery is no longer available. The shop QR code with your exact amount appears after you place the order.</div>
       </div>
       <div class="form-group"><label>Order Notes</label><textarea id="ordNotes" placeholder="Special instructions..." style="min-height:45px;"></textarea></div>
       <div class="checkout-error" id="checkoutError"></div>
@@ -2606,7 +2622,7 @@ const DEMO_PRODUCTS = [
 ];
 let currentSort = '';
 let wishlistItems = [];
-let selectedPayment = 'cod';
+let selectedPayment = '';
 let currentReviewRating = 0;
 let currentModalProduct = null;
 let selectedSize = '';
@@ -2626,6 +2642,14 @@ function toast(msg, type) {
 }
 
 function saveCart() { localStorage.setItem('aryal_cart', JSON.stringify(cart)); updateCartUI(); }
+
+// Customer-facing payment status (Cash on Delivery was removed - online only).
+function paymentStatusText(order) {
+  if (!order) return '';
+  var status = order.payment_status || 'pending';
+  var labels = { pending: 'Pending', submitted: 'Submitted - awaiting verification', verified: 'Verified', rejected: 'Rejected' };
+  return 'Payment: ' + (order.payment_method === 'online' ? 'Online' : (order.payment_method || 'Online')) + ' (' + (labels[status] || status) + ')';
+}
 
 function updateCartUI() {
   const count = cart.reduce((s, i) => s + i.qty, 0);
@@ -2765,7 +2789,6 @@ function selectPayment(el) {
   el.classList.add('selected');
   selectedPayment = el.dataset.value;
 }
-
 function selectShipping(el) {
   document.querySelectorAll('.shipping-option').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
@@ -2873,46 +2896,31 @@ async function placeOrder() {
     return;
   }
 
-  const subtotal = cart.reduce((s, i) => s + (parseInt(i.price.replace(/[^0-9]/g, '')) || 0) * i.qty, 0);
-  const shipping = parseInt(document.querySelector('.shipping-option.selected')?.dataset?.cost || '0');
-  const total = Math.max(0, subtotal - couponDiscount + shipping);
+  if (selectedPayment !== 'online') {
+    errEl.textContent = 'Please select Online Payment to continue.';
+    errEl.style.display = 'block';
+    return;
+  }
 
+  const shippingOption = document.querySelector('.shipping-option.selected');
   const btn = document.getElementById('placeOrderBtn');
   btn.disabled = true;
   btn.textContent = 'Placing Order...';
 
   try {
-    const orderData = {
+    const result = await submitOnlineOrder({
       customer_name: name,
       customer_phone: phone,
       customer_email: email,
       customer_address: address,
-      payment_method: selectedPayment,
-      shipping_method: selectedShipping,
-      shipping_cost: shipping,
       notes: notes,
-      total_amount: total,
-      subtotal: subtotal,
-      discount: couponDiscount,
-      coupon_code: appliedCoupon || '',
-      status: 'pending',
-      items: cart.map(i => ({ product_id: i.id, product_name: i.name, quantity: i.qty, unit_price: i.price, size: i.size, color: i.color }))
-    };
-    const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
-    if (res.ok) {
-      const result = await res.json();
-      if (result.success) {
-        cart = []; couponDiscount = 0; appliedCoupon = null;
-        saveCart();
-        closeCart();
-        toast('Order placed successfully! Order #' + (result.order_id || '').toString().substring(0, 8), 'success');
-        btn.disabled = false;
-        btn.textContent = 'Place Order';
-        return;
-      }
-    }
-    const errData = await res.json().catch(function() { return {}; });
-    throw new Error(errData.error || 'Server error (status ' + res.status + ')');
+      shipping_method: shippingOption ? shippingOption.dataset.value : 'standard'
+    });
+    cart = []; couponDiscount = 0; appliedCoupon = null;
+    saveCart();
+    closeCart();
+    toast('Order placed successfully! Order #' + String(result.order_id || '').substring(0, 8), 'success');
+    showOnlinePaymentModal(result);
   } catch (e) {
     errEl.textContent = e.message || 'Network error. Please try again.';
     errEl.style.display = 'block';
@@ -2920,6 +2928,140 @@ async function placeOrder() {
 
   btn.disabled = false;
   btn.textContent = 'Place Order';
+}
+
+// ---------- ONLINE PAYMENT (QR) ----------
+let shopPaymentConfig = null;
+
+async function getShopPaymentConfig() {
+  if (shopPaymentConfig) return shopPaymentConfig;
+  try {
+    const res = await fetch('/api/payment-config');
+    if (!res.ok) throw new Error('unavailable');
+    shopPaymentConfig = await res.json();
+  } catch (e) {
+    shopPaymentConfig = { method: 'online', methodLabel: 'Online Payment', qrUrl: '', accountName: '', instructions: '', accountDetails: '', isPlaceholder: true };
+  }
+  return shopPaymentConfig;
+}
+
+function escapePaymentHtml(value) {
+  return String(value === undefined || value === null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/**
+ * Order creation is server-authoritative: only product references, the payment
+ * method and the delivery choice are sent. Totals are recomputed server-side so
+ * the QR amount always matches the stored order.
+ */
+async function submitOnlineOrder(fields) {
+  if (!window.__orderIdempotencyKey) {
+    window.__orderIdempotencyKey = 'sp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+  }
+  const orderData = {
+    customer_name: fields.customer_name,
+    customer_phone: fields.customer_phone,
+    customer_email: fields.customer_email || '',
+    customer_address: fields.customer_address,
+    payment_method: 'online',
+    shipping_method: fields.shipping_method || 'standard',
+    notes: fields.notes || '',
+    coupon_code: appliedCoupon || '',
+    idempotency_key: window.__orderIdempotencyKey,
+    items: cart.map(function(i) {
+      return { product_id: i.id, quantity: i.qty, size: i.size || '', color: i.color || '' };
+    })
+  };
+  const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
+  const data = await res.json().catch(function() { return {}; });
+  if (!res.ok) throw new Error(data.error || 'Server error (status ' + res.status + ')');
+  if (!data.success) throw new Error(data.error || 'Could not place the order.');
+  // A new order needs a new key, otherwise the next order would be treated as a duplicate.
+  window.__orderIdempotencyKey = '';
+  data.payment = data.payment || await getShopPaymentConfig();
+  return data;
+}
+
+function showOnlinePaymentModal(result) {
+  var cfg = result.payment || {};
+  var amount = Number(result.amount) || 0;
+  var orderId = result.order_id || '';
+  var token = result.payment_token || '';
+  var paymentStatus = result.payment_status || 'pending';
+  var submitted = paymentStatus === 'submitted' || paymentStatus === 'verified';
+
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'onlinePaymentModal';
+  overlay.style.display = 'flex';
+  overlay.innerHTML =
+    '<div class="modal-box pay-modal-box">' +
+      '<button class="modal-close-btn" onclick="closeOnlinePaymentModal()"><i class="fas fa-times"></i></button>' +
+      '<div class="modal-body">' +
+        '<h3 style="text-align:center;">Pay Online</h3>' +
+        '<p class="pay-amount">Rs. ' + amount.toLocaleString() + '</p>' +
+        '<p class="pay-amount-label">Exact amount for order #' + escapePaymentHtml(String(orderId).substring(0, 8)) + '</p>' +
+        '<div class="pay-qr-wrap"><img src="' + escapePaymentHtml(cfg.qrUrl || '') + '" alt="Shop payment QR code" onerror="this.outerHTML=\'<div class=&quot;pay-qr-missing&quot;><i class=&quot;fas fa-triangle-exclamation&quot;></i> Shop QR not configured yet</div>\'"></div>' +
+        (cfg.accountName ? '<div class="pay-row"><span>Account name</span><strong>' + escapePaymentHtml(cfg.accountName) + '</strong></div>' : '') +
+        (cfg.accountDetails ? '<div class="pay-note">' + escapePaymentHtml(cfg.accountDetails) + '</div>' : '') +
+        '<div class="pay-note">' + escapePaymentHtml(cfg.instructions || 'Scan the QR code with your payment app, then tap "I Have Paid".') + '</div>' +
+        (cfg.isPlaceholder ? '<div class="pay-warning"><i class="fas fa-triangle-exclamation"></i> Shop QR image is not configured yet. Please contact the store before paying.</div>' : '') +
+        '<div class="pay-state" id="onlinePayState">' + (paymentStatus === 'verified'
+            ? '<i class="fas fa-circle-check"></i> Payment verified. We are preparing your order.'
+            : submitted
+              ? '<i class="fas fa-hourglass-half"></i> Payment submitted. Our team will verify it shortly.'
+              : '<i class="fas fa-clock"></i> Payment not submitted yet.') + '</div>' +
+        '<div style="margin-top:14px;">' +
+          '<button class="btn btn-primary" id="onlinePayBtn" style="width:100%;" ' + (submitted ? 'disabled' : '') + '>' +
+            (submitted ? '<i class="fas fa-check-circle"></i> Payment submitted' : '<i class="fas fa-check-circle"></i> I Have Paid') +
+          '</button>' +
+        '</div>' +
+        '<p class="pay-fine">Submitting payment does not confirm it automatically. Our team verifies every online payment manually before your order is dispatched.</p>' +
+      '</div>' +
+    '</div>';
+
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeOnlinePaymentModal(); });
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  var btn = document.getElementById('onlinePayBtn');
+  if (btn && !btn.disabled) {
+    btn.addEventListener('click', function() { submitOnlinePayment(orderId, token, btn); });
+  }
+}
+
+function closeOnlinePaymentModal() {
+  var modal = document.getElementById('onlinePaymentModal');
+  if (modal) modal.remove();
+  document.body.style.overflow = '';
+}
+
+async function submitOnlinePayment(orderId, token, btn) {
+  if (!orderId || !token) { toast('This payment session expired. Please place a new order.', 'error'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+  try {
+    const res = await fetch('/api/orders/' + encodeURIComponent(orderId) + '/payment-submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_token: token })
+    });
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) throw new Error(data.error || 'Could not submit payment');
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> Payment submitted';
+    var stateEl = document.getElementById('onlinePayState');
+    if (stateEl) {
+      stateEl.className = 'pay-state submitted';
+      stateEl.innerHTML = '<i class="fas fa-hourglass-half"></i> ' + escapePaymentHtml(data.message || 'Payment submitted. Our team will verify it shortly.');
+    }
+    toast('Payment submitted for verification', 'success');
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> I Have Paid';
+    toast(e.message || 'Network error. Please try again.', 'error');
+  }
 }
 
 async function applyCoupon() {
@@ -3498,7 +3640,7 @@ const policyData = {
   returns: { title: 'Return & Refund Policy', content: '<p>Your satisfaction is our priority.</p><ul><li><strong>Returns:</strong> Accepted within 7 days of delivery</li><li><strong>Condition:</strong> Products must be unused and in original packaging</li><li><strong>Refunds:</strong> Processed within 5-7 business days after inspection</li><li><strong>Exchanges:</strong> Available for defective or damaged items</li><li>To initiate, contact us at info@aryalstore.com or call +977 9867135403</li></ul>' },
   privacy: { title: 'Privacy Policy', content: '<p>We take your privacy seriously.</p><ul><li><strong>Information:</strong> Name, phone, email, delivery address</li><li><strong>Usage:</strong> Process orders and provide support</li><li><strong>Protection:</strong> Security measures to protect your data</li><li><strong>Sharing:</strong> We do not sell your data to third parties</li></ul>' },
   terms: { title: 'Terms of Service', content: '<p>By using Aryal Store, you agree to these terms.</p><ul><li><strong>Orders:</strong> Subject to product availability</li><li><strong>Pricing:</strong> Subject to change without notice</li><li><strong>Payments:</strong> Full payment required before processing</li><li><strong>Delivery:</strong> Not responsible for courier delays</li></ul>' },
-  faq: { title: 'Frequently Asked Questions', content: '<ul><li><strong>What payment methods do you accept?</strong><br>Cash on Delivery, eSewa, and Khalti.</li><li><strong>How long does delivery take?</strong><br>3-5 business days within Nepal.</li><li><strong>Can I cancel my order?</strong><br>Yes, within 2 hours of placing.</li><li><strong>Do you deliver to remote areas?</strong><br>Yes, all areas of Nepal.</li><li><strong>How do I track my order?</strong><br>Use the Track Order feature or contact us.</li></ul>' }
+  faq: { title: 'Frequently Asked Questions', content: '<ul><li><strong>What payment methods do you accept?</strong><br>Online payment only. Scan the shop QR code shown after placing your order, then tap "I Have Paid". Cash on Delivery is no longer available.</li><li><strong>When is my order confirmed?</strong><br>After our team verifies your online payment. You will see the payment status on your order.</li><li><strong>How long does delivery take?</strong><br>3-5 business days within Nepal.</li><li><strong>Can I cancel my order?</strong><br>Yes, within 2 hours of placing.</li><li><strong>Do you deliver to remote areas?</strong><br>Yes, all areas of Nepal.</li><li><strong>How do I track my order?</strong><br>Use the Track Order feature or contact us.</li></ul>' }
 };
 
 function openPolicy(key) {
@@ -3555,7 +3697,7 @@ async function trackOrder() {
       return '<div class="order-card">' +
         '<div class="order-header"><h5>Order #' + orderId + '</h5><span class="status-badge" style="background:' + (statusColors[o.status] || '#888') + ';">' + (o.status || 'pending') + '</span></div>' +
         '<div class="order-body">' +
-        '<div><strong>Total:</strong> ' + (o.total_amount || '') + ' | <strong>Payment:</strong> ' + (o.payment_method || '') + '</div>' +
+        '<div><strong>Total:</strong> ' + (o.total_amount || '') + ' | <strong>' + paymentStatusText(o) + '</strong></div>' +
         '<div class="item-list">' + (items || []).map(i => '<span>' + (i.product_name || '') + ' x' + (i.quantity || 0) + '</span>').join('') + '</div>' +
         '<div class="timeline">' + steps.filter(s => s).map((s, i) =>
           '<div class="step"><div class="dot ' + (i < currentIdx ? 'completed' : i === currentIdx ? 'current' : '') + '"></div>' + (s || '') + '</div>'
@@ -4685,7 +4827,7 @@ async function loadOrdersPanel() {
       const items = (o.items || []).map(i => '<span>' + (i.product_name || '') + ' x' + (i.quantity || 0) + '</span>').join('');
       return '<div class="order-history-card">' +
         '<div class="oh-header"><span>Order #' + o.id + '</span><span class="oh-status" style="background:' + (statusColors[o.status] || '#888') + '20;color:' + (statusColors[o.status] || '#888') + ';">' + (o.status || 'pending') + '</span></div>' +
-        '<div class="oh-body"><p>Total: ' + (o.total_amount || '0') + ' | ' + (o.payment_method || '') + '</p>' +
+        '<div class="oh-body"><p>Total: ' + (o.total_amount || '0') + ' | ' + paymentStatusText(o) + '</p>' +
         '<p>' + new Date(o.created_at).toLocaleDateString() + '</p>' +
         '<div class="oh-items">' + items + '</div></div>' +
         '<div class="oh-footer">' +
@@ -4773,7 +4915,7 @@ async function fetchOrderHistory(phone) {
         '<div class="oh-header"><h5>Order #' + orderId + '</h5><span class="oh-status" style="background:' + statusColor + ';">' + (o.status || 'pending') + '</span></div>' +
         '<div class="oh-body">' +
         '<div class="oh-items">' + items.map(i => '<span>' + (i.product_name || '') + ' x' + (i.quantity || 0) + '</span>').join('') + '</div>' +
-        '<div class="oh-details"><span>Total: ' + (o.total_amount || '0') + '</span><span>' + (o.payment_method || '') + '</span><span>' + (o.created_at || '').substring(0, 10) + '</span></div>' +
+        '<div class="oh-details"><span>Total: ' + (o.total_amount || '0') + '</span><span>' + paymentStatusText(o) + '</span><span>' + (o.created_at || '').substring(0, 10) + '</span></div>' +
         '<div style="display:flex;gap:4px;margin-top:8px;overflow-x:auto;padding:6px 0;">' +
         steps.map((s, i) =>
           '<div style="text-align:center;min-width:60px;font-size:0.65rem;color:' + (i <= currentIdx ? '#e94560' : '#ccc') + ';">' +
@@ -4809,7 +4951,7 @@ async function reorder(orderId) {
       const newOrder = await supaInsert('orders', {
         customer_name: orig.customer_name, customer_phone: orig.customer_phone,
         customer_email: orig.customer_email, customer_address: orig.customer_address,
-        payment_method: orig.payment_method, notes: 'Reorder from #' + orig.id,
+        payment_method: 'online', payment_status: 'pending', notes: 'Reorder from #' + orig.id,
         total_amount: orig.total_amount, subtotal: orig.subtotal,
         status: 'pending', created_at: new Date().toISOString()
       });
@@ -5178,7 +5320,7 @@ trackOrder = async function() {
       return '<div class="order-card">' +
         '<div class="order-header"><h5>Order #' + (o.id || '').substring(0, 8) + '</h5><span class="status-badge" style="background:' + (statusColors[o.status] || '#888') + ';">' + (o.status || '') + '</span></div>' +
         '<div class="order-body">' +
-        '<div><strong>Total:</strong> ' + (o.total_amount || '0') + ' | <strong>Payment:</strong> ' + (o.payment_method || '') + '</div>' +
+        '<div><strong>Total:</strong> ' + (o.total_amount || '0') + ' | <strong>' + paymentStatusText(o) + '</strong></div>' +
         '<div class="item-list">' + items.map(i => '<span>' + (i.product_name || '') + ' x' + (i.quantity || 0) + '</span>').join('') + '</div>' +
         '<div class="timeline">' + steps.map((s, i) =>
           '<div class="step"><div class="dot ' + (i < currentIdx ? 'completed' : i === currentIdx ? 'current' : '') + '"></div>' + s + '</div>'
@@ -5875,19 +6017,18 @@ function initCarousel() {
     var notes = document.getElementById('cmNotes').value.trim();
     var paymentEl = document.querySelector('.cm-payment-option.selected');
     var shippingEl = document.querySelector('.cm-shipping-option.selected');
-    var paymentMethod = paymentEl ? paymentEl.dataset.value : 'cod';
+    var paymentMethod = paymentEl ? paymentEl.dataset.value : '';
     var shippingMethod = shippingEl ? shippingEl.dataset.value : 'standard';
     var shippingCost = shippingEl ? parseInt(shippingEl.dataset.cost) : 0;
     var subtotal = cart.reduce(function(s, i) { return s + (parseInt(i.price.replace(/[^0-9]/g,'')) || 0) * i.qty; }, 0);
     var total = Math.max(0, subtotal - couponDiscount + shippingCost);
-    var paymentLabels = { cod: 'Cash on Delivery', esewa: 'eSewa', khalti: 'Khalti' };
     var shippingLabels = { standard: 'Standard (Free)', express: 'Express (Rs. 200)', same_day: 'Same Day (Rs. 500)' };
     var itemsCount = cart.reduce(function(s,i) { return s + i.qty; }, 0);
     container.innerHTML = '<div class="cm-summary-item"><span class="cm-si-label">Items</span><span class="cm-si-value">' + itemsCount + ' items</span></div>' +
       '<div class="cm-summary-item"><span class="cm-si-label">Subtotal</span><span class="cm-si-value">Rs. ' + subtotal.toLocaleString() + '</span></div>' +
       (couponDiscount > 0 ? '<div class="cm-summary-item"><span class="cm-si-label">Discount</span><span class="cm-si-value" style="color:#27ae60;">-Rs. ' + couponDiscount.toLocaleString() + '</span></div>' : '') +
       '<div class="cm-summary-item"><span class="cm-si-label">Shipping</span><span class="cm-si-value">' + (shippingLabels[shippingMethod] || 'Standard (Free)') + (shippingCost > 0 ? ' (Rs. ' + shippingCost.toLocaleString() + ')' : '') + '</span></div>' +
-      '<div class="cm-summary-item"><span class="cm-si-label">Payment</span><span class="cm-si-value">' + (paymentLabels[paymentMethod] || paymentMethod) + '</span></div>' +
+      '<div class="cm-summary-item"><span class="cm-si-label">Payment</span><span class="cm-si-value">' + (paymentMethod === 'online' ? 'Online Payment (shop QR code)' : '<span style="color:#e74c3c;">Not selected</span>') + '</span></div>' +
       '<div class="cm-summary-item"><span class="cm-si-label">Deliver to</span><span class="cm-si-value">' + name + ', ' + phone + '<br>' + address + '</span></div>' +
       (email ? '<div class="cm-summary-item"><span class="cm-si-label">Email</span><span class="cm-si-value">' + email + '</span></div>' : '') +
       (notes ? '<div class="cm-summary-item"><span class="cm-si-label">Notes</span><span class="cm-si-value">' + notes + '</span></div>' : '') +
@@ -5900,39 +6041,22 @@ function initCarousel() {
     var address = document.getElementById('cmAddress').value.trim();
     var notes = document.getElementById('cmNotes').value.trim();
     if (!name || !phone || !address) { toast('Please fill in all required fields', 'error'); return; }
-    var shippingEl = document.querySelector('.cm-shipping-option.selected');
     var paymentEl = document.querySelector('.cm-payment-option.selected');
-    var shippingMethod = shippingEl ? shippingEl.dataset.value : 'standard';
-    var paymentMethod = paymentEl ? paymentEl.dataset.value : 'cod';
-    var shippingCost = shippingEl ? parseInt(shippingEl.dataset.cost) : 0;
-    var subtotal = cart.reduce(function(s, i) { return s + (parseInt(i.price.replace(/[^0-9]/g,'')) || 0) * i.qty; }, 0);
-    var total = Math.max(0, subtotal - couponDiscount + shippingCost);
+    if (!paymentEl || paymentEl.dataset.value !== 'online') { toast('Please select Online Payment to continue', 'error'); cmShowStep(3); return; }
+    var shippingEl = document.querySelector('.cm-shipping-option.selected');
     var btn = document.getElementById('cmPlaceOrderBtn');
     btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing...';
     try {
-      var orderData = {
+      var result = await submitOnlineOrder({
         customer_name: name, customer_phone: phone, customer_email: email,
-        customer_address: address, payment_method: paymentMethod,
-        shipping_method: shippingMethod, shipping_cost: shippingCost,
-        notes: notes, total_amount: total, subtotal: subtotal,
-        discount: couponDiscount, coupon_code: appliedCoupon || '',
-        status: 'pending',
-        items: cart.map(function(i) { return { product_id: i.id, product_name: i.name, quantity: i.qty, unit_price: i.price, size: i.size, color: i.color }; })
-      };
-      var res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
-      if (res.ok) {
-        var result = await res.json();
-        if (result.success) {
-          cart = []; couponDiscount = 0; appliedCoupon = null;
-          saveCart();
-          closeCheckoutModal();
-          toast('Order placed successfully! Order #' + (result.order_id || '').toString().substring(0, 8), 'success');
-          btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Place Order';
-          return;
-        }
-      }
-      var errData = await res.json().catch(function() { return {}; });
-      throw new Error(errData.error || 'Server error (status ' + res.status + ')');
+        customer_address: address, notes: notes,
+        shipping_method: shippingEl ? shippingEl.dataset.value : 'standard'
+      });
+      cart = []; couponDiscount = 0; appliedCoupon = null;
+      saveCart();
+      closeCheckoutModal();
+      toast('Order placed successfully! Order #' + String(result.order_id || '').substring(0, 8), 'success');
+      showOnlinePaymentModal(result);
     } catch (e) {
       toast(e.message || 'Network error. Please try again.', 'error');
     }

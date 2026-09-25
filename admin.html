@@ -313,6 +313,7 @@
             <button class="filter-btn" onclick="filterOrders('shipped')">Shipped</button>
             <button class="filter-btn" onclick="filterOrders('delivered')">Delivered</button>
             <button class="filter-btn" onclick="filterOrders('cancelled')">Cancelled</button>
+            <button class="filter-btn" onclick="filterOrders('awaiting_payment')">Awaiting Payment</button>
           </div>
           <div id="ordersList"></div>
         </div>
@@ -978,11 +979,46 @@ async function loadOrders() {
   try { allOrders = await api('/orders'); renderFilteredOrders(); } catch {}
 }
 function renderFilteredOrders() {
-  const filtered = currentOrderFilter === 'all' ? allOrders : allOrders.filter(o => o.status === currentOrderFilter);
+  const filtered = currentOrderFilter === 'all'
+    ? allOrders
+    : currentOrderFilter === 'awaiting_payment'
+      ? allOrders.filter(o => (o.payment_status || 'pending') !== 'verified' && o.status !== 'cancelled')
+      : allOrders.filter(o => o.status === currentOrderFilter);
   const list = document.getElementById('ordersList');
   if (!filtered.length) { list.innerHTML = '<p style="color:#888;">No orders.</p>'; return; }
   const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
-  list.innerHTML = filtered.map(o => '<div class="list-item" style="flex-direction:column;align-items:stretch;"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;"><div class="info"><h5>#' + o.id.substring(0, 8) + ' - ' + escape(o.customer_name) + '</h5><p style="font-size:0.8rem;color:#888;">' + (o.customer_phone || '') + ' | ' + (o.total_amount || '0') + ' | ' + (o.created_at || '').substring(0, 10) + '</p></div><span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + o.status + '</span></div><div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">' + ['pending','processing','shipped','delivered','cancelled'].map(s => '<button class="btn btn-sm ' + (s === o.status ? 'btn-primary' : '') + '" style="' + (s === o.status ? '' : 'background:#eee;color:#555;') + '" onclick="updateOrderStatus(\'' + o.id + '\',\'' + s + '\')">' + s + '</button>').join('') + '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\'' + o.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
+  const payColors = { pending: '#f39c12', submitted: '#e67e22', verified: '#27ae60', rejected: '#e74c3c' };
+  const payLabels = { pending: 'Pending', submitted: 'Submitted', verified: 'Verified', rejected: 'Rejected' };
+  list.innerHTML = filtered.map(o => {
+    const payStatus = o.payment_status || 'pending';
+    const isOnline = o.payment_method === 'online';
+    const payBadge = isOnline
+      ? '<span class="status-badge" style="background:' + (payColors[payStatus] || '#888') + ';" title="Payment status">Pay: ' + (payLabels[payStatus] || payStatus) + '</span>'
+      : '<span class="status-badge" style="background:#6b7280;" title="Legacy order created before online-only checkout">Legacy: ' + escape(o.payment_method || 'n/a') + '</span>';
+    const payActions = isOnline && (payStatus === 'submitted' || payStatus === 'pending')
+      ? '<button class="btn btn-sm btn-success" onclick="updateOrderPayment(\'' + o.id + '\',\'verified\')"><i class="fas fa-check"></i> Verify</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="updateOrderPayment(\'' + o.id + '\',\'rejected\')"><i class="fas fa-times"></i> Reject</button>'
+      : isOnline && payStatus === 'rejected'
+        ? '<button class="btn btn-sm btn-success" onclick="updateOrderPayment(\'' + o.id + '\',\'verified\')"><i class="fas fa-check"></i> Verify</button>'
+        : isOnline
+          ? '<button class="btn btn-sm" style="background:#eee;color:#555;" onclick="updateOrderPayment(\'' + o.id + '\',\'rejected\')">Reject</button>'
+          : '';
+    return '<div class="list-item" style="flex-direction:column;align-items:stretch;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">' +
+        '<div class="info"><h5>#' + String(o.id).substring(0, 8) + ' - ' + escape(o.customer_name) + '</h5>' +
+        '<p style="font-size:0.8rem;color:#888;">' + (o.customer_phone || '') + ' | ' + (o.total_amount || '0') + ' | ' + (o.created_at || '').substring(0, 10) + '</p>' +
+        (o.payment_reference ? '<p style="font-size:0.75rem;color:#888;">Ref: ' + escape(o.payment_reference) + '</p>' : '') +
+        (o.payment_submitted_at ? '<p style="font-size:0.72rem;color:#999;">Submitted: ' + escape(String(o.payment_submitted_at).substring(0, 16).replace('T', ' ')) + '</p>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' + payBadge +
+        '<span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + o.status + '</span></div>' +
+      '</div>' +
+      '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">' +
+        ['pending','processing','shipped','delivered','cancelled'].map(s => '<button class="btn btn-sm ' + (s === o.status ? 'btn-primary' : '') + '" style="' + (s === o.status ? '' : 'background:#eee;color:#555;') + '" onclick="updateOrderStatus(\'' + o.id + '\',\'' + s + '\')">' + s + '</button>').join('') +
+        payActions +
+        '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\'' + o.id + '\')"><i class="fas fa-trash"></i></button>' +
+      '</div></div>';
+  }).join('');
 }
 function filterOrders(filter) {
   currentOrderFilter = filter;
@@ -990,7 +1026,22 @@ function filterOrders(filter) {
   renderFilteredOrders();
 }
 async function updateOrderStatus(id, status) {
-  try { await api('/orders/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status }) }); loadOrders(); showMsg('Updated.', 'success'); } catch {}
+  try { await api('/orders/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status }) }); loadOrders(); showMsg('Updated.', 'success'); } catch (e) { showMsg(e.message || 'Could not update status.', 'error'); }
+}
+async function updateOrderPayment(id, paymentStatus) {
+  if (paymentStatus === 'verified') {
+    if (!confirm('Confirm that you received the online payment of Rs. ' + (currentOrderTotal(id) || '?') + '?')) return;
+  } else if (!confirm('Reject this payment? The customer will need to pay again.')) return;
+  const note = paymentStatus === 'rejected' ? (prompt('Reason for rejecting (shown to the customer in the order timeline):') || '') : '';
+  try {
+    await api('/orders/' + id + '/payment-status', { method: 'PUT', body: JSON.stringify({ payment_status: paymentStatus, note: note }) });
+    loadOrders();
+    showMsg(paymentStatus === 'verified' ? 'Payment verified.' : 'Payment rejected.', 'success');
+  } catch (e) { showMsg(e.message || 'Could not update payment status.', 'error'); }
+}
+function currentOrderTotal(id) {
+  const order = allOrders.find(o => o.id === id);
+  return order ? order.total_amount : '';
 }
 async function deleteOrder(id) {
   if (!confirm('Delete order?')) return;

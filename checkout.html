@@ -121,9 +121,12 @@
       <!-- Step 5: Payment Method -->
       <div class="co-step-content" id="step5">
         <div class="co-card">
-          <div class="co-card-title"><i class="fas fa-credit-card" style="color:var(--co-primary);"></i> Payment Method</div>
-          <div class="co-card-subtitle">Select your preferred payment option</div>
+          <div class="co-card-title"><i class="fas fa-qrcode" style="color:var(--co-primary);"></i> Payment Method</div>
+          <div class="co-card-subtitle">Only online payment is available. Cash on Delivery has been removed.</div>
           <div id="coPaymentOptions"></div>
+          <div id="coPaymentNotice" style="margin-top:12px;font-size:0.8rem;color:var(--co-text-muted);line-height:1.5;">
+            <i class="fas fa-circle-info"></i> Place your order first, then the shop QR code with your exact payable amount appears on the confirmation screen.
+          </div>
           <div class="co-actions">
             <button class="co-btn co-btn-secondary" data-goto="4"><i class="fas fa-arrow-left"></i> Back</button>
             <button class="co-btn co-btn-primary co-btn-lg" data-goto="6">Review Order <i class="fas fa-arrow-right"></i></button>
