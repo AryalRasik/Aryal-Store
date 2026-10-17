@@ -1,15 +1,15 @@
 :root {
-  --auth-primary: #e94560;
-  --auth-primary-dark: #d63851;
-  --auth-primary-light: rgba(182, 154, 105, 0.08);
+  --auth-primary: #111111;
+  --auth-primary-dark: #111111;
+  --auth-primary-light: rgba(17, 17, 17, 0.08);
   --auth-bg: #ffffff;
-  --auth-bg-alt: #f8f9fa;
+  --auth-bg-alt: #F7F7F7;
   --auth-surface: #ffffff;
-  --auth-text: #1a1a2e;
+  --auth-text: #111111;
   --auth-text-secondary: #6b7280;
   --auth-text-muted: #9ca3af;
   --auth-border: #e5e7eb;
-  --auth-border-focus: #e94560;
+  --auth-border-focus: #111111;
   --auth-input-bg: #ffffff;
   --auth-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
   --auth-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.12);
@@ -22,26 +22,26 @@
   --auth-warning: #f59e0b;
   --auth-google: #4285f4;
   --auth-facebook: #1877f2;
-  --auth-gradient-start: #1a1a2e;
-  --auth-gradient-end: #16213e;
+  --auth-gradient-start: #111111;
+  --auth-gradient-end: #111111;
   --auth-transition: 200ms ease;
   --font-sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 [data-theme="dark"] {
-  --auth-bg: #0f0f23;
-  --auth-bg-alt: #1a1a2e;
-  --auth-surface: #1a1a2e;
+  --auth-bg: #111111;
+  --auth-bg-alt: #111111;
+  --auth-surface: #111111;
   --auth-text: #e5e7eb;
   --auth-text-secondary: #9ca3af;
   --auth-text-muted: #6b7280;
-  --auth-border: #2d2d4a;
-  --auth-input-bg: #12122a;
+  --auth-border: #333333;
+  --auth-input-bg: #111111;
   --auth-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   --auth-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.4);
   --auth-overlay: rgba(0, 0, 0, 0.7);
-  --auth-gradient-start: #0f0f23;
-  --auth-gradient-end: #1a1a2e;
+  --auth-gradient-start: #111111;
+  --auth-gradient-end: #111111;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -80,8 +80,8 @@ html, body {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 30% 50%, rgba(182, 154, 105, 0.15) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 20%, rgba(182, 154, 105, 0.1) 0%, transparent 50%);
+  background: radial-gradient(ellipse at 30% 50%, rgba(17, 17, 17, 0.15) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 20%, rgba(17, 17, 17, 0.1) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -281,7 +281,7 @@ html, body {
 
 .auth-input-group .auth-input:focus {
   border-color: var(--auth-border-focus);
-  box-shadow: 0 0 0 3px rgba(182, 154, 105, 0.1);
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.1);
 }
 
 .auth-input-group .auth-input.error {
@@ -490,7 +490,7 @@ html, body {
 
 .auth-select:focus {
   border-color: var(--auth-border-focus);
-  box-shadow: 0 0 0 3px rgba(182, 154, 105, 0.1);
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.1);
 }
 
 /* ========== CHECKBOX ========== */
@@ -608,7 +608,7 @@ html, body {
 
 .auth-btn-primary:hover {
   background: var(--auth-primary-dark);
-  box-shadow: 0 4px 14px rgba(182, 154, 105, 0.35);
+  box-shadow: 0 4px 14px rgba(17, 17, 17, 0.35);
   transform: translateY(-1px);
 }
 
@@ -719,18 +719,18 @@ html, body {
 .auth-social-btn.google:hover {
   border-color: #4285f4;
   box-shadow: 0 2px 8px rgba(66,133,244,0.2);
-  background: #f8f9ff;
+  background: #F7F7F7;
 }
 
 [data-theme="dark"] .auth-social-btn.google {
-  background: #1a1a2e;
+  background: #111111;
   color: #e5e7eb;
-  border-color: #2d2d4a;
+  border-color: #333333;
 }
 
 [data-theme="dark"] .auth-social-btn.google:hover {
   border-color: #4285f4;
-  background: #1a1a3e;
+  background: #1A1A1A;
 }
 
 .auth-social-btn.google svg {
@@ -745,7 +745,7 @@ html, body {
 }
 
 .auth-social-btn.facebook:hover {
-  background: #0d65d9;
+  background: #111111;
   box-shadow: 0 2px 12px rgba(24,119,242,0.35);
 }
 
@@ -839,7 +839,7 @@ html, body {
 
 .otp-input:focus {
   border-color: var(--auth-border-focus);
-  box-shadow: 0 0 0 3px rgba(182, 154, 105, 0.12);
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12);
 }
 
 .otp-input.filled {

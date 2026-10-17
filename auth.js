@@ -359,14 +359,14 @@ function showOtpModal(phone) {
     <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.15);">
       <div style="text-align:center;margin-bottom:20px;">
         <h3 style="margin-bottom:6px;font-size:1.2rem;">Verify Phone</h3>
-        <p style="color:#888;font-size:0.88rem;">Enter the code sent to ${phone}</p>
+        <p style="color:#666666;font-size:0.88rem;">Enter the code sent to ${phone}</p>
       </div>
       <div id="otpInputs" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
         ${[1,2,3,4,5,6].map(i => `<input type="text" maxlength="1" class="otp-digit" data-idx="${i-1}" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;border:1.5px solid #ddd;border-radius:8px;outline:none;font-family:inherit;">`).join('')}
       </div>
-      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#888;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#9A7D4F;font-weight:700;">05:00</span></div>
-      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#9A7D4F;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
-      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#9A7D4F;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
+      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#666666;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#111111;font-weight:700;">05:00</span></div>
+      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#111111;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
+      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#111111;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -418,14 +418,14 @@ function showEmailOtpModal(credential, email) {
     <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.15);">
       <div style="text-align:center;margin-bottom:20px;">
         <h3 style="margin-bottom:6px;font-size:1.2rem;">Verify Email</h3>
-        <p style="color:#888;font-size:0.88rem;word-break:break-all;">Enter the code sent to ${email}</p>
+        <p style="color:#666666;font-size:0.88rem;word-break:break-all;">Enter the code sent to ${email}</p>
       </div>
       <div id="otpInputs" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
         ${[1,2,3,4,5,6].map(i => `<input type="text" maxlength="1" class="otp-digit" data-idx="${i-1}" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;border:1.5px solid #ddd;border-radius:8px;outline:none;font-family:inherit;">`).join('')}
       </div>
-      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#888;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#9A7D4F;font-weight:700;">05:00</span></div>
-      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#9A7D4F;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
-      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#9A7D4F;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
+      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#666666;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#111111;font-weight:700;">05:00</span></div>
+      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#111111;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
+      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#111111;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -477,7 +477,7 @@ function showToast(message, type) {
   if (typeof toast === 'function') { toast(message, type); return; }
   const container = document.getElementById('toastContainer');
   if (!container) return;
-  const colors = { success: '#2F7D4F', error: '#B23A2E', info: '#8A7A63', warning: '#B69A69' };
+  const colors = { success: '#2F7D4F', error: '#B23A2E', info: '#666666', warning: '#111111' };
   const icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle', warning: 'fa-exclamation-triangle' };
   const el = document.createElement('div');
   el.className = 'toast toast-' + type;

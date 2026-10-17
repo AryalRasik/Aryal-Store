@@ -23,10 +23,10 @@
     REFUNDED: 'Refunded'
   };
   var STATUS_COLORS = {
-    REQUESTED: '#B69A69',
-    UNDER_REVIEW: '#B69A69',
-    DELIVERY_CHECK: '#B69A69',
-    AWAITING_APPROVAL: '#9A7D4F',
+    REQUESTED: '#111111',
+    UNDER_REVIEW: '#111111',
+    DELIVERY_CHECK: '#111111',
+    AWAITING_APPROVAL: '#111111',
     CONFIRMED: '#2F7D4F',
     PREPARING: '#2980b9',
     READY_FOR_PICKUP: '#2980b9',
@@ -48,7 +48,7 @@
   }
   function money(n) { return 'Rs. ' + (Number(n) || 0).toLocaleString(); }
   function label(status) { return STATUS_LABELS[status] || status || 'Unknown'; }
-  function color(status) { return STATUS_COLORS[status] || '#888'; }
+  function color(status) { return STATUS_COLORS[status] || '#666666'; }
   function fmtDate(v) {
     if (!v) return '';
     var d = new Date(v);
@@ -80,7 +80,7 @@
       '<div class="co-card">' +
         '<div class="co-card-title"><i class="fas fa-magnifying-glass"></i> Find Your Order</div>' +
         '<div class="co-card-subtitle">Enter the reference code from your confirmation and your tracking link.</div>' +
-        (message ? '<div style="background:#fdecea;color:#c0392b;border-radius:8px;padding:12px;margin-bottom:14px;">' + esc(message) + '</div>' : '') +
+        (message ? '<div style="background:#F7F7F7;color:#B23A2E;border-radius:8px;padding:12px;margin-bottom:14px;">' + esc(message) + '</div>' : '') +
         '<div class="tr-field"><label>Reference code</label><input id="trCodeInput" placeholder="ARY-000000-XXXX" value="' + esc(code) + '"></div>' +
         '<div class="tr-field"><label>Tracking token</label><input id="trTokenInput" placeholder="Paste the token from your tracking link" value="' + esc(token) + '"></div>' +
         '<button class="co-btn co-btn-primary co-btn-lg" id="trLookupBtn" style="width:100%;">Track Order</button>' +
@@ -239,9 +239,9 @@
       '</div>' +
       (o.status_description ? '<div class="tr-muted" style="margin:10px 0 0;">' + esc(o.status_description) + '</div>' : '') +
       progressBar(status) +
-      (status === 'DELIVERY_FAILED' ? '<div style="background:#fdecea;color:#c0392b;border-radius:8px;padding:10px;margin-top:8px;">Delivery could not be completed. Please contact us to reschedule.</div>' : '') +
-      (status === 'CANCELLED' ? '<div style="background:#f4f4f6;border-radius:8px;padding:10px;margin-top:8px;">This order was cancelled.</div>' : '') +
-      (status === 'REFUND_PENDING' || status === 'REFUNDED' ? '<div style="background:#fff7e6;border-radius:8px;padding:10px;margin-top:8px;">A refund is being processed for this order.</div>' : '') +
+      (status === 'DELIVERY_FAILED' ? '<div style="background:#F7F7F7;color:#B23A2E;border-radius:8px;padding:10px;margin-top:8px;">Delivery could not be completed. Please contact us to reschedule.</div>' : '') +
+      (status === 'CANCELLED' ? '<div style="background:#F7F7F7;border-radius:8px;padding:10px;margin-top:8px;">This order was cancelled.</div>' : '') +
+      (status === 'REFUND_PENDING' || status === 'REFUNDED' ? '<div style="background:#F7F7F7;border-radius:8px;padding:10px;margin-top:8px;">A refund is being processed for this order.</div>' : '') +
     '</div>';
 
     html += offerHtml(o);

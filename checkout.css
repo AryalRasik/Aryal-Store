@@ -1,14 +1,14 @@
 :root {
-  --co-primary: #e94560;
-  --co-primary-dark: #d63851;
-  --co-primary-light: rgba(182, 154, 105, 0.08);
-  --co-bg: #f5f5f7;
+  --co-primary: #111111;
+  --co-primary-dark: #111111;
+  --co-primary-light: rgba(17, 17, 17, 0.08);
+  --co-bg: #F7F7F7;
   --co-surface: #ffffff;
-  --co-text: #1a1a2e;
+  --co-text: #111111;
   --co-text-secondary: #6b7280;
   --co-text-muted: #9ca3af;
   --co-border: #e5e7eb;
-  --co-border-light: #f0f0f2;
+  --co-border-light: #F0F0F0;
   --co-success: #10b981;
   --co-error: #ef4444;
   --co-warning: #f59e0b;
@@ -20,19 +20,19 @@
   --co-radius-lg: 16px;
   --co-transition: 200ms ease;
   --co-step-done: #10b981;
-  --co-step-active: #e94560;
+  --co-step-active: #111111;
   --co-step-pending: #d1d5db;
   --font-sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 [data-theme="dark"] {
-  --co-bg: #0f0f23;
-  --co-surface: #1a1a2e;
+  --co-bg: #111111;
+  --co-surface: #111111;
   --co-text: #e5e7eb;
   --co-text-secondary: #9ca3af;
   --co-text-muted: #6b7280;
-  --co-border: #2d2d4a;
-  --co-border-light: #1e1e3a;
+  --co-border: #333333;
+  --co-border-light: #1A1A1A;
   --co-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   --co-shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.3);
   --co-shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.4);
@@ -151,7 +151,7 @@ html, body {
 .co-step.active .co-step-circle {
   background: var(--co-step-active);
   color: #fff;
-  box-shadow: 0 0 0 4px rgba(182, 154, 105, 0.15);
+  box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.15);
 }
 
 .co-step.pending .co-step-circle {
@@ -361,7 +361,7 @@ html, body {
 .co-field select:focus,
 .co-field textarea:focus {
   border-color: var(--co-primary);
-  box-shadow: 0 0 0 3px rgba(182, 154, 105, 0.1);
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.1);
 }
 
 .co-field input.error,
@@ -780,7 +780,7 @@ html, body {
 
 .co-btn-primary:hover {
   background: var(--co-primary-dark);
-  box-shadow: 0 4px 14px rgba(182, 154, 105, 0.3);
+  box-shadow: 0 4px 14px rgba(17, 17, 17, 0.3);
   transform: translateY(-1px);
 }
 

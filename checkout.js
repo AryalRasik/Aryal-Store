@@ -836,7 +836,7 @@
     container.innerHTML = `
       <div class="co-card">
         <div class="co-confirmation">
-          <div class="co-confirmation-icon" style="background:#B69A69;"><i class="fas fa-clipboard-check"></i></div>
+          <div class="co-confirmation-icon" style="background:#111111;"><i class="fas fa-clipboard-check"></i></div>
           <h2>Order Request Received</h2>
           <p class="order-id">Reference: <strong>${escapeHtml(orderCode || '')}</strong></p>
           <p style="max-width:540px;margin:12px auto;color:var(--co-text-secondary);font-size:0.95rem;">${escapeHtml(note)}</p>
@@ -844,7 +844,7 @@
             <div class="detail-row"><span class="detail-label">Estimated items total</span><span>Rs. ${(Number(total) || 0).toLocaleString()}</span></div>
             <div class="detail-row"><span class="detail-label">Status</span><span>Awaiting shop confirmation</span></div>
           </div>
-          <div style="background:#fff7e6;border:1px solid #ffe0a3;border-radius:8px;padding:14px;margin:16px 0;text-align:left;font-size:0.9rem;">
+          <div style="background:#F7F7F7;border:1px solid #E5E5E5;border-radius:8px;padding:14px;margin:16px 0;text-align:left;font-size:0.9rem;">
             <strong><i class="fas fa-info-circle"></i> What happens next?</strong>
             <ol style="margin:8px 0 0 18px;padding:0;line-height:1.6;">
               <li>We check product availability and delivery options.</li>

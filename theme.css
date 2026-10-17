@@ -1,40 +1,53 @@
 /* ==========================================================================
-   ARYAL STORE — LUXURY EDITORIAL THEME LAYER
+   ARYAL STORE — MONOCHROME EDITORIAL THEME LAYER
    Loaded AFTER every page stylesheet so it can refine tokens & components.
-   - Section 1: design tokens (storefront + checkout/auth retint)
-   - Section 2: global typography
-   - Section 3: storefront components (scoped to body.lux-store)
-   - Section 4: motion system
-   - Section 5: accessibility & reduced motion
+   Palette: #111111 (ink) · #FFFFFF (white) · #F7F7F7 (soft) ·
+            #E5E5E5 (border) · #666666 (secondary text)
+   Sections:
+     1. design tokens (storefront + checkout/auth retint, light & dark)
+     2. global typography
+     3. storefront components (scoped to body.lux-store)
+     4. motion system
+     5. accessibility & reduced motion
    ========================================================================== */
 
 /* ------------------------------------------------------------------ *
    1. DESIGN TOKENS
    ------------------------------------------------------------------ */
 :root {
-  /* Storefront luxury palette */
-  --lux-bg: #F7F2E9;
-  --lux-bg-2: #F0E8DC;
+  /* Storefront monochrome palette */
+  --lux-bg: #FFFFFF;
+  --lux-bg-2: #F7F7F7;
   --lux-surface: #FFFFFF;
-  --lux-text: #29251F;
-  --lux-text-2: #71685D;
-  --lux-border: #E6DED2;
-  --lux-gold: #B69A69;
-  --lux-gold-strong: #9A7D4F;
-  --lux-gold-dark: #7A6238;
-  --lux-gold-tint: rgba(182, 154, 105, 0.14);
-  --lux-dark: #29251F;
-  --lux-dark-2: #3A342B;
+  --lux-text: #111111;
+  --lux-text-2: #666666;
+  --lux-border: #E5E5E5;
+
+  --lux-ink: #111111;
+  --lux-ink-2: #333333;
+  --lux-muted: #666666;
+  --lux-soft: #F7F7F7;
+  --lux-line: #E5E5E5;
+
+  --lux-dark: #111111;
+  --lux-dark-2: #1A1A1A;
+  --lux-on-dark: #FFFFFF;
+  --lux-on-dark-2: #C9C9C9;
+
+  --lux-btn-bg: #111111;
+  --lux-btn-fg: #FFFFFF;
+  --lux-btn-bg-hover: #333333;
+
   --lux-success: #2F7D4F;
   --lux-error: #B23A2E;
 
-  --lux-radius-sm: 10px;
-  --lux-radius: 14px;
-  --lux-radius-lg: 20px;
+  --lux-radius-sm: 6px;
+  --lux-radius: 8px;
+  --lux-radius-lg: 10px;
 
-  --lux-shadow-sm: 0 2px 8px rgba(41, 37, 31, 0.05);
-  --lux-shadow: 0 10px 30px rgba(41, 37, 31, 0.08);
-  --lux-shadow-lg: 0 24px 60px rgba(41, 37, 31, 0.12);
+  --lux-shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.04);
+  --lux-shadow: 0 6px 24px rgba(17, 17, 17, 0.06);
+  --lux-shadow-lg: 0 16px 40px rgba(17, 17, 17, 0.10);
 
   --lux-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --lux-header-h: 56px;
@@ -45,85 +58,100 @@
   --font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* ---- Checkout token retint (light) ---- */
-  --co-primary: #9A7D4F;
-  --co-primary-dark: #7A6238;
-  --co-primary-light: rgba(182, 154, 105, 0.12);
-  --co-bg: #F7F2E9;
+  --co-primary: #111111;
+  --co-primary-dark: #333333;
+  --co-primary-light: rgba(17, 17, 17, 0.06);
+  --co-bg: #FFFFFF;
   --co-surface: #FFFFFF;
-  --co-text: #29251F;
-  --co-text-secondary: #71685D;
-  --co-text-muted: #9A9082;
-  --co-border: #E6DED2;
-  --co-border-light: #EFE8DC;
+  --co-text: #111111;
+  --co-text-secondary: #666666;
+  --co-text-muted: #999999;
+  --co-border: #E5E5E5;
+  --co-border-light: #F0F0F0;
   --co-success: #2F7D4F;
   --co-error: #B23A2E;
-  --co-warning: #B69A69;
-  --co-step-done: #2F7D4F;
-  --co-step-active: #9A7D4F;
-  --co-step-pending: #D8CDBA;
-  --co-radius: 14px;
-  --co-radius-sm: 10px;
-  --co-radius-lg: 18px;
-  --co-shadow: 0 2px 8px rgba(41, 37, 31, 0.06);
-  --co-shadow-lg: 0 10px 30px rgba(41, 37, 31, 0.08);
-  --co-shadow-xl: 0 24px 60px rgba(41, 37, 31, 0.12);
+  --co-warning: #111111;
+  --co-step-done: #111111;
+  --co-step-active: #111111;
+  --co-step-pending: #DDDDDD;
+  --co-radius: 8px;
+  --co-radius-sm: 6px;
+  --co-radius-lg: 10px;
+  --co-shadow: 0 1px 2px rgba(17, 17, 17, 0.04);
+  --co-shadow-lg: 0 6px 24px rgba(17, 17, 17, 0.06);
+  --co-shadow-xl: 0 16px 40px rgba(17, 17, 17, 0.10);
 
   /* ---- Auth token retint (light) ---- */
-  --auth-primary: #9A7D4F;
-  --auth-primary-dark: #7A6238;
-  --auth-primary-light: rgba(182, 154, 105, 0.12);
+  --auth-primary: #111111;
+  --auth-primary-dark: #333333;
+  --auth-primary-light: rgba(17, 17, 17, 0.06);
   --auth-bg: #FFFFFF;
-  --auth-bg-alt: #F7F2E9;
+  --auth-bg-alt: #F7F7F7;
   --auth-surface: #FFFFFF;
-  --auth-text: #29251F;
-  --auth-text-secondary: #71685D;
-  --auth-text-muted: #9A9082;
-  --auth-border: #E6DED2;
-  --auth-border-focus: #B69A69;
+  --auth-text: #111111;
+  --auth-text-secondary: #666666;
+  --auth-text-muted: #999999;
+  --auth-border: #E5E5E5;
+  --auth-border-focus: #111111;
   --auth-input-bg: #FFFFFF;
-  --auth-gradient-start: #29251F;
-  --auth-gradient-end: #3A342B;
-  --auth-radius: 14px;
-  --auth-radius-sm: 10px;
-  --auth-radius-lg: 18px;
-  --auth-shadow: 0 10px 30px rgba(41, 37, 31, 0.08);
-  --auth-shadow-lg: 0 24px 60px rgba(41, 37, 31, 0.12);
+  --auth-gradient-start: #111111;
+  --auth-gradient-end: #1A1A1A;
+  --auth-radius: 8px;
+  --auth-radius-sm: 6px;
+  --auth-radius-lg: 10px;
+  --auth-shadow: 0 6px 24px rgba(17, 17, 17, 0.06);
+  --auth-shadow-lg: 0 16px 40px rgba(17, 17, 17, 0.10);
 }
 
-/* Dark theme: preserve existing dark mode, retint accent to champagne gold */
+/* Dark theme: inverted monochrome (black surfaces, white ink) */
 [data-theme="dark"] {
-  --lux-bg: #15130F;
-  --lux-bg-2: #1E1B16;
-  --lux-surface: #201D18;
-  --lux-text: #EFE9DF;
-  --lux-text-2: #B3A894;
-  --lux-border: #3A342B;
+  --lux-bg: #0F0F0F;
+  --lux-bg-2: #161616;
+  --lux-surface: #171717;
+  --lux-text: #F5F5F5;
+  --lux-text-2: #A8A8A8;
+  --lux-border: #2A2A2A;
 
-  --co-primary: #C9AB77;
-  --co-primary-dark: #B69A69;
-  --co-primary-light: rgba(201, 171, 119, 0.14);
-  --co-bg: #0F0F23;
-  --co-surface: #1A1A2E;
-  --co-text: #E5E7EB;
-  --co-text-secondary: #9CA3AF;
-  --co-text-muted: #6B7280;
-  --co-border: #2D2D4A;
-  --co-border-light: #1E1E3A;
-  --co-step-active: #C9AB77;
+  --lux-ink: #F5F5F5;
+  --lux-ink-2: #E0E0E0;
+  --lux-muted: #A8A8A8;
+  --lux-soft: #161616;
+  --lux-line: #2A2A2A;
 
-  --auth-primary: #C9AB77;
-  --auth-primary-dark: #B69A69;
-  --auth-primary-light: rgba(201, 171, 119, 0.14);
-  --auth-bg: #0F0F23;
-  --auth-bg-alt: #1A1A2E;
-  --auth-surface: #1A1A2E;
-  --auth-text: #E5E7EB;
-  --auth-text-secondary: #9CA3AF;
-  --auth-text-muted: #6B7280;
-  --auth-border: #2D2D4A;
-  --auth-input-bg: #12122A;
-  --auth-gradient-start: #0F0F23;
-  --auth-gradient-end: #1A1A2E;
+  --lux-dark: #111111;
+  --lux-dark-2: #1A1A1A;
+
+  --lux-btn-bg: #F5F5F5;
+  --lux-btn-fg: #111111;
+  --lux-btn-bg-hover: #DADADA;
+
+  /* ---- Checkout retint (dark) ---- */
+  --co-primary: #F5F5F5;
+  --co-primary-dark: #FFFFFF;
+  --co-primary-light: rgba(255, 255, 255, 0.08);
+  --co-bg: #0F0F0F;
+  --co-surface: #171717;
+  --co-text: #F5F5F5;
+  --co-text-secondary: #A8A8A8;
+  --co-text-muted: #8A8A8A;
+  --co-border: #2A2A2A;
+  --co-border-light: #222222;
+  --co-step-active: #F5F5F5;
+
+  /* ---- Auth retint (dark) ---- */
+  --auth-primary: #F5F5F5;
+  --auth-primary-dark: #FFFFFF;
+  --auth-primary-light: rgba(255, 255, 255, 0.08);
+  --auth-bg: #0F0F0F;
+  --auth-bg-alt: #161616;
+  --auth-surface: #171717;
+  --auth-text: #F5F5F5;
+  --auth-text-secondary: #A8A8A8;
+  --auth-text-muted: #8A8A8A;
+  --auth-border: #2A2A2A;
+  --auth-input-bg: #161616;
+  --auth-gradient-start: #111111;
+  --auth-gradient-end: #1A1A1A;
 }
 
 /* ------------------------------------------------------------------ *
@@ -157,11 +185,11 @@ h1, h2, .section-title,
   height: var(--lux-announce-h);
   z-index: 1001;
   overflow: hidden;
-  background: linear-gradient(90deg, var(--lux-dark) 0%, var(--lux-dark-2) 100%);
-  color: var(--lux-gold);
+  background: var(--lux-dark);
+  color: var(--lux-on-dark);
   display: flex;
   align-items: center;
-  border-bottom: 1px solid rgba(182, 154, 105, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 .lux-announce-track {
   display: inline-flex;
@@ -175,7 +203,7 @@ h1, h2, .section-title,
   font-weight: 500;
   animation: luxMarquee 38s linear infinite;
 }
-.lux-announce-track .lux-dot { color: rgba(182, 154, 105, 0.6); }
+.lux-announce-track .lux-dot { color: rgba(255, 255, 255, 0.45); }
 @keyframes luxMarquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -186,13 +214,13 @@ h1, h2, .section-title,
 
 /* --- Header refinement --- */
 .lux-store header {
-  background: rgba(41, 37, 31, 0.96);
-  border-bottom: 1px solid rgba(182, 154, 105, 0.18);
+  background: rgba(17, 17, 17, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   transition: background 0.35s var(--lux-ease), box-shadow 0.35s var(--lux-ease);
 }
 .lux-store header.lux-scrolled {
-  background: rgba(41, 37, 31, 0.99);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  background: rgba(17, 17, 17, 0.99);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.30);
 }
 .lux-store .logo {
   font-family: var(--font-display);
@@ -200,11 +228,12 @@ h1, h2, .section-title,
   font-size: 1.7rem;
   line-height: 1.15;
   letter-spacing: 0.5px;
+  color: var(--lux-on-dark);
 }
-.lux-store .logo span { color: var(--lux-gold); }
-/* Dark header surfaces need the lighter gold (text stays AA against #29251F) */
-.lux-store .nav-icons > *:hover { color: var(--lux-gold); }
-.lux-store .slide-menu-header h3 span { color: var(--lux-gold); }
+.lux-store .logo span { color: var(--lux-on-dark-2); }
+.lux-store .nav-icons > *:hover { color: var(--lux-on-dark); }
+.lux-store .nav-icons .count-badge { background: var(--lux-on-dark); color: var(--lux-ink); }
+.lux-store .slide-menu-header h3 span { color: var(--lux-on-dark); }
 .lux-store .category-nav { top: var(--lux-nav-top, calc(var(--lux-announce-h) + var(--lux-header-h))); }
 
 /* --- Section titles --- */
@@ -214,7 +243,7 @@ h1, h2, .section-title,
   letter-spacing: 0.4px;
 }
 .lux-store .section-title::after {
-  background: linear-gradient(90deg, var(--lux-gold-strong), var(--lux-gold));
+  background: var(--lux-ink);
   height: 2px;
   width: 72px;
 }
@@ -222,39 +251,44 @@ h1, h2, .section-title,
 /* --- Buttons --- */
 .lux-store .btn { font-family: var(--font-sans); }
 .lux-store .btn-primary {
-  background: var(--lux-dark);
-  color: #fff;
+  background: var(--lux-btn-bg);
+  color: var(--lux-btn-fg);
   letter-spacing: 0.04em;
 }
 .lux-store .btn-primary:hover {
-  background: var(--lux-gold-dark);
-  box-shadow: 0 8px 22px rgba(122, 98, 56, 0.38);
+  background: var(--lux-btn-bg-hover);
+  box-shadow: 0 8px 22px rgba(17, 17, 17, 0.18);
 }
-/* Secondary = light gold fill + charcoal label (base hover darkened the fill but kept
-   charcoal text, dropping to ~3.4:1); brighten the fill on hover to keep 5.7:1. */
-.lux-store .btn-secondary { background: var(--lux-gold); color: var(--lux-dark); }
-.lux-store .btn-secondary:hover { background: var(--lux-gold); color: var(--lux-dark); }
+.lux-store .btn-secondary {
+  background: var(--lux-surface);
+  color: var(--lux-ink);
+  border: 1px solid var(--lux-ink);
+}
+.lux-store .btn-secondary:hover {
+  background: var(--lux-ink);
+  color: var(--lux-surface);
+}
 
 /* --- Search --- */
 .lux-store .header-search-desktop .search-box,
 .lux-store .search-box {
-  border-radius: 10px;
+  border-radius: 8px;
 }
-/* Mobile search sits on the dark header: gold fill + charcoal label stays 5.67:1 */
+/* Mobile search sits on the dark header */
 .lux-store .header-search-mobile .search-box button {
-  background: var(--lux-gold);
-  color: var(--lux-dark);
+  background: var(--lux-on-dark);
+  color: var(--lux-ink);
 }
 
 /* --- Hero carousel editorial treatment --- */
 .lux-store .hero-carousel { background: var(--lux-dark); }
 .lux-store .hero-carousel .carousel-slide .slide-overlay {
-  background: linear-gradient(90deg, rgba(41, 37, 31, 0.82) 0%, rgba(41, 37, 31, 0.5) 48%, rgba(41, 37, 31, 0.12) 100%);
+  background: linear-gradient(90deg, rgba(17, 17, 17, 0.84) 0%, rgba(17, 17, 17, 0.52) 48%, rgba(17, 17, 17, 0.14) 100%);
 }
 .lux-store .hero-carousel .carousel-slide .slide-badge {
-  background: rgba(182, 154, 105, 0.16);
-  color: var(--lux-gold);
-  border: 1px solid rgba(182, 154, 105, 0.4);
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--lux-on-dark);
+  border: 1px solid rgba(255, 255, 255, 0.34);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-size: 0.7rem;
@@ -263,29 +297,44 @@ h1, h2, .section-title,
 .lux-store .hero-carousel .carousel-slide .slide-content h1 {
   font-weight: 600;
   letter-spacing: 0.5px;
+  color: var(--lux-on-dark);
 }
-.lux-store .hero-carousel .carousel-slide .slide-content h1 span { color: var(--lux-gold); }
+.lux-store .hero-carousel .carousel-slide .slide-content h1 span { color: var(--lux-on-dark); }
 .lux-store .hero-carousel .carousel-slide .slide-content p {
-  color: #E4DCCB;
+  color: #E6E6E6;
   font-weight: 300;
   letter-spacing: 0.2px;
 }
-.lux-store .hero-carousel .carousel-dots .dot.active {
-  background: var(--lux-gold);
-  border-color: var(--lux-gold);
+/* Keep the black "Shop Now" button legible against dark hero photography */
+.lux-store .hero-carousel .carousel-slide .slide-buttons .btn-primary {
+  border: 1px solid rgba(255, 255, 255, 0.55);
 }
-.lux-store .hero-carousel .carousel-progress { background: var(--lux-gold); }
+.lux-store .hero-carousel .carousel-slide .btn-secondary-hero {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--lux-on-dark);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+.lux-store .hero-carousel .carousel-slide .btn-secondary-hero:hover {
+  background: var(--lux-on-dark);
+  color: var(--lux-ink);
+  transform: translateY(-2px);
+}
+.lux-store .hero-carousel .carousel-dots .dot.active {
+  background: var(--lux-on-dark);
+  border-color: var(--lux-on-dark);
+}
+.lux-store .hero-carousel .carousel-progress { background: var(--lux-on-dark); }
 
 /* --- Filter chips --- */
 .lux-store .filter-btn { border-color: var(--lux-border); color: var(--lux-text-2); }
 .lux-store .filter-btn.active {
-  border-color: var(--lux-gold-dark);
-  background: var(--lux-gold-dark);
-  color: #fff;
-  box-shadow: 0 3px 12px rgba(122, 98, 56, 0.28);
+  border-color: var(--lux-ink);
+  background: var(--lux-ink);
+  color: var(--lux-surface);
+  box-shadow: 0 3px 12px rgba(17, 17, 17, 0.14);
 }
-.lux-store .filter-btn:hover { border-color: var(--lux-gold-dark); color: var(--lux-gold-dark); }
-.lux-store .filter-btn.active:hover { color: #fff; }
+.lux-store .filter-btn:hover { border-color: var(--lux-ink); color: var(--lux-ink); }
+.lux-store .filter-btn.active:hover { color: var(--lux-surface); }
 
 /* --- Product cards --- */
 .lux-store .product-card {
@@ -293,16 +342,22 @@ h1, h2, .section-title,
   border-radius: var(--lux-radius);
   box-shadow: var(--lux-shadow-sm);
   background: var(--lux-surface);
+  transition: transform 0.35s var(--lux-ease), box-shadow 0.35s var(--lux-ease), border-color 0.35s var(--lux-ease);
 }
 .lux-store .product-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   box-shadow: var(--lux-shadow-lg);
-  border-color: rgba(182, 154, 105, 0.5);
+  border-color: var(--lux-ink);
 }
+.lux-store .product-card .product-img { overflow: hidden; }
+.lux-store .product-card .product-img img {
+  transition: transform 0.55s var(--lux-ease);
+}
+.lux-store .product-card:hover .product-img img { transform: scale(1.05); }
 
 /* --- Badges --- */
 .lux-store .badge-sale {
-  background: var(--lux-gold-dark);
+  background: var(--lux-ink);
   color: #fff;
   letter-spacing: 0.06em;
 }
@@ -317,26 +372,46 @@ h1, h2, .section-title,
 }
 .lux-store .trust-card:hover { box-shadow: var(--lux-shadow-lg); }
 .lux-store .trust-card .trust-icon {
-  background: linear-gradient(135deg, var(--lux-gold), var(--lux-gold-dark));
+  background: var(--lux-ink);
+  color: var(--lux-surface);
   border-radius: var(--lux-radius-sm);
-  box-shadow: 0 4px 14px rgba(154, 125, 79, 0.25);
+  box-shadow: 0 4px 14px rgba(17, 17, 17, 0.14);
+}
+
+/* --- Newsletter --- */
+.lux-store .newsletter-section {
+  background: var(--lux-dark);
+  color: var(--lux-on-dark);
+}
+.lux-store .newsletter-section p { color: var(--lux-on-dark-2); }
+.lux-store .newsletter-form button {
+  background: var(--lux-on-dark);
+  color: var(--lux-ink);
 }
 
 /* --- Footer --- */
 .lux-store footer { background: var(--lux-dark); }
 .lux-store footer .footer-col h4 { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.5px; }
-.lux-store footer .footer-col h4::after { background: var(--lux-gold); }
+.lux-store footer .footer-col h4::after { background: var(--lux-on-dark); }
 .lux-store footer .footer-col ul li a:hover {
-  color: var(--lux-gold);
-  border-color: var(--lux-gold);
+  color: var(--lux-on-dark);
+  border-color: var(--lux-on-dark);
   background: transparent;
 }
 .lux-store footer .social-links a:hover {
-  color: #fff;
-  border-color: var(--lux-gold-dark);
-  background: var(--lux-gold-dark);
+  color: var(--lux-ink);
+  border-color: var(--lux-on-dark);
+  background: var(--lux-on-dark);
 }
-.lux-store footer .footer-bottom span { color: var(--lux-gold); }
+.lux-store footer .footer-bottom span { color: var(--lux-on-dark); }
+
+/* Dark surfaces need a light focus ring */
+.lux-store header :focus-visible,
+.lux-store footer :focus-visible,
+.lux-store .lux-announce :focus-visible,
+.lux-store .hero-carousel :focus-visible {
+  outline-color: var(--lux-on-dark);
+}
 
 /* ------------------------------------------------------------------ *
    4. MOTION SYSTEM
@@ -356,11 +431,11 @@ h1, h2, .section-title,
    5. ACCESSIBILITY
    ------------------------------------------------------------------ */
 :focus-visible {
-  outline: 2px solid var(--lux-gold-dark);
+  outline: 2px solid var(--lux-ink);
   outline-offset: 2px;
 }
 .lux-store a:focus-visible,
-.lux-store button:focus-visible { outline: 2px solid var(--lux-gold-dark); }
+.lux-store button:focus-visible { outline: 2px solid var(--lux-ink); }
 
 @media (max-width: 768px) {
   :root { --lux-announce-h: 32px; }
@@ -371,6 +446,7 @@ h1, h2, .section-title,
   .lux-announce-track { animation: none; transform: none; padding-left: 12px; }
   .lux-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
   .lux-store .product-card:hover { transform: none; }
+  .lux-store .product-card:hover .product-img img { transform: none; }
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
