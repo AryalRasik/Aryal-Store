@@ -1192,15 +1192,6 @@
       .hero-carousel .carousel-dots .dot { width:10px; height:10px; }
       .hero-carousel .carousel-arrow { width:32px; height:32px; font-size:0.8rem; }
     }
-    /* ===== TRUST INDICATORS ===== */
-    .trust-section { padding:50px 0; background:#fff; }
-    .trust-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
-    .trust-card { text-align:center; padding:28px 20px; border-radius:16px; background:#F7F7F7; transition:all 0.35s ease; cursor:default; }
-    .trust-card:hover { transform:translateY(-4px); box-shadow:0 12px 35px rgba(0,0,0,0.08); }
-    .trust-card .trust-icon { width:52px; height:52px; margin:0 auto 14px; background:linear-gradient(135deg,#111111,#111111); border-radius:14px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.3rem; box-shadow:0 4px 12px rgba(17,17,17,0.2); }
-    .trust-card h4 { font-size:1rem; font-weight:700; color:#111111; margin-bottom:4px; }
-    .trust-card p { font-size:0.82rem; color:#666666; margin:0; line-height:1.5; }
-
     /* ===== CATEGORY PREVIEW ===== */
     .hero-categories { padding:0 0 50px; background:#fff; }
     .hero-categories .section-title { margin-bottom:30px; }
@@ -1212,17 +1203,6 @@
     .cat-preview-card .cat-overlay { position:absolute; inset:0; background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%); }
     .cat-preview-card .cat-title { position:absolute; bottom:14px; left:14px; right:14px; color:#fff; font-size:1rem; font-weight:700; z-index:1; text-shadow:0 2px 8px rgba(0,0,0,0.3); }
     .cat-preview-card .cat-count { position:absolute; top:10px; right:10px; background:rgba(17,17,17,0.9); color:#fff; font-size:0.7rem; font-weight:700; padding:3px 10px; border-radius:50px; z-index:1; }
-
-    /* ===== HERO PROMO BANNER ===== */
-    .hero-promo { padding:0 0 50px; background:#fff; }
-    .hero-promo-inner { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-    .hero-promo-card { border-radius:16px; padding:28px 24px; display:flex; align-items:center; justify-content:space-between; color:#fff; cursor:pointer; transition:all 0.35s ease; min-height:110px; position:relative; overflow:hidden; }
-    .hero-promo-card:hover { transform:translateY(-3px); box-shadow:0 12px 30px rgba(0,0,0,0.15); }
-    .hero-promo-card::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(255,255,255,0.08),transparent 50%); pointer-events:none; }
-    .hero-promo-card .promo-text { position:relative; z-index:1; }
-    .hero-promo-card .promo-text h4 { font-size:1.15rem; font-weight:700; margin-bottom:2px; }
-    .hero-promo-card .promo-text p { font-size:0.85rem; opacity:0.9; margin:0; }
-    .hero-promo-card .promo-icon-wrap { font-size:2.4rem; opacity:0.7; position:relative; z-index:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.15)); }
 
     /* ===== BRAND SHOWCASE ===== */
     /* === PROMO BANNERS (Daraz-style) === */
@@ -1569,7 +1549,7 @@
         <p>Shop from the comfort of your home and enjoy free delivery across Nepal on all qualifying orders.</p>
         <div class="slide-buttons">
           <a href="#products" class="btn btn-primary"><i class="fas fa-shopping-bag"></i> Start Shopping</a>
-          <a href="#trustSection" class="btn btn-secondary-hero"><i class="fas fa-shield-alt"></i> Learn More</a>
+          <a href="#products" class="btn btn-secondary-hero"><i class="fas fa-shield-alt"></i> Learn More</a>
         </div>
       </div>
     </div>
@@ -1595,18 +1575,6 @@
   <div class="carousel-dots" id="carouselDots"></div>
   <!-- Progress bar -->
   <div class="carousel-progress" id="carouselProgress"></div>
-</div>
-
-<!-- ===== TRUST INDICATORS ===== -->
-<div class="trust-section" id="trustSection">
-  <div class="container">
-    <div class="trust-grid">
-      <div class="trust-card"><div class="trust-icon"><i class="fas fa-truck"></i></div><h4>Fast Delivery</h4><p>Free delivery across Nepal on orders above Rs. 2,000</p></div>
-      <div class="trust-card"><div class="trust-icon"><i class="fas fa-shield-alt"></i></div><h4>Secure Checkout</h4><p>256-bit encrypted payments for your peace of mind</p></div>
-      <div class="trust-card"><div class="trust-icon"><i class="fas fa-check-circle"></i></div><h4>Genuine Products</h4><p>100% authentic products with brand warranty</p></div>
-      <div class="trust-card"><div class="trust-icon"><i class="fas fa-undo-alt"></i></div><h4>Easy Returns</h4><p>7-day easy return policy with no questions asked</p></div>
-    </div>
-  </div>
 </div>
 
 <!-- ===== CATEGORY PREVIEW ===== -->
@@ -1638,22 +1606,6 @@
         <img src="https://images.unsplash.com/photo-1607082349566-187342175e2f?w=400&q=80" alt="Accessories" loading="lazy">
         <div class="cat-overlay"></div>
         <span class="cat-title">Accessories</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== HERO PROMO BANNER ===== -->
-<div class="hero-promo" id="heroPromo">
-  <div class="container">
-    <div class="hero-promo-inner" id="heroPromoGrid">
-      <div class="hero-promo-card" style="background:linear-gradient(135deg,#111111,#555555);" onclick="filterByCategory('all')">
-        <div class="promo-text"><h4>Free Delivery</h4><p>On all orders above Rs. 2,000</p></div>
-        <div class="promo-icon-wrap"><i class="fas fa-truck-fast"></i></div>
-      </div>
-      <div class="hero-promo-card" style="background:linear-gradient(135deg,#555555,#555555);" onclick="filterByCategory('all')">
-        <div class="promo-text"><h4>Festival Discounts</h4><p>Up to 40% off festive collection</p></div>
-        <div class="promo-icon-wrap"><i class="fas fa-gift"></i></div>
       </div>
     </div>
   </div>
@@ -5697,22 +5649,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// ==================== HERO PROMO CONFIG ====================
-// Edit this array to change hero promo banners without code changes.
-// Each entry: { title, desc, icon, gradient, link }
-var heroPromoConfig = [
-  { title: 'Free Delivery', desc: 'On all orders above Rs. 2,000', icon: 'fa-truck-fast', gradient: 'linear-gradient(135deg,#111111,#555555)', link: 'all' },
-  { title: 'Festival Discounts', desc: 'Up to 40% off festive collection', icon: 'fa-gift', gradient: 'linear-gradient(135deg,#555555,#555555)', link: 'all' }
-];
-
-function renderHeroPromos() {
-  var grid = document.getElementById('heroPromoGrid');
-  if (!grid || !heroPromoConfig.length) return;
-  grid.innerHTML = heroPromoConfig.map(function(c) {
-    return '<div class="hero-promo-card" style="background:' + c.gradient + ';" onclick="filterByCategory(\'' + c.link + '\')"><div class="promo-text"><h4>' + c.title + '</h4><p>' + c.desc + '</p></div><div class="promo-icon-wrap"><i class="fas ' + c.icon + '"></i></div></div>';
-  }).join('');
-}
-
 // ==================== CAROUSEL ====================
 var carouselState = { current: 0, total: 0, timer: null, progressTimer: null, paused: false };
 function nextSlide() { goToSlide(carouselState.current + 1); }
@@ -5794,9 +5730,6 @@ function initCarousel() {
     allProducts = DEMO_PRODUCTS.map(mapProduct);
     renderProducts(allProducts);
   }
-
-  // Render promo banners from config
-  renderHeroPromos();
 
   // Start all data fetches in parallel immediately (don't wait for auth)
   var fetches = Promise.all([
