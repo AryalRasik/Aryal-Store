@@ -24,6 +24,8 @@
     address: null,
     addresses: [],
     orderId: null,
+    orderCode: '',
+    trackingToken: '',
     paymentToken: '',
     idempotencyKey: '',
     loading: false
@@ -763,15 +765,16 @@
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Failed to place order');
       state.orderId = d.order_id;
-      state.paymentToken = d.payment_token || '';
+      state.orderCode = d.order_code || '';
+      state.trackingToken = d.tracking_token || '';
       if (d.payment) state.paymentConfig = d.payment;
       // Clear the key so a later order in this session is not treated as a duplicate.
       state.idempotencyKey = '';
       const serverTotal = Number(d.amount) || 0;
       state.cart = [];
       localStorage.removeItem('aryal_cart');
-      showConfirmation(d.order_id, serverTotal, d.payment_status || 'pending');
-      showToast(d.duplicate ? 'This order was already placed' : 'Order placed successfully!', 'success');
+      showRequestReceived(state.orderCode, state.trackingToken, serverTotal, d.message || '');
+      showToast(d.duplicate ? 'This order request was already placed' : 'Order request sent!', 'success');
     } catch (e) {
       showToast(e.message, 'error');
     } finally {
@@ -824,33 +827,35 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  function showConfirmation(orderId, total, paymentStatus) {
+  function showRequestReceived(orderCode, trackingToken, total, message) {
     const container = $('coMainContent');
     if (!container) return;
-    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const deliveryDate = new Date();
-    deliveryDate.setDate(deliveryDate.getDate() + (state.shipping.id === 'same_day' ? 0 : state.shipping.id === 'express' ? 3 : 7));
-    const addr = state.address;
-    const qrHtml = renderQrPanel(orderId, total, paymentStatus);
+    const trackUrl = 'track.html?code=' + encodeURIComponent(orderCode || '') + '&token=' + encodeURIComponent(trackingToken || '');
+    const note = message || 'We have received your order request. We will verify product availability and delivery options and contact you shortly.';
 
     container.innerHTML = `
-      <div class="co-steps" id="coSteps"></div>
       <div class="co-card">
         <div class="co-confirmation">
-          <div class="co-confirmation-icon"><i class="fas fa-check"></i></div>
-          <h2>Order Placed!</h2>
-          <p class="order-id">Order ID: <strong>#${orderId}</strong></p>
-          <p class="delivery-estimate">Estimated delivery: ${days[deliveryDate.getDay()]}, ${deliveryDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>
-          <div class="co-confirmation-details">
-            <div class="detail-row"><span class="detail-label">Payment Method</span><span>${paymentMethods[0].label}</span></div>
-            <div class="detail-row"><span class="detail-label">Payment Status</span><span id="coPayStatusText">${paymentStatusLabel(paymentStatus)}</span></div>
-            <div class="detail-row"><span class="detail-label">Total Charged</span><span>Rs. ${(Number(total) || 0).toLocaleString()}</span></div>
-            <div class="detail-row"><span class="detail-label">Shipping</span><span>${addr ? addr.full_name + ', ' + addr.address : ''}</span></div>
+          <div class="co-confirmation-icon" style="background:#B69A69;"><i class="fas fa-clipboard-check"></i></div>
+          <h2>Order Request Received</h2>
+          <p class="order-id">Reference: <strong>${escapeHtml(orderCode || '')}</strong></p>
+          <p style="max-width:540px;margin:12px auto;color:var(--co-text-secondary);font-size:0.95rem;">${escapeHtml(note)}</p>
+          <div class="co-confirmation-details" style="text-align:left;">
+            <div class="detail-row"><span class="detail-label">Estimated items total</span><span>Rs. ${(Number(total) || 0).toLocaleString()}</span></div>
+            <div class="detail-row"><span class="detail-label">Status</span><span>Awaiting shop confirmation</span></div>
           </div>
-          ${qrHtml}
+          <div style="background:#fff7e6;border:1px solid #ffe0a3;border-radius:8px;padding:14px;margin:16px 0;text-align:left;font-size:0.9rem;">
+            <strong><i class="fas fa-info-circle"></i> What happens next?</strong>
+            <ol style="margin:8px 0 0 18px;padding:0;line-height:1.6;">
+              <li>We check product availability and delivery options.</li>
+              <li>We send you the final price and delivery details.</li>
+              <li>You approve them, then pay by scanning our shop QR code.</li>
+            </ol>
+            <div style="margin-top:8px;">No payment is required until you approve the final price.</div>
+          </div>
           <div class="co-confirmation-actions">
-            <a href="/" class="co-btn co-btn-primary co-btn-lg">Continue Shopping</a>
-            <a href="?track=${orderId}" class="co-btn co-btn-secondary co-btn-lg">View Order</a>
+            <a href="${trackUrl}" class="co-btn co-btn-primary co-btn-lg"><i class="fas fa-search-location"></i> Track / Manage Order</a>
+            <a href="/" class="co-btn co-btn-secondary co-btn-lg">Continue Shopping</a>
           </div>
         </div>
       </div>
@@ -859,9 +864,6 @@
     document.querySelector('.co-page').style.gridTemplateColumns = '1fr';
     const summary = $('coSummary');
     if (summary) summary.style.display = 'none';
-
-    const paidBtn = $('coPaidBtn');
-    if (paidBtn && !paidBtn.disabled) paidBtn.addEventListener('click', submitPaymentConfirmation);
   }
 
   function paymentStatusLabel(status) {

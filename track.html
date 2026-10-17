@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Track and manage your Aryal Store order">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Track Your Order - Aryal Store</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="checkout.css">
+  <link rel="stylesheet" href="auth.css">
+  <style>
+    .tr-wrap { max-width: 820px; margin: 0 auto; padding: 24px 16px 60px; }
+    .tr-progress { display: flex; align-items: flex-start; gap: 0; margin: 20px 0 8px; }
+    .tr-step { flex: 1; text-align: center; position: relative; }
+    .tr-step::before { content: ''; position: absolute; top: 14px; left: -50%; width: 100%; height: 3px; background: #E6DED2; z-index: 0; }
+    .tr-step:first-child::before { display: none; }
+    .tr-step.done::before, .tr-step.active::before { background: #2F7D4F; }
+    .tr-dot { width: 30px; height: 30px; border-radius: 50%; background: #E6DED2; color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; position: relative; z-index: 1; font-size: 0.8rem; }
+    .tr-step.done .tr-dot { background: #2F7D4F; }
+    .tr-step.active .tr-dot { background: #9A7D4F; box-shadow: 0 0 0 4px rgba(182,154,105,0.35); }
+    .tr-step-label { font-size: 0.72rem; color: #666; line-height: 1.2; }
+    .tr-status-badge { display: inline-block; padding: 5px 14px; border-radius: 20px; color: #fff; font-size: 0.85rem; font-weight: 600; }
+    .tr-item { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid #EFE8DC; }
+    .tr-item:last-child { border-bottom: 0; }
+    .tr-item-variant { font-size: 0.8rem; color: #888; }
+    .tr-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.92rem; }
+    .tr-row.total { font-weight: 700; font-size: 1.05rem; border-top: 2px solid #eee; margin-top: 6px; padding-top: 10px; }
+    .tr-timeline { margin-top: 6px; }
+    .tr-tl-item { position: relative; padding: 0 0 16px 22px; border-left: 2px solid #E6DED2; }
+    .tr-tl-item:last-child { border-left-color: transparent; }
+    .tr-tl-item::before { content: ''; position: absolute; left: -6px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: #9A7D4F; }
+    .tr-tl-date { font-size: 0.75rem; color: #999; }
+    .tr-tl-note { font-size: 0.9rem; }
+    .tr-offer { background: #F5F1E6; border: 1px solid #E0D6C2; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .tr-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+    .tr-qr { text-align: center; }
+    .tr-qr img { width: 200px; height: 200px; object-fit: contain; border: 1px solid #eee; border-radius: 10px; background: #fff; }
+    .tr-field { margin-bottom: 12px; }
+    .tr-field label { display: block; font-size: 0.85rem; margin-bottom: 5px; color: #555; }
+    .tr-field input { width: 100%; padding: 11px 12px; border: 1px solid #D8CDBA; border-radius: 8px; font-size: 0.95rem; }
+    .tr-muted { color: #888; font-size: 0.85rem; }
+    .co-toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .co-toast { background: #333; color: #fff; padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; box-shadow: 0 4px 16px rgba(0,0,0,0.2); max-width: 320px; }
+    .co-toast.success { background: #2F7D4F; }
+    .co-toast.error { background: #B23A2E; }
+    .co-toast.info { background: #8A7A63; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"></noscript>
+  <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+  <header class="co-header">
+    <div class="co-header-inner">
+      <a href="/" class="co-header-logo"><i class="fas fa-store"></i> <span>Aryal</span> Store</a>
+      <div class="co-header-lock"><i class="fas fa-search-location"></i> <span>Track Order</span></div>
+    </div>
+  </header>
+
+  <div class="tr-wrap">
+    <div id="trackMain">
+      <div class="co-card"><div style="text-align:center;padding:30px;"><i class="fas fa-spinner fa-spin"></i> Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="co-toast-container" id="trToasts"></div>
+  <script src="track.js"></script>
+</body>
+</html>

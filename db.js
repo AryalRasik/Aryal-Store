@@ -8,6 +8,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Auth tables that might not exist in Supabase
 const AUTH_TABLES = ['users', 'user_addresses', 'password_reset_tokens', 'email_verification_tokens', 'user_sessions', 'user_cart'];
+// Order & delivery workflow tables. The hosted orders schema is legacy and
+// incomplete for the manual confirmation workflow, so these always live in the
+// local SQLite database (same store used for auth tables).
+const ORDER_TABLES = ['orders', 'order_items', 'order_tracking', 'order_offers', 'order_refunds'];
+const LOCAL_TABLES = AUTH_TABLES.concat(ORDER_TABLES);
 const tableSource = {};
 
 async function getTableSource(name) {
@@ -18,7 +23,7 @@ async function getTableSource(name) {
 }
 
 function from(tableName) {
-  if (AUTH_TABLES.includes(tableName)) {
+  if (LOCAL_TABLES.includes(tableName)) {
     return localDb.from(tableName);
   }
   return supabase.from(tableName);
@@ -371,4 +376,4 @@ async function seedData() {
   ]);
 }
 
-module.exports = { supabase, initDb, from, getTableSource, tableSource };
+module.exports = { supabase, initDb, from, getTableSource, tableSource, AUTH_TABLES, ORDER_TABLES, LOCAL_TABLES };

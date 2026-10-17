@@ -108,6 +108,8 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_user_cart_session ON user_cart(session_id);
   `);
 
+  migrateOrderTables();
+
   const addressCols = db.prepare('PRAGMA table_info(user_addresses)').all().map(c => c.name);
   const addressAdds = [
     { name: 'email', def: "TEXT DEFAULT ''" },
@@ -124,18 +126,197 @@ function migrate() {
   }
 }
 
+function ensureColumns(tableName, defs) {
+  const existing = db.prepare('PRAGMA table_info(' + tableName + ')').all().map(c => c.name);
+  for (const col of defs) {
+    if (!existing.includes(col.name)) {
+      db.exec('ALTER TABLE ' + tableName + ' ADD COLUMN ' + col.name + ' ' + col.def);
+    }
+  }
+}
+
+function migrateOrderTables() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_code TEXT,
+      tracking_token TEXT DEFAULT '',
+      customer_name TEXT DEFAULT '',
+      customer_phone TEXT DEFAULT '',
+      customer_email TEXT DEFAULT '',
+      customer_address TEXT DEFAULT '',
+      customer_city TEXT DEFAULT '',
+      customer_state TEXT DEFAULT '',
+      customer_landmark TEXT DEFAULT '',
+      subtotal REAL DEFAULT 0,
+      discount REAL DEFAULT 0,
+      coupon_code TEXT DEFAULT '',
+      shipping_cost REAL DEFAULT 0,
+      total_amount REAL DEFAULT 0,
+      shipping_method TEXT DEFAULT '',
+      delivery_label TEXT DEFAULT '',
+      delivery_fee REAL DEFAULT 0,
+      delivery_eta TEXT DEFAULT '',
+      status TEXT DEFAULT 'REQUESTED',
+      payment_method TEXT DEFAULT '',
+      payment_status TEXT DEFAULT 'UNPAID',
+      paid_amount REAL DEFAULT 0,
+      refund_amount REAL DEFAULT 0,
+      notes TEXT DEFAULT '',
+      admin_notes TEXT DEFAULT '',
+      offer_status TEXT DEFAULT 'none',
+      offer_revision INTEGER DEFAULT 0,
+      offer_expires_at TEXT DEFAULT '',
+      approved_at TEXT DEFAULT '',
+      declined_at TEXT DEFAULT '',
+      cancel_reason TEXT DEFAULT '',
+      cancelled_by TEXT DEFAULT '',
+      stock_reserved INTEGER DEFAULT 0,
+      idempotency_key TEXT DEFAULT '',
+      payment_reference TEXT DEFAULT '',
+      payment_submitted_at TEXT DEFAULT '',
+      payment_verified_at TEXT DEFAULT '',
+      payment_note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS order_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER,
+      product_id TEXT,
+      product_name TEXT DEFAULT '',
+      quantity INTEGER DEFAULT 1,
+      unit_price REAL DEFAULT 0,
+      size TEXT DEFAULT '',
+      color TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS order_tracking (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER,
+      status TEXT DEFAULT '',
+      type TEXT DEFAULT 'status',
+      actor TEXT DEFAULT 'system',
+      visible INTEGER DEFAULT 1,
+      note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS order_offers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER,
+      revision INTEGER DEFAULT 1,
+      subtotal REAL DEFAULT 0,
+      discount REAL DEFAULT 0,
+      delivery_method TEXT DEFAULT '',
+      delivery_label TEXT DEFAULT '',
+      delivery_fee REAL DEFAULT 0,
+      delivery_eta TEXT DEFAULT '',
+      total REAL DEFAULT 0,
+      payment_method TEXT DEFAULT '',
+      payment_methods TEXT DEFAULT '',
+      message TEXT DEFAULT '',
+      status TEXT DEFAULT 'sent',
+      created_at TEXT DEFAULT (datetime('now')),
+      responded_at TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS order_refunds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER,
+      amount REAL DEFAULT 0,
+      reason TEXT DEFAULT '',
+      method TEXT DEFAULT '',
+      reference TEXT DEFAULT '',
+      status TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now')),
+      completed_at TEXT DEFAULT ''
+    );
+  `);
+
+  // Bring legacy local tables up to the current column set.
+  ensureColumns('orders', [
+    { name: 'order_code', def: 'TEXT' },
+    { name: 'tracking_token', def: "TEXT DEFAULT ''" },
+    { name: 'customer_name', def: "TEXT DEFAULT ''" },
+    { name: 'customer_phone', def: "TEXT DEFAULT ''" },
+    { name: 'customer_email', def: "TEXT DEFAULT ''" },
+    { name: 'customer_address', def: "TEXT DEFAULT ''" },
+    { name: 'customer_city', def: "TEXT DEFAULT ''" },
+    { name: 'customer_state', def: "TEXT DEFAULT ''" },
+    { name: 'customer_landmark', def: "TEXT DEFAULT ''" },
+    { name: 'subtotal', def: 'REAL DEFAULT 0' },
+    { name: 'discount', def: 'REAL DEFAULT 0' },
+    { name: 'coupon_code', def: "TEXT DEFAULT ''" },
+    { name: 'shipping_cost', def: 'REAL DEFAULT 0' },
+    { name: 'total_amount', def: 'REAL DEFAULT 0' },
+    { name: 'shipping_method', def: "TEXT DEFAULT ''" },
+    { name: 'delivery_label', def: "TEXT DEFAULT ''" },
+    { name: 'delivery_fee', def: 'REAL DEFAULT 0' },
+    { name: 'delivery_eta', def: "TEXT DEFAULT ''" },
+    { name: 'status', def: "TEXT DEFAULT 'REQUESTED'" },
+    { name: 'payment_method', def: "TEXT DEFAULT ''" },
+    { name: 'payment_status', def: "TEXT DEFAULT 'UNPAID'" },
+    { name: 'paid_amount', def: 'REAL DEFAULT 0' },
+    { name: 'refund_amount', def: 'REAL DEFAULT 0' },
+    { name: 'notes', def: "TEXT DEFAULT ''" },
+    { name: 'admin_notes', def: "TEXT DEFAULT ''" },
+    { name: 'offer_status', def: "TEXT DEFAULT 'none'" },
+    { name: 'offer_revision', def: 'INTEGER DEFAULT 0' },
+    { name: 'offer_expires_at', def: "TEXT DEFAULT ''" },
+    { name: 'approved_at', def: "TEXT DEFAULT ''" },
+    { name: 'declined_at', def: "TEXT DEFAULT ''" },
+    { name: 'cancel_reason', def: "TEXT DEFAULT ''" },
+    { name: 'cancelled_by', def: "TEXT DEFAULT ''" },
+    { name: 'stock_reserved', def: 'INTEGER DEFAULT 0' },
+    { name: 'idempotency_key', def: "TEXT DEFAULT ''" },
+    { name: 'payment_reference', def: "TEXT DEFAULT ''" },
+    { name: 'payment_submitted_at', def: "TEXT DEFAULT ''" },
+    { name: 'payment_verified_at', def: "TEXT DEFAULT ''" },
+    { name: 'payment_note', def: "TEXT DEFAULT ''" },
+    { name: 'created_at', def: "TEXT DEFAULT ''" },
+    { name: 'updated_at', def: "TEXT DEFAULT ''" }
+  ]);
+  ensureColumns('order_items', [
+    { name: 'order_id', def: 'INTEGER' },
+    { name: 'product_id', def: 'TEXT' },
+    { name: 'product_name', def: "TEXT DEFAULT ''" },
+    { name: 'quantity', def: 'INTEGER DEFAULT 1' },
+    { name: 'unit_price', def: 'REAL DEFAULT 0' },
+    { name: 'size', def: "TEXT DEFAULT ''" },
+    { name: 'color', def: "TEXT DEFAULT ''" }
+  ]);
+  ensureColumns('order_tracking', [
+    { name: 'order_id', def: 'INTEGER' },
+    { name: 'status', def: "TEXT DEFAULT ''" },
+    { name: 'type', def: "TEXT DEFAULT 'status'" },
+    { name: 'actor', def: "TEXT DEFAULT 'system'" },
+    { name: 'visible', def: 'INTEGER DEFAULT 1' },
+    { name: 'note', def: "TEXT DEFAULT ''" },
+    { name: 'created_at', def: "TEXT DEFAULT ''" }
+  ]);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_orders_code ON orders(order_code);
+    CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+    CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders(customer_phone);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency ON orders(idempotency_key) WHERE idempotency_key <> '';
+    CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+    CREATE INDEX IF NOT EXISTS idx_order_tracking_order ON order_tracking(order_id);
+    CREATE INDEX IF NOT EXISTS idx_order_offers_order ON order_offers(order_id);
+    CREATE INDEX IF NOT EXISTS idx_order_refunds_order ON order_refunds(order_id);
+  `);
+}
+
 function table(name) {
   const d = getDb();
   return {
-    select(columns = '*') {
+    select(columns = '*', options = {}) {
       const q = { conditions: [], orGroups: [], orders: [], limitValue: null };
       const opMap = { eq: '=', neq: '!=', gt: '>', gte: '>=', lt: '<', lte: '<=' };
 
-      const run = (single) => {
-        let sql = `SELECT ${columns} FROM ${name}`;
+      const buildWhere = () => {
         const params = [];
+        let whereSql = '';
         if (q.conditions.length) {
-          const where = q.conditions.map(c => {
+          whereSql = q.conditions.map(c => {
             if (c.op === 'in') {
               params.push(...c.value);
               return `${c.field} IN (${c.value.map(() => '?').join(',')})`;
@@ -152,7 +333,6 @@ function table(name) {
             params.push(c.value);
             return `${c.field} ${opMap[c.op] || '='} ?`;
           }).join(' AND ');
-          sql += ' WHERE ' + where;
         }
         if (q.orGroups.length) {
           const orSql = q.orGroups.map(g => {
@@ -169,14 +349,27 @@ function table(name) {
             }).filter(Boolean);
             return '(' + conds.join(' OR ') + ')';
           });
-          sql += (q.conditions.length ? ' AND ' : ' WHERE ') + orSql.join(' AND ');
+          whereSql += (whereSql ? ' AND ' : '') + orSql.join(' AND ');
         }
-        if (q.orders.length) {
-          sql += ' ORDER BY ' + q.orders.map(o => `${o.column} ${o.ascending === false ? 'DESC' : 'ASC'}`).join(', ');
-        }
-        if (q.limitValue != null) sql += ` LIMIT ${Number(q.limitValue)}`;
-        if (single && q.limitValue == null) sql += ' LIMIT 1';
+        return { whereSql, params };
+      };
+
+      const run = (single) => {
+        const { whereSql, params } = buildWhere();
         try {
+          if (options && options.head) {
+            let countSql = `SELECT COUNT(*) AS count FROM ${name}`;
+            if (whereSql) countSql += ' WHERE ' + whereSql;
+            const row = d.prepare(countSql).get(...params);
+            return { data: null, count: (row && row.count) || 0, error: null };
+          }
+          let sql = `SELECT ${columns} FROM ${name}`;
+          if (whereSql) sql += ' WHERE ' + whereSql;
+          if (q.orders.length) {
+            sql += ' ORDER BY ' + q.orders.map(o => `${o.column} ${o.ascending === false ? 'DESC' : 'ASC'}`).join(', ');
+          }
+          if (q.limitValue != null) sql += ` LIMIT ${Number(q.limitValue)}`;
+          if (single && q.limitValue == null) sql += ' LIMIT 1';
           if (single) {
             const row = d.prepare(sql).get(...params);
             return { data: row || null, error: null };
@@ -220,23 +413,31 @@ function table(name) {
     },
     update(updates) {
       const conds = [];
+      const opMap = { eq: '=', neq: '!=', gt: '>', gte: '>=', lt: '<', lte: '<=' };
+      const buildWhere = (params) => conds.map(c => {
+        if (c.op === 'in') {
+          const placeholders = c.value.map(() => '?').join(',');
+          params.push(...c.value);
+          return `${c.field} IN (${placeholders})`;
+        }
+        params.push(c.value);
+        return `${c.field} ${opMap[c.op] || '='} ?`;
+      }).join(' AND ');
       const run = () => {
         const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(',');
         const params = [...Object.values(updates).map(v => typeof v === 'boolean' ? (v ? 1 : 0) : v)];
-        const where = conds.map(c => {
-          if (c.op === 'in') {
-            const placeholders = c.value.map(() => '?').join(',');
-            params.push(...c.value);
-            return `${c.field} IN (${placeholders})`;
-          }
-          params.push(c.value);
-          return `${c.field} = ?`;
-        }).join(' AND ');
-        d.prepare(`UPDATE ${name} SET ${setClauses} WHERE ${where}`).run(...params);
+        const where = buildWhere(params);
+        d.prepare(`UPDATE ${name} SET ${setClauses}${where ? ' WHERE ' + where : ''}`).run(...params);
         return { error: null };
       };
+      const addOp = (op) => (field, value) => { conds.push({ field, op, value }); return chain; };
       const chain = {
-        eq(field, value) { conds.push({ field, value }); return chain; },
+        eq: addOp('eq'),
+        neq: addOp('neq'),
+        gt: addOp('gt'),
+        gte: addOp('gte'),
+        lt: addOp('lt'),
+        lte: addOp('lte'),
         in(field, values) { conds.push({ field, op: 'in', value: values || [] }); return chain; },
         then(resolve, reject) {
           try { resolve(run()); } catch (e) { reject(e); }
@@ -246,6 +447,7 @@ function table(name) {
     },
     delete() {
       const conds = [];
+      const opMap = { eq: '=', neq: '!=', gt: '>', gte: '>=', lt: '<', lte: '<=' };
       const run = () => {
         const params = [];
         const where = conds.map(c => {
@@ -255,13 +457,19 @@ function table(name) {
             return `${c.field} IN (${placeholders})`;
           }
           params.push(c.value);
-          return `${c.field} = ?`;
+          return `${c.field} ${opMap[c.op] || '='} ?`;
         }).join(' AND ');
-        d.prepare(`DELETE FROM ${name} WHERE ${where}`).run(...params);
+        d.prepare(`DELETE FROM ${name}${where ? ' WHERE ' + where : ''}`).run(...params);
         return { error: null };
       };
+      const addOp = (op) => (field, value) => { conds.push({ field, op, value }); return chain; };
       const chain = {
-        eq(field, value) { conds.push({ field, value }); return chain; },
+        eq: addOp('eq'),
+        neq: addOp('neq'),
+        gt: addOp('gt'),
+        gte: addOp('gte'),
+        lt: addOp('lt'),
+        lte: addOp('lte'),
         in(field, values) { conds.push({ field, op: 'in', value: values || [] }); return chain; },
         then(resolve, reject) {
           try { resolve(run()); } catch (e) { reject(e); }

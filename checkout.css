@@ -1,7 +1,7 @@
 :root {
   --co-primary: #e94560;
   --co-primary-dark: #d63851;
-  --co-primary-light: rgba(233, 69, 96, 0.08);
+  --co-primary-light: rgba(182, 154, 105, 0.08);
   --co-bg: #f5f5f7;
   --co-surface: #ffffff;
   --co-text: #1a1a2e;
@@ -151,7 +151,7 @@ html, body {
 .co-step.active .co-step-circle {
   background: var(--co-step-active);
   color: #fff;
-  box-shadow: 0 0 0 4px rgba(233, 69, 96, 0.15);
+  box-shadow: 0 0 0 4px rgba(182, 154, 105, 0.15);
 }
 
 .co-step.pending .co-step-circle {
@@ -361,7 +361,7 @@ html, body {
 .co-field select:focus,
 .co-field textarea:focus {
   border-color: var(--co-primary);
-  box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+  box-shadow: 0 0 0 3px rgba(182, 154, 105, 0.1);
 }
 
 .co-field input.error,
@@ -780,7 +780,7 @@ html, body {
 
 .co-btn-primary:hover {
   background: var(--co-primary-dark);
-  box-shadow: 0 4px 14px rgba(233, 69, 96, 0.3);
+  box-shadow: 0 4px 14px rgba(182, 154, 105, 0.3);
   transform: translateY(-1px);
 }
 

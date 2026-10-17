@@ -1,7 +1,7 @@
 :root {
   --auth-primary: #e94560;
   --auth-primary-dark: #d63851;
-  --auth-primary-light: rgba(233, 69, 96, 0.08);
+  --auth-primary-light: rgba(182, 154, 105, 0.08);
   --auth-bg: #ffffff;
   --auth-bg-alt: #f8f9fa;
   --auth-surface: #ffffff;
@@ -80,8 +80,8 @@ html, body {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 30% 50%, rgba(233, 69, 96, 0.15) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 20%, rgba(233, 69, 96, 0.1) 0%, transparent 50%);
+  background: radial-gradient(ellipse at 30% 50%, rgba(182, 154, 105, 0.15) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 20%, rgba(182, 154, 105, 0.1) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -281,7 +281,7 @@ html, body {
 
 .auth-input-group .auth-input:focus {
   border-color: var(--auth-border-focus);
-  box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+  box-shadow: 0 0 0 3px rgba(182, 154, 105, 0.1);
 }
 
 .auth-input-group .auth-input.error {
@@ -490,7 +490,7 @@ html, body {
 
 .auth-select:focus {
   border-color: var(--auth-border-focus);
-  box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+  box-shadow: 0 0 0 3px rgba(182, 154, 105, 0.1);
 }
 
 /* ========== CHECKBOX ========== */
@@ -608,7 +608,7 @@ html, body {
 
 .auth-btn-primary:hover {
   background: var(--auth-primary-dark);
-  box-shadow: 0 4px 14px rgba(233, 69, 96, 0.35);
+  box-shadow: 0 4px 14px rgba(182, 154, 105, 0.35);
   transform: translateY(-1px);
 }
 
@@ -839,7 +839,7 @@ html, body {
 
 .otp-input:focus {
   border-color: var(--auth-border-focus);
-  box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.12);
+  box-shadow: 0 0 0 3px rgba(182, 154, 105, 0.12);
 }
 
 .otp-input.filled {

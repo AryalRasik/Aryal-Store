@@ -307,13 +307,15 @@
         <h3>Orders</h3>
         <div class="card">
           <div class="inline-flex" style="margin-bottom:12px;">
-            <button class="filter-btn active" onclick="filterOrders('all')">All</button>
-            <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
-            <button class="filter-btn" onclick="filterOrders('processing')">Processing</button>
-            <button class="filter-btn" onclick="filterOrders('shipped')">Shipped</button>
-            <button class="filter-btn" onclick="filterOrders('delivered')">Delivered</button>
-            <button class="filter-btn" onclick="filterOrders('cancelled')">Cancelled</button>
-            <button class="filter-btn" onclick="filterOrders('awaiting_payment')">Awaiting Payment</button>
+    <button class="filter-btn active" onclick="filterOrders('all')">All</button>
+    <button class="filter-btn" onclick="filterOrders('new')">New Requests</button>
+    <button class="filter-btn" onclick="filterOrders('review')">Under Review</button>
+    <button class="filter-btn" onclick="filterOrders('awaiting_approval')">Awaiting Approval</button>
+    <button class="filter-btn" onclick="filterOrders('confirmed')">Confirmed</button>
+    <button class="filter-btn" onclick="filterOrders('dispatched')">Dispatched</button>
+    <button class="filter-btn" onclick="filterOrders('delivered')">Delivered</button>
+    <button class="filter-btn" onclick="filterOrders('awaiting_payment')">Awaiting Payment</button>
+    <button class="filter-btn" onclick="filterOrders('cancelled')">Cancelled / Refund</button>
           </div>
           <div id="ordersList"></div>
         </div>
@@ -979,70 +981,267 @@ async function loadOrders() {
   try { allOrders = await api('/orders'); renderFilteredOrders(); } catch {}
 }
 function renderFilteredOrders() {
-  const filtered = currentOrderFilter === 'all'
-    ? allOrders
-    : currentOrderFilter === 'awaiting_payment'
-      ? allOrders.filter(o => (o.payment_status || 'pending') !== 'verified' && o.status !== 'cancelled')
-      : allOrders.filter(o => o.status === currentOrderFilter);
+  const filtered = allOrders.filter(o => matchesOrderFilter(o, currentOrderFilter));
   const list = document.getElementById('ordersList');
   if (!filtered.length) { list.innerHTML = '<p style="color:#888;">No orders.</p>'; return; }
-  const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };
-  const payColors = { pending: '#f39c12', submitted: '#e67e22', verified: '#27ae60', rejected: '#e74c3c' };
-  const payLabels = { pending: 'Pending', submitted: 'Submitted', verified: 'Verified', rejected: 'Rejected' };
   list.innerHTML = filtered.map(o => {
-    const payStatus = o.payment_status || 'pending';
-    const isOnline = o.payment_method === 'online';
-    const payBadge = isOnline
-      ? '<span class="status-badge" style="background:' + (payColors[payStatus] || '#888') + ';" title="Payment status">Pay: ' + (payLabels[payStatus] || payStatus) + '</span>'
-      : '<span class="status-badge" style="background:#6b7280;" title="Legacy order created before online-only checkout">Legacy: ' + escape(o.payment_method || 'n/a') + '</span>';
-    const payActions = isOnline && (payStatus === 'submitted' || payStatus === 'pending')
-      ? '<button class="btn btn-sm btn-success" onclick="updateOrderPayment(\'' + o.id + '\',\'verified\')"><i class="fas fa-check"></i> Verify</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="updateOrderPayment(\'' + o.id + '\',\'rejected\')"><i class="fas fa-times"></i> Reject</button>'
-      : isOnline && payStatus === 'rejected'
-        ? '<button class="btn btn-sm btn-success" onclick="updateOrderPayment(\'' + o.id + '\',\'verified\')"><i class="fas fa-check"></i> Verify</button>'
-        : isOnline
-          ? '<button class="btn btn-sm" style="background:#eee;color:#555;" onclick="updateOrderPayment(\'' + o.id + '\',\'rejected\')">Reject</button>'
-          : '';
+    const meta = ORDER_STATUS_META[o.status] || { label: o.status || 'Unknown', color: '#888', next: [] };
+    const pay = PAY_STATUS_META[o.payment_status] || { label: o.payment_status || 'Unpaid', color: '#e67e22' };
+    const code = o.order_code || '#' + String(o.id).substring(0, 8);
+    const total = o.total_amount != null ? o.total_amount : o.total;
+
+    const statusBadge = '<span class="status-badge" title="' + escape(o.status) + '" style="background:' + meta.color + ';">' + escape(meta.label) + '</span>';
+    const payBadge = '<span class="status-badge" title="Payment: ' + escape(o.payment_status || 'UNPAID') + '" style="background:' + pay.color + ';">Pay: ' + escape(pay.label) + '</span>';
+
+    // Payment actions (online / bank transfers need manual verification)
+    let payActions = '';
+    const needsVerify = o.payment_status === 'PAYMENT_PENDING';
+    const isPaid = o.payment_status === 'PAID';
+    if (needsVerify) {
+      payActions = '<button class="btn btn-sm btn-success" onclick="updateOrderPayment(\'' + o.id + '\',\'PAID\')"><i class="fas fa-check"></i> Verify</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="updateOrderPayment(\'' + o.id + '\',\'UNPAID\')"><i class="fas fa-times"></i> Reject</button>';
+    } else if (isPaid && ['CONFIRMED','PREPARING','READY_FOR_PICKUP','DISPATCHED','DELIVERED','DELIVERY_FAILED'].indexOf(o.status) !== -1) {
+      payActions = '<button class="btn btn-sm btn-warning" onclick="refundOrder(\'' + o.id + '\')"><i class="fas fa-rotate-left"></i> Refund</button>';
+    }
+
+    // Workflow action buttons
+    let flowActions = '';
+    if (['REQUESTED','UNDER_REVIEW','DELIVERY_CHECK'].indexOf(o.status) !== -1) {
+      flowActions += '<button class="btn btn-sm btn-primary" onclick="sendOrderOffer(\'' + o.id + '\')"><i class="fas fa-file-invoice-dollar"></i> Send Offer</button>';
+    }
+    if (meta.next.indexOf('CONFIRMED') !== -1 && o.status === 'AWAITING_APPROVAL') {
+      flowActions += '<button class="btn btn-sm btn-success" onclick="confirmApproved(\'' + o.id + '\')"><i class="fas fa-check"></i> Mark Confirmed</button>';
+    }
+
+    // Next-step status buttons (from allowed transitions)
+    const statusButtons = meta.next.map(s =>
+      '<button class="btn btn-sm" style="background:#eee;color:#444;" onclick="updateOrderStatus(\'' + o.id + '\',\'' + s + '\')" title="' + escape(s) + '">' +
+      escape((ORDER_STATUS_META[s] || { label: s }).label) + '</button>').join('');
+
+    const wa = (o.customer_phone && orderWorkflowWaText)
+      ? '<a class="btn btn-sm" style="background:#25d366;color:#fff;" target="_blank" rel="noopener" href="' + orderWorkflowWaText(o) + '"><i class="fab fa-whatsapp"></i></a>'
+      : '';
+
     return '<div class="list-item" style="flex-direction:column;align-items:stretch;">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">' +
-        '<div class="info"><h5>#' + String(o.id).substring(0, 8) + ' - ' + escape(o.customer_name) + '</h5>' +
-        '<p style="font-size:0.8rem;color:#888;">' + (o.customer_phone || '') + ' | ' + (o.total_amount || '0') + ' | ' + (o.created_at || '').substring(0, 10) + '</p>' +
+        '<div class="info"><h5>' + escape(code) + ' - ' + escape(o.customer_name || '') + '</h5>' +
+        '<p style="font-size:0.8rem;color:#888;">' + escape(o.customer_phone || '') +
+          (o.customer_city ? ' | ' + escape(o.customer_city) : '') +
+          ' | Rs. ' + escape(total) + ' | ' + escape((o.created_at || '').substring(0, 10)) + '</p>' +
+        (o.delivery_label ? '<p style="font-size:0.75rem;color:#999;">Delivery: ' + escape(o.delivery_label) + (o.delivery_eta ? ' - ' + escape(o.delivery_eta) : '') + '</p>' : '') +
         (o.payment_reference ? '<p style="font-size:0.75rem;color:#888;">Ref: ' + escape(o.payment_reference) + '</p>' : '') +
-        (o.payment_submitted_at ? '<p style="font-size:0.72rem;color:#999;">Submitted: ' + escape(String(o.payment_submitted_at).substring(0, 16).replace('T', ' ')) + '</p>' : '') +
         '</div>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' + payBadge +
-        '<span class="status-badge" style="background:' + (colors[o.status] || '#888') + ';">' + o.status + '</span></div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' + payBadge + statusBadge + '</div>' +
       '</div>' +
-      '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">' +
-        ['pending','processing','shipped','delivered','cancelled'].map(s => '<button class="btn btn-sm ' + (s === o.status ? 'btn-primary' : '') + '" style="' + (s === o.status ? '' : 'background:#eee;color:#555;') + '" onclick="updateOrderStatus(\'' + o.id + '\',\'' + s + '\')">' + s + '</button>').join('') +
-        payActions +
+      '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">' +
+        '<button class="btn btn-sm" style="background:#eee;color:#444;" onclick="viewOrder(\'' + o.id + '\')"><i class="fas fa-eye"></i> Details</button>' +
+        flowActions + payActions + wa +
+        statusButtons +
         '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\'' + o.id + '\')"><i class="fas fa-trash"></i></button>' +
       '</div></div>';
   }).join('');
 }
+
+function matchesOrderFilter(o, filter) {
+  const s = o.status;
+  const pay = o.payment_status || 'UNPAID';
+  if (filter === 'all') return true;
+  if (filter === 'new') return s === 'REQUESTED';
+  if (filter === 'review') return s === 'UNDER_REVIEW' || s === 'DELIVERY_CHECK';
+  if (filter === 'awaiting_approval') return s === 'AWAITING_APPROVAL';
+  if (filter === 'confirmed') return ['CONFIRMED','PREPARING','READY_FOR_PICKUP'].indexOf(s) !== -1;
+  if (filter === 'dispatched') return s === 'DISPATCHED' || s === 'DELIVERY_FAILED';
+  if (filter === 'delivered') return s === 'DELIVERED';
+  if (filter === 'cancelled') return ['CANCELLED','REFUND_PENDING','REFUNDED'].indexOf(s) !== -1;
+  if (filter === 'awaiting_payment') return pay !== 'PAID' && ['CONFIRMED','PREPARING','READY_FOR_PICKUP','DISPATCHED'].indexOf(s) !== -1;
+  return true;
+}
 function filterOrders(filter) {
   currentOrderFilter = filter;
-  document.querySelectorAll('#tab-orders .filter-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === filter || (filter === 'all' && b.textContent.trim().toLowerCase() === 'all')));
+  document.querySelectorAll('#tab-orders .filter-btn').forEach(b => {
+    const m = (b.getAttribute('onclick') || '').match(/filterOrders\('([^']+)'\)/);
+    b.classList.toggle('active', !!m && m[1] === filter);
+  });
   renderFilteredOrders();
 }
 async function updateOrderStatus(id, status) {
-  try { await api('/orders/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status }) }); loadOrders(); showMsg('Updated.', 'success'); } catch (e) { showMsg(e.message || 'Could not update status.', 'error'); }
+  const o = allOrders.find(x => String(x.id) === String(id));
+  const label = (ORDER_STATUS_META[status] || { label: status }).label;
+  if (!confirm('Move this order to "' + label + '"?')) return;
+  try { await api('/orders/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status }) }); await loadOrders(); showMsg('Status updated to ' + label + '.', 'success'); } catch (e) { showMsg(e.message || 'Could not update status.', 'error'); }
+}
+async function confirmApproved(id) {
+  if (!confirm('Mark this order as Confirmed?')) return;
+  try { await api('/orders/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status: 'CONFIRMED' }) }); await loadOrders(); showMsg('Order confirmed.', 'success'); } catch (e) { showMsg(e.message || 'Could not confirm order.', 'error'); }
 }
 async function updateOrderPayment(id, paymentStatus) {
-  if (paymentStatus === 'verified') {
-    if (!confirm('Confirm that you received the online payment of Rs. ' + (currentOrderTotal(id) || '?') + '?')) return;
-  } else if (!confirm('Reject this payment? The customer will need to pay again.')) return;
-  const note = paymentStatus === 'rejected' ? (prompt('Reason for rejecting (shown to the customer in the order timeline):') || '') : '';
+  const o = allOrders.find(x => String(x.id) === String(id));
+  if (paymentStatus === 'PAID') {
+    if (!confirm('Confirm that you received Rs. ' + ((o && (o.total_amount || o.total)) || '?') + '?')) return;
+  } else {
+    if (!confirm('Mark this payment as unpaid? The customer may need to pay again.')) return;
+  }
+  const note = paymentStatus === 'UNPAID' ? (prompt('Reason (shown in the order timeline):') || '') : '';
   try {
     await api('/orders/' + id + '/payment-status', { method: 'PUT', body: JSON.stringify({ payment_status: paymentStatus, note: note }) });
-    loadOrders();
-    showMsg(paymentStatus === 'verified' ? 'Payment verified.' : 'Payment rejected.', 'success');
+    await loadOrders();
+    showMsg(paymentStatus === 'PAID' ? 'Payment verified.' : 'Payment marked unpaid.', 'success');
   } catch (e) { showMsg(e.message || 'Could not update payment status.', 'error'); }
 }
 function currentOrderTotal(id) {
-  const order = allOrders.find(o => o.id === id);
-  return order ? order.total_amount : '';
+  const order = allOrders.find(o => String(o.id) === String(id));
+  return order ? (order.total_amount != null ? order.total_amount : order.total) : '';
 }
+// ---- Order workflow maps (mirror server/orderWorkflow.js) ----
+const ORDER_STATUS_META = {
+  REQUESTED: { label: 'Requested', color: '#f39c12', next: ['UNDER_REVIEW', 'AWAITING_APPROVAL', 'CANCELLED'] },
+  UNDER_REVIEW: { label: 'Under Review', color: '#e67e22', next: ['DELIVERY_CHECK', 'AWAITING_APPROVAL', 'CANCELLED'] },
+  DELIVERY_CHECK: { label: 'Delivery Check', color: '#e67e22', next: ['UNDER_REVIEW', 'AWAITING_APPROVAL', 'CANCELLED'] },
+  AWAITING_APPROVAL: { label: 'Awaiting Approval', color: '#9b59b6', next: ['CONFIRMED', 'UNDER_REVIEW', 'CANCELLED'] },
+  CONFIRMED: { label: 'Confirmed', color: '#2980b9', next: ['PREPARING', 'READY_FOR_PICKUP', 'DISPATCHED', 'REFUND_PENDING'] },
+  PREPARING: { label: 'Preparing', color: '#3498db', next: ['READY_FOR_PICKUP', 'DISPATCHED', 'REFUND_PENDING'] },
+  READY_FOR_PICKUP: { label: 'Ready for Pickup', color: '#16a085', next: ['DELIVERED', 'DISPATCHED', 'DELIVERY_FAILED', 'CANCELLED'] },
+  DISPATCHED: { label: 'Dispatched', color: '#8e44ad', next: ['DELIVERED', 'DELIVERY_FAILED'] },
+  DELIVERED: { label: 'Delivered', color: '#27ae60', next: ['REFUND_PENDING'] },
+  DELIVERY_FAILED: { label: 'Delivery Failed', color: '#e74c3c', next: ['DISPATCHED', 'CANCELLED', 'REFUND_PENDING', 'REFUNDED'] },
+  CANCELLED: { label: 'Cancelled', color: '#95a5a6', next: ['REFUND_PENDING', 'REFUNDED'] },
+  REFUND_PENDING: { label: 'Refund Pending', color: '#d35400', next: ['REFUNDED', 'CANCELLED'] },
+  REFUNDED: { label: 'Refunded', color: '#7f8c8d', next: [] }
+};
+const PAY_STATUS_META = {
+  UNPAID: { label: 'Unpaid', color: '#e67e22' },
+  PAYMENT_PENDING: { label: 'Submitted', color: '#f39c12' },
+  PAID: { label: 'Paid', color: '#27ae60' },
+  REFUND_PENDING: { label: 'Refund Pending', color: '#d35400' },
+  PARTIALLY_REFUNDED: { label: 'Partially Refunded', color: '#c0392b' },
+  REFUNDED: { label: 'Refunded', color: '#7f8c8d' }
+};
+
+function orderWorkflowWaText(o) {
+  const phone = String(o.customer_phone || '').replace(/[^0-9]/g, '');
+  if (!phone) return '';
+  const digits = phone.length === 10 ? '977' + phone : phone;
+  const st = (ORDER_STATUS_META[o.status] || { label: o.status }).label;
+  const msg = 'Namaste ' + (o.customer_name || '') + '! Update on your order ' + (o.order_code || o.id) + ': ' + st + '. - Aryal Store';
+  return 'https://wa.me/' + digits + '?text=' + encodeURIComponent(msg);
+}
+
+function openOrderModal(html) {
+  const ov = document.createElement('div');
+  ov.id = 'orderModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:40px 16px;overflow:auto;';
+  ov.innerHTML = '<div style="background:#fff;border-radius:10px;max-width:640px;width:100%;padding:22px;position:relative;text-align:left;">' +
+    '<button onclick="closeOrderModal()" style="position:absolute;top:8px;right:12px;background:none;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:#888;">&times;</button>' +
+    '<style>#orderModal label{display:block;margin-bottom:10px;font-size:0.85rem;color:#444;}#orderModal input,#orderModal select,#orderModal textarea{width:100%;padding:9px;border:1px solid #d6d6dd;border-radius:7px;margin-top:4px;font-size:0.9rem;}#orderModal h3{margin:0 0 6px;}#orderModal table{width:100%;border-collapse:collapse;font-size:0.85rem;}#orderModal td,#orderModal th{padding:6px 4px;border-bottom:1px solid #eee;text-align:left;}#orderModal .k{color:#888;}</style>' +
+    html + '</div>';
+  ov.addEventListener('click', function (e) { if (e.target === ov) closeOrderModal(); });
+  document.body.appendChild(ov);
+}
+function closeOrderModal() { const m = document.getElementById('orderModal'); if (m) m.remove(); }
+
+async function viewOrder(id) {
+  try {
+    const o = await api('/orders/' + id);
+    const meta = ORDER_STATUS_META[o.status] || { label: o.status, color: '#888', next: [] };
+    const pay = PAY_STATUS_META[o.payment_status] || { label: o.payment_status || 'Unpaid', color: '#e67e22' };
+    const items = (o.items || []).map(i =>
+      '<tr><td>' + escape(i.product_name || '') + (i.size || i.color ? '<br><span class="k">' + escape([i.size, i.color].filter(Boolean).join(' / ')) + '</span>' : '') + '</td>' +
+      '<td>' + escape(i.quantity) + '</td><td>Rs. ' + escape(i.unit_price != null ? i.unit_price : '') + '</td></tr>').join('');
+    const offer = o.current_offer;
+    const timeline = (o.tracking || []).slice().reverse().map(t =>
+      '<tr><td class="k">' + escape(String(t.created_at || '').substring(0, 16).replace('T', ' ')) + '</td><td>' + escape(t.note || t.status || '') + '</td></tr>').join('');
+    const refunds = (o.refunds || []).map(r =>
+      '<tr><td class="k">' + escape(String(r.created_at || '').substring(0, 10)) + '</td><td>Rs. ' + escape(r.amount) + ' ' + escape(r.method || '') + '</td><td>' + escape(r.status || '') + '</td></tr>').join('');
+
+    const html =
+      '<h3>Order ' + escape(o.order_code || o.id) + '</h3>' +
+      '<div style="margin:6px 0 14px;"><span class="status-badge" style="background:' + meta.color + ';">' + escape(meta.label) + '</span> ' +
+        '<span class="status-badge" style="background:' + pay.color + ';">Pay: ' + escape(pay.label) + '</span></div>' +
+      '<table><tr><th>Customer</th><td>' + escape(o.customer_name || '') + ' &middot; ' + escape(o.customer_phone || '') + '</td></tr>' +
+        '<tr><th>Address</th><td>' + escape([o.customer_address, o.customer_city, o.customer_state].filter(Boolean).join(', ')) + '</td></tr>' +
+        '<tr><th>Payment</th><td>' + escape(o.payment_method || '') + (o.payment_reference ? ' &middot; ref ' + escape(o.payment_reference) : '') + '</td></tr>' +
+        '<tr><th>Total</th><td><strong>Rs. ' + escape(o.total_amount != null ? o.total_amount : o.total) + '</strong></td></tr>' +
+        (o.cancel_reason ? '<tr><th>Cancel reason</th><td>' + escape(o.cancel_reason) + '</td></tr>' : '') +
+        (o.admin_notes ? '<tr><th>Admin notes</th><td>' + escape(o.admin_notes) + '</td></tr>' : '') + '</table>' +
+      '<h4 style="margin:16px 0 4px;">Items</h4><table><tr><th>Item</th><th>Qty</th><th>Price</th></tr>' + (items || '<tr><td colspan="3" class="k">No items.</td></tr>') + '</table>' +
+      (offer ? '<h4 style="margin:16px 0 4px;">Current Offer (rev ' + escape(offer.revision) + ')</h4>' +
+        '<table><tr><th>Total</th><td>Rs. ' + escape(offer.total) + '</td></tr>' +
+        '<tr><th>Delivery</th><td>' + escape(offer.delivery_label || '') + ' ' + escape(offer.delivery_eta || '') + '</td></tr>' +
+        (offer.message ? '<tr><th>Message</th><td>' + escape(offer.message) + '</td></tr>' : '') +
+        '<tr><th>Status</th><td>' + escape(offer.status) + '</td></tr></table>' : '') +
+      (refunds ? '<h4 style="margin:16px 0 4px;">Refunds</h4><table><tr><th>Date</th><th>Amount</th><th>Status</th></tr>' + refunds + '</table>' : '') +
+      '<h4 style="margin:16px 0 4px;">Timeline</h4><table>' + (timeline || '<tr><td class="k">No activity.</td></tr>') + '</table>' +
+      '<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">' +
+        '<button class="btn btn-primary" onclick="closeOrderModal();sendOrderOffer(\'' + id + '\')">Send / Update Offer</button>' +
+        '<button class="btn btn-warning" onclick="closeOrderModal();refundOrder(\'' + id + '\')">Refund</button>' +
+      '</div>';
+
+    openOrderModal(html);
+  } catch (e) {}
+}
+
+function sendOrderOffer(id) {
+  const o = allOrders.find(x => String(x.id) === String(id));
+  const html =
+    '<h3>Send Final Offer</h3>' +
+    '<p style="color:#666;font-size:0.85rem;margin:0 0 14px;">Set the final price, delivery details and payment options. The customer must approve before you confirm.' + (o ? '' : '') + '</p>' +
+    '<label>Delivery method<select id="ofMethod"><option value="local_rider">Local Delivery (Rider)</option><option value="shop_pickup">Customer Pickup from Shop</option><option value="third_party_courier">Third-Party Courier</option></select></label>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+      '<label>Delivery fee (Rs.)<input id="ofFee" type="number" min="0" value="0"></label>' +
+      '<label>Discount (Rs.)<input id="ofDiscount" type="number" min="0" value="0"></label>' +
+      '<label>Estimated delivery<input id="ofEta" placeholder="e.g. 2-3 days"></label>' +
+      '<label>Valid (hours)<input id="ofHours" type="number" min="1" value="48"></label>' +
+    '</div>' +
+    '<label>Payment method<select id="ofPay"><option value="online">Online (Shop QR)</option><option value="cash_on_delivery">Cash on Delivery</option><option value="cash_on_pickup">Cash on Pickup</option><option value="bank_transfer">Bank Transfer</option></select></label>' +
+    '<label>Message to customer<textarea id="ofMsg" rows="3" placeholder="e.g. Stock confirmed. Ready to dispatch in 2 days."></textarea></label>' +
+    '<div style="margin-top:16px;display:flex;gap:8px;">' +
+      '<button class="btn btn-primary" onclick="submitOrderOffer(\'' + id + '\')">Send Offer</button>' +
+      '<button class="btn" style="background:#eee;color:#444;" onclick="closeOrderModal()">Cancel</button>' +
+    '</div>';
+  openOrderModal(html);
+}
+async function submitOrderOffer(id) {
+  const body = {
+    delivery_method: document.getElementById('ofMethod').value,
+    delivery_fee: document.getElementById('ofFee').value,
+    discount: document.getElementById('ofDiscount').value,
+    delivery_eta: document.getElementById('ofEta').value,
+    expiry_hours: document.getElementById('ofHours').value,
+    payment_methods: [document.getElementById('ofPay').value],
+    message: document.getElementById('ofMsg').value
+  };
+  try {
+    await api('/orders/' + id + '/offer', { method: 'PUT', body: JSON.stringify(body) });
+    closeOrderModal(); await loadOrders(); showMsg('Offer sent to customer.', 'success');
+  } catch (e) {}
+}
+
+function refundOrder(id) {
+  const o = allOrders.find(x => String(x.id) === String(id));
+  const total = o ? (o.total_amount != null ? o.total_amount : o.total) : 0;
+  const html =
+    '<h3>Issue Refund</h3>' +
+    '<label>Amount (Rs.)<input id="rfAmount" type="number" min="0" step="0.01" value="' + escape(total) + '"></label>' +
+    '<label>Method<select id="rfMethod"><option value="Cash">Cash</option><option value="Bank Transfer">Bank Transfer</option><option value="Mobile Wallet">Mobile Wallet</option></select></label>' +
+    '<label>Reason<textarea id="rfReason" rows="2"></textarea></label>' +
+    '<div style="margin-top:16px;display:flex;gap:8px;">' +
+      '<button class="btn btn-primary" onclick="submitRefund(\'' + id + '\')">Record Refund</button>' +
+      '<button class="btn" style="background:#eee;color:#444;" onclick="closeOrderModal()">Cancel</button>' +
+    '</div>';
+  openOrderModal(html);
+}
+async function submitRefund(id) {
+  const body = {
+    amount: document.getElementById('rfAmount').value,
+    method: document.getElementById('rfMethod').value,
+    reason: document.getElementById('rfReason').value
+  };
+  try {
+    await api('/orders/' + id + '/refund', { method: 'POST', body: JSON.stringify(body) });
+    closeOrderModal(); await loadOrders(); showMsg('Refund recorded.', 'success');
+  } catch (e) {}
+}
+
 async function deleteOrder(id) {
   if (!confirm('Delete order?')) return;
   try { await api('/orders/' + id, { method: 'DELETE' }); loadOrders(); showMsg('Deleted.', 'success'); } catch {}

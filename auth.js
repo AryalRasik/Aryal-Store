@@ -319,9 +319,9 @@ function showPasswordStrength(password) {
   if (!password) { el.style.display = 'none'; return; }
   el.style.display = 'block';
   if (errors.length === 0) {
-    el.innerHTML = '<span style="color:#27ae60;"><i class="fas fa-check-circle"></i> Strong password</span>';
+    el.innerHTML = '<span style="color:#2F7D4F;"><i class="fas fa-check-circle"></i> Strong password</span>';
   } else {
-    el.innerHTML = '<span style="color:#e74c3c;font-size:0.78rem;">' + errors.join(' | ') + '</span>';
+    el.innerHTML = '<span style="color:#B23A2E;font-size:0.78rem;">' + errors.join(' | ') + '</span>';
   }
 }
 
@@ -364,9 +364,9 @@ function showOtpModal(phone) {
       <div id="otpInputs" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
         ${[1,2,3,4,5,6].map(i => `<input type="text" maxlength="1" class="otp-digit" data-idx="${i-1}" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;border:1.5px solid #ddd;border-radius:8px;outline:none;font-family:inherit;">`).join('')}
       </div>
-      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#888;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#e94560;font-weight:700;">05:00</span></div>
-      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#e94560;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
-      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#e94560;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
+      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#888;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#9A7D4F;font-weight:700;">05:00</span></div>
+      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#9A7D4F;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
+      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#9A7D4F;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -423,9 +423,9 @@ function showEmailOtpModal(credential, email) {
       <div id="otpInputs" style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
         ${[1,2,3,4,5,6].map(i => `<input type="text" maxlength="1" class="otp-digit" data-idx="${i-1}" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;border:1.5px solid #ddd;border-radius:8px;outline:none;font-family:inherit;">`).join('')}
       </div>
-      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#888;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#e94560;font-weight:700;">05:00</span></div>
-      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#e94560;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
-      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#e94560;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
+      <div id="otpTimerDisplay" style="text-align:center;font-size:0.85rem;color:#888;margin-bottom:16px;">Code expires in <span id="otpCountdown" style="color:#9A7D4F;font-weight:700;">05:00</span></div>
+      <div style="text-align:center;margin-bottom:16px;"><button id="resendOtpModal" disabled style="background:none;border:none;color:#9A7D4F;font-weight:600;cursor:pointer;font-family:inherit;">Resend Code</button></div>
+      <button id="verifyOtpBtn" style="width:100%;padding:14px;border:none;border-radius:8px;background:#9A7D4F;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Verify</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -477,7 +477,7 @@ function showToast(message, type) {
   if (typeof toast === 'function') { toast(message, type); return; }
   const container = document.getElementById('toastContainer');
   if (!container) return;
-  const colors = { success: '#27ae60', error: '#e74c3c', info: '#3498db', warning: '#f39c12' };
+  const colors = { success: '#2F7D4F', error: '#B23A2E', info: '#8A7A63', warning: '#B69A69' };
   const icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle', warning: 'fa-exclamation-triangle' };
   const el = document.createElement('div');
   el.className = 'toast toast-' + type;

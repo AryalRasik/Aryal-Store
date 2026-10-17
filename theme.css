@@ -1,0 +1,380 @@
+/* ==========================================================================
+   ARYAL STORE — LUXURY EDITORIAL THEME LAYER
+   Loaded AFTER every page stylesheet so it can refine tokens & components.
+   - Section 1: design tokens (storefront + checkout/auth retint)
+   - Section 2: global typography
+   - Section 3: storefront components (scoped to body.lux-store)
+   - Section 4: motion system
+   - Section 5: accessibility & reduced motion
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ *
+   1. DESIGN TOKENS
+   ------------------------------------------------------------------ */
+:root {
+  /* Storefront luxury palette */
+  --lux-bg: #F7F2E9;
+  --lux-bg-2: #F0E8DC;
+  --lux-surface: #FFFFFF;
+  --lux-text: #29251F;
+  --lux-text-2: #71685D;
+  --lux-border: #E6DED2;
+  --lux-gold: #B69A69;
+  --lux-gold-strong: #9A7D4F;
+  --lux-gold-dark: #7A6238;
+  --lux-gold-tint: rgba(182, 154, 105, 0.14);
+  --lux-dark: #29251F;
+  --lux-dark-2: #3A342B;
+  --lux-success: #2F7D4F;
+  --lux-error: #B23A2E;
+
+  --lux-radius-sm: 10px;
+  --lux-radius: 14px;
+  --lux-radius-lg: 20px;
+
+  --lux-shadow-sm: 0 2px 8px rgba(41, 37, 31, 0.05);
+  --lux-shadow: 0 10px 30px rgba(41, 37, 31, 0.08);
+  --lux-shadow-lg: 0 24px 60px rgba(41, 37, 31, 0.12);
+
+  --lux-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --lux-header-h: 56px;
+  --lux-announce-h: 36px;
+
+  /* Type families */
+  --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* ---- Checkout token retint (light) ---- */
+  --co-primary: #9A7D4F;
+  --co-primary-dark: #7A6238;
+  --co-primary-light: rgba(182, 154, 105, 0.12);
+  --co-bg: #F7F2E9;
+  --co-surface: #FFFFFF;
+  --co-text: #29251F;
+  --co-text-secondary: #71685D;
+  --co-text-muted: #9A9082;
+  --co-border: #E6DED2;
+  --co-border-light: #EFE8DC;
+  --co-success: #2F7D4F;
+  --co-error: #B23A2E;
+  --co-warning: #B69A69;
+  --co-step-done: #2F7D4F;
+  --co-step-active: #9A7D4F;
+  --co-step-pending: #D8CDBA;
+  --co-radius: 14px;
+  --co-radius-sm: 10px;
+  --co-radius-lg: 18px;
+  --co-shadow: 0 2px 8px rgba(41, 37, 31, 0.06);
+  --co-shadow-lg: 0 10px 30px rgba(41, 37, 31, 0.08);
+  --co-shadow-xl: 0 24px 60px rgba(41, 37, 31, 0.12);
+
+  /* ---- Auth token retint (light) ---- */
+  --auth-primary: #9A7D4F;
+  --auth-primary-dark: #7A6238;
+  --auth-primary-light: rgba(182, 154, 105, 0.12);
+  --auth-bg: #FFFFFF;
+  --auth-bg-alt: #F7F2E9;
+  --auth-surface: #FFFFFF;
+  --auth-text: #29251F;
+  --auth-text-secondary: #71685D;
+  --auth-text-muted: #9A9082;
+  --auth-border: #E6DED2;
+  --auth-border-focus: #B69A69;
+  --auth-input-bg: #FFFFFF;
+  --auth-gradient-start: #29251F;
+  --auth-gradient-end: #3A342B;
+  --auth-radius: 14px;
+  --auth-radius-sm: 10px;
+  --auth-radius-lg: 18px;
+  --auth-shadow: 0 10px 30px rgba(41, 37, 31, 0.08);
+  --auth-shadow-lg: 0 24px 60px rgba(41, 37, 31, 0.12);
+}
+
+/* Dark theme: preserve existing dark mode, retint accent to champagne gold */
+[data-theme="dark"] {
+  --lux-bg: #15130F;
+  --lux-bg-2: #1E1B16;
+  --lux-surface: #201D18;
+  --lux-text: #EFE9DF;
+  --lux-text-2: #B3A894;
+  --lux-border: #3A342B;
+
+  --co-primary: #C9AB77;
+  --co-primary-dark: #B69A69;
+  --co-primary-light: rgba(201, 171, 119, 0.14);
+  --co-bg: #0F0F23;
+  --co-surface: #1A1A2E;
+  --co-text: #E5E7EB;
+  --co-text-secondary: #9CA3AF;
+  --co-text-muted: #6B7280;
+  --co-border: #2D2D4A;
+  --co-border-light: #1E1E3A;
+  --co-step-active: #C9AB77;
+
+  --auth-primary: #C9AB77;
+  --auth-primary-dark: #B69A69;
+  --auth-primary-light: rgba(201, 171, 119, 0.14);
+  --auth-bg: #0F0F23;
+  --auth-bg-alt: #1A1A2E;
+  --auth-surface: #1A1A2E;
+  --auth-text: #E5E7EB;
+  --auth-text-secondary: #9CA3AF;
+  --auth-text-muted: #6B7280;
+  --auth-border: #2D2D4A;
+  --auth-input-bg: #12122A;
+  --auth-gradient-start: #0F0F23;
+  --auth-gradient-end: #1A1A2E;
+}
+
+/* ------------------------------------------------------------------ *
+   2. GLOBAL TYPOGRAPHY
+   ------------------------------------------------------------------ */
+body {
+  font-family: var(--font-sans);
+}
+
+h1, h2, .section-title,
+.hero-carousel .carousel-slide .slide-content h1 {
+  font-family: var(--font-display);
+  letter-spacing: 0.2px;
+}
+.lux-store h1, .lux-store h2, .lux-store h3 { font-weight: 700; }
+
+/* ------------------------------------------------------------------ *
+   3. STOREFRONT COMPONENTS  (scoped to body.lux-store)
+   ------------------------------------------------------------------ */
+.lux-store {
+  background: var(--lux-bg);
+  color: var(--lux-text);
+}
+
+/* --- Announcement strip --- */
+.lux-announce {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--lux-announce-h);
+  z-index: 1001;
+  overflow: hidden;
+  background: linear-gradient(90deg, var(--lux-dark) 0%, var(--lux-dark-2) 100%);
+  color: var(--lux-gold);
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(182, 154, 105, 0.25);
+}
+.lux-announce-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 28px;
+  white-space: nowrap;
+  padding-left: 24px;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 500;
+  animation: luxMarquee 38s linear infinite;
+}
+.lux-announce-track .lux-dot { color: rgba(182, 154, 105, 0.6); }
+@keyframes luxMarquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Shift fixed header below the announcement strip */
+.lux-store header { top: var(--lux-announce-h); }
+
+/* --- Header refinement --- */
+.lux-store header {
+  background: rgba(41, 37, 31, 0.96);
+  border-bottom: 1px solid rgba(182, 154, 105, 0.18);
+  transition: background 0.35s var(--lux-ease), box-shadow 0.35s var(--lux-ease);
+}
+.lux-store header.lux-scrolled {
+  background: rgba(41, 37, 31, 0.99);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+.lux-store .logo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  letter-spacing: 0.5px;
+}
+.lux-store .logo span { color: var(--lux-gold); }
+/* Dark header surfaces need the lighter gold (text stays AA against #29251F) */
+.lux-store .nav-icons > *:hover { color: var(--lux-gold); }
+.lux-store .slide-menu-header h3 span { color: var(--lux-gold); }
+.lux-store .category-nav { top: var(--lux-nav-top, calc(var(--lux-announce-h) + var(--lux-header-h))); }
+
+/* --- Section titles --- */
+.lux-store .section-title {
+  font-weight: 600;
+  color: var(--lux-text);
+  letter-spacing: 0.4px;
+}
+.lux-store .section-title::after {
+  background: linear-gradient(90deg, var(--lux-gold-strong), var(--lux-gold));
+  height: 2px;
+  width: 72px;
+}
+
+/* --- Buttons --- */
+.lux-store .btn { font-family: var(--font-sans); }
+.lux-store .btn-primary {
+  background: var(--lux-dark);
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+.lux-store .btn-primary:hover {
+  background: var(--lux-gold-dark);
+  box-shadow: 0 8px 22px rgba(122, 98, 56, 0.38);
+}
+/* Secondary = light gold fill + charcoal label (base hover darkened the fill but kept
+   charcoal text, dropping to ~3.4:1); brighten the fill on hover to keep 5.7:1. */
+.lux-store .btn-secondary { background: var(--lux-gold); color: var(--lux-dark); }
+.lux-store .btn-secondary:hover { background: var(--lux-gold); color: var(--lux-dark); }
+
+/* --- Search --- */
+.lux-store .header-search-desktop .search-box,
+.lux-store .search-box {
+  border-radius: 10px;
+}
+/* Mobile search sits on the dark header: gold fill + charcoal label stays 5.67:1 */
+.lux-store .header-search-mobile .search-box button {
+  background: var(--lux-gold);
+  color: var(--lux-dark);
+}
+
+/* --- Hero carousel editorial treatment --- */
+.lux-store .hero-carousel { background: var(--lux-dark); }
+.lux-store .hero-carousel .carousel-slide .slide-overlay {
+  background: linear-gradient(90deg, rgba(41, 37, 31, 0.82) 0%, rgba(41, 37, 31, 0.5) 48%, rgba(41, 37, 31, 0.12) 100%);
+}
+.lux-store .hero-carousel .carousel-slide .slide-badge {
+  background: rgba(182, 154, 105, 0.16);
+  color: var(--lux-gold);
+  border: 1px solid rgba(182, 154, 105, 0.4);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  border-radius: 40px;
+}
+.lux-store .hero-carousel .carousel-slide .slide-content h1 {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.lux-store .hero-carousel .carousel-slide .slide-content h1 span { color: var(--lux-gold); }
+.lux-store .hero-carousel .carousel-slide .slide-content p {
+  color: #E4DCCB;
+  font-weight: 300;
+  letter-spacing: 0.2px;
+}
+.lux-store .hero-carousel .carousel-dots .dot.active {
+  background: var(--lux-gold);
+  border-color: var(--lux-gold);
+}
+.lux-store .hero-carousel .carousel-progress { background: var(--lux-gold); }
+
+/* --- Filter chips --- */
+.lux-store .filter-btn { border-color: var(--lux-border); color: var(--lux-text-2); }
+.lux-store .filter-btn.active {
+  border-color: var(--lux-gold-dark);
+  background: var(--lux-gold-dark);
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(122, 98, 56, 0.28);
+}
+.lux-store .filter-btn:hover { border-color: var(--lux-gold-dark); color: var(--lux-gold-dark); }
+.lux-store .filter-btn.active:hover { color: #fff; }
+
+/* --- Product cards --- */
+.lux-store .product-card {
+  border: 1px solid var(--lux-border);
+  border-radius: var(--lux-radius);
+  box-shadow: var(--lux-shadow-sm);
+  background: var(--lux-surface);
+}
+.lux-store .product-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--lux-shadow-lg);
+  border-color: rgba(182, 154, 105, 0.5);
+}
+
+/* --- Badges --- */
+.lux-store .badge-sale {
+  background: var(--lux-gold-dark);
+  color: #fff;
+  letter-spacing: 0.06em;
+}
+
+/* --- Trust / promo surfaces --- */
+.lux-store .trust-section,
+.lux-store .hero-categories { background: transparent; }
+.lux-store .trust-card {
+  background: var(--lux-surface);
+  border: 1px solid var(--lux-border);
+  border-radius: var(--lux-radius);
+}
+.lux-store .trust-card:hover { box-shadow: var(--lux-shadow-lg); }
+.lux-store .trust-card .trust-icon {
+  background: linear-gradient(135deg, var(--lux-gold), var(--lux-gold-dark));
+  border-radius: var(--lux-radius-sm);
+  box-shadow: 0 4px 14px rgba(154, 125, 79, 0.25);
+}
+
+/* --- Footer --- */
+.lux-store footer { background: var(--lux-dark); }
+.lux-store footer .footer-col h4 { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.5px; }
+.lux-store footer .footer-col h4::after { background: var(--lux-gold); }
+.lux-store footer .footer-col ul li a:hover {
+  color: var(--lux-gold);
+  border-color: var(--lux-gold);
+  background: transparent;
+}
+.lux-store footer .social-links a:hover {
+  color: #fff;
+  border-color: var(--lux-gold-dark);
+  background: var(--lux-gold-dark);
+}
+.lux-store footer .footer-bottom span { color: var(--lux-gold); }
+
+/* ------------------------------------------------------------------ *
+   4. MOTION SYSTEM
+   ------------------------------------------------------------------ */
+.lux-reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.75s var(--lux-ease), transform 0.75s var(--lux-ease);
+  will-change: opacity, transform;
+}
+.lux-reveal.lux-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ------------------------------------------------------------------ *
+   5. ACCESSIBILITY
+   ------------------------------------------------------------------ */
+:focus-visible {
+  outline: 2px solid var(--lux-gold-dark);
+  outline-offset: 2px;
+}
+.lux-store a:focus-visible,
+.lux-store button:focus-visible { outline: 2px solid var(--lux-gold-dark); }
+
+@media (max-width: 768px) {
+  :root { --lux-announce-h: 32px; }
+  .lux-announce-track { font-size: 0.68rem; gap: 20px; animation-duration: 30s; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-announce-track { animation: none; transform: none; padding-left: 12px; }
+  .lux-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .lux-store .product-card:hover { transform: none; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -13,6 +13,7 @@ const axios = require('axios');
 const { supabase, from, initDb } = require('./db');
 const authRoutes = require('./server/routes/auth');
 const payment = require('./server/payment');
+const orderWorkflow = require('./server/orderWorkflow');
 
 const UPLOADS_DIR = process.env.VERCEL
   ? '/tmp/uploads'
@@ -132,7 +133,7 @@ function unknownColumnOf(msg) {
 async function supabaseInsert(table, payload) {
   const work = Object.assign({}, payload);
   for (let i = 0; i < 40; i++) {
-    const { data, error } = await supabase.from(table).insert(work).select();
+    const { data, error } = await from(table).insert(work).select();
     if (!error) return { data, error };
     const col = unknownColumnOf(error.message);
     if (!col || !(col in work)) return { data, error };
@@ -145,7 +146,7 @@ async function supabaseUpdate(table, id, payload, idColumn) {
   const col = idColumn || 'id';
   const work = Object.assign({}, payload);
   for (let i = 0; i < 40; i++) {
-    const { data, error } = await supabase.from(table).update(work).eq(col, id);
+    const { data, error } = await from(table).update(work).eq(col, id);
     if (!error) return { data, error };
     const col2 = unknownColumnOf(error.message);
     if (!col2 || !(col2 in work)) return { data, error };
@@ -749,13 +750,13 @@ function sendOrderEmail(order, items, settings) {
       auth: { user: settings.smtp_user, pass: settings.smtp_pass }
     });
     const itemsHtml = items.map(i =>
-      '<tr><td style="padding:6px;border-bottom:1px solid #eee;">' + i.product_name + '</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:center;">' + i.quantity + '</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">' + i.unit_price + '</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">Rs. ' + (parseInt(i.unit_price.replace(/[^0-9]/g,'')) * i.quantity).toLocaleString() + '</td></tr>'
+      '<tr><td style="padding:6px;border-bottom:1px solid #eee;">' + i.product_name + '</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:center;">' + i.quantity + '</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">' + i.unit_price + '</td><td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">Rs. ' + (parseInt(String(i.unit_price || '0').replace(/[^0-9]/g,'')) * i.quantity).toLocaleString() + '</td></tr>'
     ).join('');
     const mailOptions = {
       from: settings.smtp_user,
       to: settings.store_email,
       subject: 'New Order #' + order.id + ' - ' + order.customer_name,
-      html: '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><h2 style="background:#e94560;color:#fff;padding:16px;border-radius:8px 8px 0 0;margin:0;">New Order Received</h2><div style="border:1px solid #ddd;border-top:0;padding:20px;border-radius:0 0 8px 8px;"><p><strong>Order #:</strong> ' + order.id + '</p><p><strong>Date:</strong> ' + new Date(order.created_at).toLocaleString() + '</p><p><strong>Customer:</strong> ' + order.customer_name + '</p><p><strong>Phone:</strong> ' + order.customer_phone + '</p><p><strong>Email:</strong> ' + (order.customer_email || 'N/A') + '</p><p><strong>Address:</strong> ' + order.customer_address + '</p><p><strong>Payment:</strong> Online Payment (' + (order.payment_status || 'pending') + ')</p><p><strong>Notes:</strong> ' + (order.notes || 'N/A') + '</p><table style="width:100%;border-collapse:collapse;margin-top:12px;"><thead><tr style="background:#f5f5f5;"><th style="padding:8px;text-align:left;">Item</th><th style="padding:8px;text-align:center;">Qty</th><th style="padding:8px;text-align:right;">Price</th><th style="padding:8px;text-align:right;">Total</th></tr></thead><tbody>' + itemsHtml + '</tbody></table><hr style="border:none;border-top:2px solid #eee;margin:12px 0;"><p style="font-size:1.1rem;text-align:right;"><strong>Total: Rs. ' + (parseInt(order.total_amount.replace(/[^0-9]/g,'')) || 0).toLocaleString() + '</strong></p><p style="font-size:1.1rem;text-align:right;"><strong>Status: Pending</strong></p><hr style="border:none;border-top:2px solid #eee;margin:12px 0;"><p style="font-size:0.85rem;color:#888;text-align:center;">This is an automated notification from ' + (settings.store_name || 'Aryal Store') + '.</p></div></div>'
+      html: '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><h2 style="background:#e94560;color:#fff;padding:16px;border-radius:8px 8px 0 0;margin:0;">New Order Received</h2><div style="border:1px solid #ddd;border-top:0;padding:20px;border-radius:0 0 8px 8px;"><p><strong>Order #:</strong> ' + order.id + '</p><p><strong>Date:</strong> ' + new Date(order.created_at).toLocaleString() + '</p><p><strong>Customer:</strong> ' + order.customer_name + '</p><p><strong>Phone:</strong> ' + order.customer_phone + '</p><p><strong>Email:</strong> ' + (order.customer_email || 'N/A') + '</p><p><strong>Address:</strong> ' + order.customer_address + '</p><p><strong>Payment:</strong> Online Payment (' + (order.payment_status || 'pending') + ')</p><p><strong>Notes:</strong> ' + (order.notes || 'N/A') + '</p><table style="width:100%;border-collapse:collapse;margin-top:12px;"><thead><tr style="background:#f5f5f5;"><th style="padding:8px;text-align:left;">Item</th><th style="padding:8px;text-align:center;">Qty</th><th style="padding:8px;text-align:right;">Price</th><th style="padding:8px;text-align:right;">Total</th></tr></thead><tbody>' + itemsHtml + '</tbody></table><hr style="border:none;border-top:2px solid #eee;margin:12px 0;"><p style="font-size:1.1rem;text-align:right;"><strong>Total: Rs. ' + (parseInt(String(order.total_amount || '0').replace(/[^0-9]/g,'')) || 0).toLocaleString() + '</strong></p><p style="font-size:1.1rem;text-align:right;"><strong>Status: Pending</strong></p><hr style="border:none;border-top:2px solid #eee;margin:12px 0;"><p style="font-size:0.85rem;color:#888;text-align:center;">This is an automated notification from ' + (settings.store_name || 'Aryal Store') + '.</p></div></div>'
     };
     transporter.sendMail(mailOptions).catch(function() {});
   } catch(e) {}
@@ -764,8 +765,8 @@ function sendOrderEmail(order, items, settings) {
 function sendOrderWhatsApp(order, items, settings) {
   if (!settings.notify_whatsapp || !settings.whatsapp_number) return;
   try {
-    const itemsStr = items.map(function(i) { return '  ' + i.product_name + ' x' + (i.quantity || i.qty) + ' = Rs. ' + (parseInt((i.unit_price || i.price || '0').replace(/[^0-9]/g,'')) * (i.quantity || i.qty || 1)).toLocaleString(); }).join('\n');
-    const total = (parseInt(order.total_amount.replace(/[^0-9]/g,'')) || 0).toLocaleString();
+    const itemsStr = items.map(function(i) { return '  ' + i.product_name + ' x' + (i.quantity || i.qty) + ' = Rs. ' + (parseInt(String(i.unit_price || i.price || '0').replace(/[^0-9]/g,'')) * (i.quantity || i.qty || 1)).toLocaleString(); }).join('\n');
+    const total = (parseInt(String(order.total_amount || '0').replace(/[^0-9]/g,'')) || 0).toLocaleString();
     const message = 'New Order #' + order.id + '\n\nCustomer: ' + order.customer_name + '\nPhone: ' + order.customer_phone + '\nEmail: ' + (order.customer_email || 'N/A') + '\nAddress: ' + order.customer_address + '\nPayment: Online Payment (' + (order.payment_status || 'pending') + ')\nNotes: ' + (order.notes || 'N/A') + '\n\nItems:\n' + itemsStr + '\n\nTotal: Rs. ' + total + '\nStatus: Pending';
     const waUrl = 'https://wa.me/' + settings.whatsapp_number.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(message);
     console.log('WhatsApp notification URL:', waUrl);
@@ -839,163 +840,376 @@ async function loadCouponForOrder(code, subtotal) {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const { customer_name, customer_phone, customer_email, customer_address, notes, items, coupon_code, idempotency_key } = req.body;
+    const body = req.body || {};
+    const customer_name = String(body.customer_name || '').trim();
+    const customer_phone = String(body.customer_phone || '').trim();
+    const customer_email = String(body.customer_email || '').trim();
+    const customer_address = String(body.customer_address || '').trim();
 
-    if (!customer_name || !customer_phone || !customer_address || !Array.isArray(items) || !items.length) {
-      return res.status(400).json({ error: 'Missing required order fields' });
+    if (!customer_name || !customer_phone || !customer_address) {
+      return res.status(400).json({ error: 'Please provide your name, phone number and delivery address.' });
+    }
+    if (!Array.isArray(body.items) || !body.items.length) {
+      return res.status(400).json({ error: 'Your cart is empty.' });
     }
 
-    // Online payment is the only accepted method (Cash on Delivery removed).
-    if (payment.normalizePaymentMethod(req.body.payment_method) !== payment.PAYMENT_METHOD) {
-      return res.status(400).json({ error: 'Online payment is the only available payment method. Cash on Delivery is not available.' });
-    }
-
-    // Duplicate submission protection: same idempotency key returns the same order.
-    const idemKey = String(idempotency_key || req.headers['idempotency-key'] || '').trim().slice(0, 100);
+    const idemKey = String(body.idempotency_key || req.headers['idempotency-key'] || '').trim().slice(0, 100);
     if (idemKey) {
-      const { data: existing } = await supabase.from('orders').select('*').eq('idempotency_key', idemKey).maybeSingle();
+      const { data: existing } = await from('orders').select('*').eq('idempotency_key', idemKey).maybeSingle();
       if (existing) {
         return res.json({
           success: true,
           duplicate: true,
           order_id: existing.id,
-          payment_status: existing.payment_status || 'pending',
-          payment_token: existing.payment_token || '',
-          amount: payment.formatAmount(payment.toNumber(existing.total_amount) || 0),
-          payment: await buildPaymentConfigResponse()
+          order_code: existing.order_code,
+          tracking_token: existing.tracking_token,
+          status: existing.status,
+          status_label: orderWorkflow.customerLabel(existing.status),
+          message: orderWorkflow.notificationMessage('request_received', existing),
+          amount: orderWorkflow.money(existing.total_amount),
+          totals: {
+            subtotal: orderWorkflow.money(existing.subtotal),
+            discount: orderWorkflow.money(existing.discount),
+            delivery_fee: orderWorkflow.money(existing.delivery_fee),
+            total_amount: orderWorkflow.money(existing.total_amount)
+          }
         });
       }
     }
 
-    // Authoritative product data - client supplied names/prices are ignored.
-    const productIds = Array.from(new Set(items.map(i => String((i && i.product_id) || '').trim()).filter(Boolean)));
-    if (!productIds.length) return res.status(400).json({ error: 'Your cart is empty.' });
-    const { data: products, error: productsError } = await supabase.from('products').select('*').in('id', productIds);
-    if (productsError) throw productsError;
-    const productsById = new Map((products || []).map(p => [String(p.id), p]));
-
-    let orderItems;
-    try {
-      orderItems = payment.buildOrderItems(productsById, items);
-    } catch (itemErr) {
-      return res.status(400).json({ error: itemErr.message });
-    }
-
-    const delivery = payment.resolveDeliveryMethod(req.body.shipping_method) || payment.DELIVERY_METHODS[0];
-    const freeShippingThreshold = await getFreeShippingThreshold();
-    const itemSubtotal = payment.round2(orderItems.reduce((s, i) => s + (payment.toNumber(i.unit_price) || 0) * i.quantity, 0));
-
-    let coupon = null;
-    try {
-      coupon = await loadCouponForOrder(coupon_code, itemSubtotal);
-    } catch (couponErr) {
-      return res.status(400).json({ error: couponErr.message });
-    }
-
-    const totals = payment.computeOrderTotals(orderItems, delivery, freeShippingThreshold, coupon);
-    const paymentToken = payment.createPaymentToken();
-
-    const orderPayload = {
-      customer_name, customer_phone, customer_email: customer_email || '',
-      customer_address, payment_method: payment.PAYMENT_METHOD,
-      payment_status: 'pending', payment_token: paymentToken, payment_submitted_at: null,
-      payment_reference: '', payment_verified_at: null, payment_note: '',
-      notes: notes || '',
-      total_amount: totals.total_amount, subtotal: totals.subtotal,
-      discount: totals.discount, coupon_code: coupon ? coupon.code : '',
-      shipping_method: delivery.id, shipping_cost: totals.shipping_cost,
-      idempotency_key: idemKey, status: 'pending'
-    };
-    Object.keys(orderPayload).forEach(k => { if (orderPayload[k] === null) delete orderPayload[k]; });
-
-    const { data: orderData, error: orderError } = await supabaseInsert('orders', orderPayload);
-    if (orderError) throw orderError;
-    const order = orderData[0];
-
-    for (const item of orderItems) {
-      const { error: itemError } = await supabase.from('order_items').insert({
-        order_id: order.id, product_id: item.product_id,
-        product_name: item.product_name, quantity: item.quantity,
-        unit_price: item.unit_price, size: item.size || '', color: item.color || ''
-      });
-      if (itemError) {
-        await supabase.from('order_items').delete().eq('order_id', order.id);
-        await supabase.from('orders').delete().eq('id', order.id);
-        throw new Error('Could not save the order items. Please try again.');
-      }
-      const product = productsById.get(String(item.product_id));
-      if (product) {
-        await supabase.from('products')
-          .update({ sold_count: (payment.toNumber(product.sold_count) || 0) + item.quantity })
-          .eq('id', item.product_id);
-      }
-    }
-    await supabase.from('order_tracking').insert({ order_id: order.id, status: 'pending', note: 'Order placed successfully. Awaiting online payment.' });
-
-    if (coupon) {
-      const usedCount = payment.toNumber(coupon.used_count) || 0;
-      await supabase.from('coupons').update({ used_count: usedCount + 1 }).eq('id', coupon.id);
-    }
-
-    if (customer_phone) {
-      const { data: existing } = await supabase.from('customers').select('id').eq('phone', customer_phone).maybeSingle();
-      if (existing) {
-        const { data: c } = await supabase.from('customers').select('*').eq('id', existing.id).maybeSingle();
-        if (c) {
-          const currentSpent = payment.toNumber(c.total_spent) || 0;
-          const orderAmt = payment.toNumber(totals.total_amount) || 0;
-          await supabase.from('customers').update({
-            total_orders: (c.total_orders || 0) + 1,
-            total_spent: String(currentSpent + orderAmt)
-          }).eq('id', existing.id);
-        }
-      } else {
-        await supabase.from('customers').insert({
-          name: customer_name, email: customer_email || '', phone: customer_phone,
-          address: customer_address, total_orders: 1, total_spent: totals.total_amount
-        });
-      }
-    }
-
-    try {
-      const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
-      if (settings) {
-        const { data: orderItems } = await supabase.from('order_items').select('*').eq('order_id', order.id);
-        sendOrderEmail(order, orderItems || [], settings);
-        sendOrderWhatsApp(order, orderItems || [], settings);
-      }
-    } catch(e) {}
+    const result = await createOrderFromRequest({
+      customer_name: customer_name,
+      customer_phone: customer_phone,
+      customer_email: customer_email,
+      customer_address: customer_address,
+      customer_city: body.customer_city || body.customer_district || '',
+      customer_state: body.customer_state || body.customer_province || '',
+      customer_landmark: body.customer_landmark || '',
+      notes: body.notes || '',
+      items: body.items,
+      shipping_method: body.shipping_method,
+      coupon_code: body.coupon_code,
+      payment_method: body.payment_method,
+      idempotency_key: idemKey
+    });
 
     res.json({
       success: true,
-      order_id: order.id,
-      payment_status: 'pending',
-      payment_token: paymentToken,
-      amount: totals.total_amount,
-      totals: totals,
-      payment: await buildPaymentConfigResponse()
+      order_id: result.order.id,
+      order_code: result.order.order_code,
+      tracking_token: result.order.tracking_token,
+      status: 'REQUESTED',
+      status_label: orderWorkflow.customerLabel('REQUESTED'),
+      message: orderWorkflow.notificationMessage('request_received', result.order),
+      amount: orderWorkflow.money(result.order.total_amount),
+      totals: {
+        subtotal: orderWorkflow.money(result.order.subtotal),
+        discount: orderWorkflow.money(result.order.discount),
+        delivery_fee: orderWorkflow.money(result.order.delivery_fee),
+        total_amount: orderWorkflow.money(result.order.total_amount)
+      },
+      payment_method: result.order.payment_method,
+      payment_status: 'UNPAID',
+      payment_methods: Object.values(orderWorkflow.PAYMENT_METHODS),
+      delivery_methods: Object.values(orderWorkflow.DELIVERY_METHODS)
     });
+  } catch (err) {
+    res.status(err && err.statusCode ? err.statusCode : 500).json({ error: err.message });
+  }
+});
+
+// ========================================================================
+// ORDER & DELIVERY WORKFLOW
+// Manual confirmation model:
+//   REQUEST -> review/verify -> final OFFER -> customer APPROVAL
+//   -> CONFIRMED -> preparing -> delivery -> DELIVERED
+// Orders are stored in the local database (see db.js ORDER_TABLES).
+// ========================================================================
+
+const LEGACY_ORDER_STATUS_MAP = {
+  pending: 'REQUESTED',
+  processing: 'PREPARING',
+  confirmed: 'CONFIRMED',
+  packed: 'PREPARING',
+  shipped: 'DISPATCHED',
+  out_for_delivery: 'DISPATCHED',
+  delivered: 'DELIVERED',
+  cancelled: 'CANCELLED',
+  canceled: 'CANCELLED'
+};
+
+function httpError(message, code) {
+  const err = new Error(message);
+  err.statusCode = code || 400;
+  return err;
+}
+
+function normalizeStatus(input) {
+  const raw = String(input || '').trim();
+  if (orderWorkflow.isKnownStatus(raw)) return raw;
+  return LEGACY_ORDER_STATUS_MAP[raw.toLowerCase()] || null;
+}
+
+function mapDeliveryToWorkflow(value) {
+  const resolved = payment.resolveDeliveryMethod(value);
+  if (!resolved) return null;
+  return { method: resolved.id, label: resolved.label, fee: payment.toNumber(resolved.cost) || 0 };
+}
+
+async function appendOrderTracking(orderId, opts) {
+  const entry = {
+    order_id: orderId,
+    status: opts.status || '',
+    type: opts.type || 'status',
+    actor: opts.actor || 'system',
+    visible: opts.visible === false ? 0 : 1,
+    note: opts.note || ''
+  };
+  const { error } = await from('order_tracking').insert(entry);
+  if (error) console.warn('order_tracking insert failed:', error.message);
+  return entry;
+}
+
+async function getOrderRow(idOrCode) {
+  const isNumeric = /^\d+$/.test(String(idOrCode));
+  const query = from('orders').select('*');
+  const { data, error } = await (isNumeric ? query.eq('id', Number(idOrCode)) : query.eq('order_code', String(idOrCode))).maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function getLatestOffer(orderId) {
+  const { data: offers } = await from('order_offers').select('*').eq('order_id', orderId).order('revision');
+  return (offers && offers.length) ? offers[offers.length - 1] : null;
+}
+
+async function getOrderBundle(order) {
+  if (!order) return null;
+  const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
+  const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('id');
+  const { data: offers } = await from('order_offers').select('*').eq('order_id', order.id).order('revision');
+  const { data: refunds } = await from('order_refunds').select('*').eq('order_id', order.id).order('id');
+  const bundle = Object.assign({}, order, {
+    items: items || [],
+    tracking: tracking || [],
+    offers: offers || [],
+    refunds: refunds || []
+  });
+  bundle.current_offer = (offers && offers.length) ? offers[offers.length - 1] : null;
+  return bundle;
+}
+
+function customerOrderView(bundle) {
+  if (!bundle) return null;
+  const meta = orderWorkflow.statusMeta(bundle.status);
+  return {
+    order_code: bundle.order_code,
+    status: bundle.status,
+    status_label: meta.customerLabel,
+    status_description: meta.description,
+    status_color: meta.color,
+    status_step: meta.step,
+    progress: orderWorkflow.PROGRESS_SEQUENCE,
+    created_at: bundle.created_at,
+    updated_at: bundle.updated_at,
+    customer_name: bundle.customer_name,
+    customer_city: bundle.customer_city,
+    customer_state: bundle.customer_state,
+    items: (bundle.items || []).map(function (i) {
+      return { product_name: i.product_name, quantity: i.quantity, unit_price: i.unit_price, size: i.size, color: i.color };
+    }),
+    subtotal: bundle.subtotal,
+    discount: bundle.discount,
+    delivery_fee: bundle.delivery_fee,
+    total: bundle.total_amount,
+    delivery_label: bundle.delivery_label,
+    delivery_eta: bundle.delivery_eta,
+    payment_method: bundle.payment_method,
+    payment_status: bundle.payment_status,
+    payment_status_label: orderWorkflow.paymentLabel(bundle.payment_status),
+    offer: bundle.current_offer ? {
+      revision: bundle.current_offer.revision,
+      subtotal: bundle.current_offer.subtotal,
+      discount: bundle.current_offer.discount,
+      delivery_label: bundle.current_offer.delivery_label,
+      delivery_fee: bundle.current_offer.delivery_fee,
+      delivery_eta: bundle.current_offer.delivery_eta,
+      total: bundle.current_offer.total,
+      message: bundle.current_offer.message,
+      status: bundle.current_offer.status,
+      expires_at: bundle.offer_expires_at
+    } : null,
+    timeline: (bundle.tracking || []).filter(function (t) { return t.visible !== 0; }).map(function (t) {
+      return { status: t.status, label: orderWorkflow.customerLabel(t.status), note: t.note, created_at: t.created_at };
+    })
+  };
+}
+
+async function adjustCouponUsage(code, delta) {
+  const couponCode = String(code || '').trim().toUpperCase();
+  if (!couponCode) return;
+  try {
+    const { data: couponRow } = await supabase.from('coupons').select('*').eq('code', couponCode).maybeSingle();
+    if (!couponRow) return;
+    const next = Math.max(0, (payment.toNumber(couponRow.used_count) || 0) + delta);
+    await supabase.from('coupons').update({ used_count: next }).eq('id', couponRow.id);
+  } catch (e) {}
+}
+
+async function recordCustomer(order) {
+  if (!order || !order.customer_phone) return;
+  try {
+    const amt = orderWorkflow.money(order.total_amount);
+    const { data: existing } = await supabase.from('customers').select('*').eq('phone', order.customer_phone).maybeSingle();
+    if (existing) {
+      await supabase.from('customers').update({
+        total_orders: (payment.toNumber(existing.total_orders) || 0) + 1,
+        total_spent: String((payment.toNumber(existing.total_spent) || 0) + amt)
+      }).eq('id', existing.id);
+    } else {
+      await supabase.from('customers').insert({
+        name: order.customer_name, email: order.customer_email || '', phone: order.customer_phone,
+        address: order.customer_address, total_orders: 1, total_spent: amt
+      });
+    }
+  } catch (e) {}
+}
+
+async function createOrderFromRequest(input) {
+  const productIds = Array.from(new Set((input.items || []).map(function (i) {
+    return String((i && i.product_id) || '').trim();
+  }).filter(Boolean)));
+  if (!productIds.length) throw httpError('Your cart is empty.');
+
+  const { data: products, error: productsError } = await supabase.from('products').select('*').in('id', productIds);
+  if (productsError) throw productsError;
+  const productsById = new Map((products || []).map(function (p) { return [String(p.id), p]; }));
+
+  let orderItems;
+  try {
+    orderItems = payment.buildOrderItems(productsById, input.items);
+  } catch (itemErr) {
+    throw httpError(itemErr.message);
+  }
+
+  const requestedDelivery = mapDeliveryToWorkflow(input.shipping_method) || { method: 'standard', label: 'Standard Delivery', fee: 0 };
+  const freeShippingThreshold = await getFreeShippingThreshold();
+  const itemSubtotal = payment.round2(orderItems.reduce(function (s, i) {
+    return s + (payment.toNumber(i.unit_price) || 0) * i.quantity;
+  }, 0));
+
+  let coupon = null;
+  try {
+    coupon = await loadCouponForOrder(input.coupon_code, itemSubtotal);
+  } catch (couponErr) {
+    throw httpError(couponErr.message);
+  }
+
+  const totals = payment.computeOrderTotals(orderItems, { id: requestedDelivery.method, cost: requestedDelivery.fee }, freeShippingThreshold, coupon);
+  const paymentMethodKey = payment.normalizePaymentMethod(input.payment_method) || 'online';
+
+  const orderPayload = {
+    order_code: orderWorkflow.generateOrderCode(),
+    tracking_token: orderWorkflow.generateTrackingToken(),
+    customer_name: String(input.customer_name || '').trim(),
+    customer_phone: String(input.customer_phone || '').trim(),
+    customer_email: String(input.customer_email || '').trim(),
+    customer_address: String(input.customer_address || '').trim(),
+    customer_city: String(input.customer_city || '').trim(),
+    customer_state: String(input.customer_state || '').trim(),
+    customer_landmark: String(input.customer_landmark || '').trim(),
+    subtotal: payment.toNumber(totals.subtotal) || 0,
+    discount: payment.toNumber(totals.discount) || 0,
+    coupon_code: coupon ? coupon.code : '',
+    shipping_cost: payment.toNumber(totals.shipping_cost) || 0,
+    total_amount: payment.toNumber(totals.total_amount) || 0,
+    shipping_method: requestedDelivery.method,
+    delivery_label: requestedDelivery.label + ' (to be confirmed)',
+    delivery_fee: payment.toNumber(totals.shipping_cost) || 0,
+    delivery_eta: '',
+    status: 'REQUESTED',
+    payment_method: paymentMethodKey,
+    payment_status: 'UNPAID',
+    notes: String(input.notes || '').trim().slice(0, 1000),
+    admin_notes: '',
+    offer_status: 'none',
+    offer_revision: 0,
+    idempotency_key: String(input.idempotency_key || '').trim().slice(0, 100)
+  };
+
+  const { data: inserted, error: orderError } = await from('orders').insert(orderPayload);
+  if (orderError) throw orderError;
+  const order = inserted[0];
+
+  for (const item of orderItems) {
+    const { error: itemError } = await from('order_items').insert({
+      order_id: order.id,
+      product_id: item.product_id,
+      product_name: item.product_name,
+      quantity: item.quantity,
+      unit_price: payment.toNumber(item.unit_price) || 0,
+      size: item.size || '',
+      color: item.color || ''
+    });
+    if (itemError) {
+      await from('order_items').delete().eq('order_id', order.id);
+      await from('orders').delete().eq('id', order.id);
+      throw new Error('Could not save the order items. Please try again.');
+    }
+  }
+
+  if (coupon) await adjustCouponUsage(coupon.code, 1);
+
+  await appendOrderTracking(order.id, {
+    status: 'REQUESTED',
+    actor: 'customer',
+    note: 'Order request received. We will verify stock and delivery options before sending the final price.'
+  });
+
+  try {
+    const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
+    if (settings) {
+      const wa = orderWorkflow.buildWhatsAppUrl(settings.whatsapp_number || settings.store_phone, orderWorkflow.notificationMessage('request_received', order));
+      if (wa) console.log('Order request WhatsApp link:', wa);
+      sendOrderEmail(order, orderItems, settings);
+    }
+  } catch (e) {}
+
+  return { order: order, orderItems: orderItems, totals: totals, coupon: coupon };
+}
+
+// Public order tracking: requires order code + private token.
+app.get('/api/orders/track', async (req, res) => {
+  try {
+    const code = String(req.query.code || '').trim().toUpperCase();
+    const token = String(req.query.token || '').trim();
+    if (!code || !token) return res.status(400).json({ error: 'Order code and tracking link are required.' });
+    const { data: order } = await from('orders').select('*').eq('order_code', code).maybeSingle();
+    if (!order || !orderWorkflow.safeEquals(order.tracking_token, token)) {
+      return res.status(404).json({ error: 'We could not find an order for those details.' });
+    }
+    res.json(customerOrderView(await getOrderBundle(order)));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-
 app.get('/api/orders', adminMiddleware, async (req, res) => {
   try {
     const { status, phone } = req.query;
-    let query = supabase.from('orders').select('*').order('id', { ascending: false });
-    if (status && status !== 'all') query = query.eq('status', status);
+    let query = from('orders').select('*').order('id', { ascending: false });
+    if (status && status !== 'all') {
+      const norm = normalizeStatus(status);
+      if (norm) query = query.eq('status', norm);
+    }
     if (phone) query = query.eq('customer_phone', phone);
     const { data: orders, error } = await query;
     if (error) throw error;
+    const result = [];
     for (const order of orders || []) {
-      const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
-      order.items = items || [];
-      const { data: tracking } = await supabase.from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
-      order.tracking = tracking || [];
+      result.push(await getOrderBundle(order));
     }
-    res.json(orders || []);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1003,77 +1217,275 @@ app.get('/api/orders', adminMiddleware, async (req, res) => {
 
 app.get('/api/orders/:id', async (req, res) => {
   try {
-    const { data: order, error } = await supabase.from('orders').select('*').eq('id', req.params.id).maybeSingle();
-    if (error) throw error;
+    const order = await getOrderRow(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
-    order.items = items || [];
-    const { data: tracking } = await supabase.from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
-    order.tracking = tracking || [];
-    res.json(order);
+    let isAdmin = false;
+    try {
+      const header = req.headers.authorization;
+      if (header && header.startsWith('Bearer ')) {
+        const u = jwt.verify(header.split(' ')[1], JWT_SECRET);
+        isAdmin = !!(u && u.role === 'admin');
+      }
+    } catch (e) {}
+    const token = String(req.query.token || req.headers['x-order-token'] || '').trim();
+    if (!isAdmin) {
+      if (!token || !orderWorkflow.safeEquals(order.tracking_token, token)) {
+        return res.status(403).json({ error: 'Not allowed' });
+      }
+      return res.json(customerOrderView(await getOrderBundle(order)));
+    }
+    res.json(await getOrderBundle(order));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// Admin: change order status (validated transitions).
 app.put('/api/orders/:id/status', adminMiddleware, async (req, res) => {
   try {
-    const { status, note } = req.body;
-    if (!status) return res.status(400).json({ error: 'Status is required' });
-    const validStatuses = ['pending', 'processing', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
-    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-    await supabase.from('orders').update({ status }).eq('id', req.params.id);
-    await supabase.from('order_tracking').insert({ order_id: req.params.id, status, note: note || 'Status updated to ' + status });
+    const body = req.body || {};
+    const target = normalizeStatus(body.status);
+    if (!target) return res.status(400).json({ error: 'Unknown status.' });
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status === target) return res.json({ success: true, status: target });
+    if (!orderWorkflow.canTransition(order.status, target)) {
+      return res.status(400).json({ error: 'Cannot change status from ' + order.status + ' to ' + target + '.' });
+    }
+    const patch = { status: target, updated_at: new Date().toISOString() };
+    if (target === 'CONFIRMED' && !order.approved_at) patch.approved_at = new Date().toISOString();
+    const { error } = await from('orders').update(patch).eq('id', order.id);
+    if (error) throw error;
+    await appendOrderTracking(order.id, {
+      status: target,
+      actor: 'admin',
+      note: body.note || ('Status updated to ' + orderWorkflow.statusMeta(target).staffLabel)
+    });
+    res.json({ success: true, status: target });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: send/replace the final offer (price + delivery + payment options).
+app.put('/api/orders/:id/offer', adminMiddleware, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status === 'CANCELLED' || order.status === 'REFUNDED') {
+      return res.status(400).json({ error: 'This order is closed.' });
+    }
+
+    const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
+    const subtotal = orderWorkflow.round2((items || []).reduce(function (s, i) {
+      return s + (orderWorkflow.toNumber(i.unit_price) || 0) * (i.quantity || 0);
+    }, 0));
+
+    const dm = orderWorkflow.DELIVERY_METHODS[body.delivery_method] || orderWorkflow.DELIVERY_METHODS.local_rider;
+    const fee = Math.max(0, orderWorkflow.money(body.delivery_fee));
+    const discount = Math.max(0, Math.min(orderWorkflow.money(body.discount), subtotal));
+    const total = orderWorkflow.round2(Math.max(0, subtotal - discount) + fee);
+    const paymentMethods = (Array.isArray(body.payment_methods) && body.payment_methods.length)
+      ? body.payment_methods.filter(function (k) { return orderWorkflow.PAYMENT_METHODS[k]; })
+      : ['online', 'cash_on_delivery'];
+    const eta = String(body.delivery_eta || '').trim().slice(0, 120);
+    const message = String(body.message || '').trim().slice(0, 1000);
+    const expiresAt = orderWorkflow.computeExpiry(body.expiry_hours);
+    const revision = (order.offer_revision || 0) + 1;
+
+    const { error: offerError } = await from('order_offers').insert({
+      order_id: order.id,
+      revision: revision,
+      subtotal: subtotal,
+      discount: discount,
+      delivery_method: dm.key,
+      delivery_label: dm.label,
+      delivery_fee: fee,
+      delivery_eta: eta,
+      total: total,
+      payment_method: String(body.payment_method || '').trim(),
+      payment_methods: paymentMethods.join(','),
+      message: message,
+      status: 'sent'
+    });
+    if (offerError) throw offerError;
+
+    const patch = {
+      status: 'AWAITING_APPROVAL',
+      offer_status: 'sent',
+      offer_revision: revision,
+      offer_expires_at: expiresAt,
+      subtotal: subtotal,
+      discount: discount,
+      delivery_fee: fee,
+      delivery_label: dm.label,
+      delivery_eta: eta,
+      total_amount: total,
+      shipping_cost: fee,
+      shipping_method: dm.key,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await from('orders').update(patch).eq('id', order.id);
+    if (error) throw error;
+
+    await appendOrderTracking(order.id, {
+      status: 'AWAITING_APPROVAL',
+      actor: 'admin',
+      note: message || ('Final offer sent: Rs. ' + total + ' including delivery. Awaiting customer approval.')
+    });
+
+    res.json({ success: true, offer: patch });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: save internal notes.
+app.put('/api/orders/:id/notes', adminMiddleware, async (req, res) => {
+  try {
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const adminNotes = String((req.body && req.body.admin_notes) || '').trim().slice(0, 2000);
+    const { error } = await from('orders').update({ admin_notes: adminNotes, updated_at: new Date().toISOString() }).eq('id', order.id);
+    if (error) throw error;
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// Customer: approve the final offer.
+app.post('/api/orders/:id/approve', async (req, res) => {
+  try {
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const token = String((req.body && req.body.tracking_token) || req.query.token || req.headers['x-order-token'] || '').trim();
+    if (!order.tracking_token || !orderWorkflow.safeEquals(order.tracking_token, token)) {
+      return res.status(403).json({ error: 'This link is not valid for that order.' });
+    }
+    if (orderWorkflow.APPROVED_STATUSES.indexOf(order.status) !== -1) {
+      return res.json({ success: true, status: order.status, message: 'This order is already confirmed.' });
+    }
+    if (order.offer_status !== 'sent') return res.status(400).json({ error: 'There is no offer waiting for your approval yet.' });
+    if (orderWorkflow.isOfferExpired(order)) return res.status(400).json({ error: 'This offer has expired. Please contact the shop to resend it.' });
+    if (!orderWorkflow.canTransition(order.status, 'CONFIRMED')) return res.status(400).json({ error: 'This order cannot be approved right now.' });
+
+    const now = new Date().toISOString();
+    const { error } = await from('orders').update({ status: 'CONFIRMED', offer_status: 'approved', approved_at: now, updated_at: now }).eq('id', order.id);
+    if (error) throw error;
+    const latest = await getLatestOffer(order.id);
+    if (latest) await from('order_offers').update({ status: 'approved', responded_at: now }).eq('id', latest.id);
+    await appendOrderTracking(order.id, { status: 'CONFIRMED', actor: 'customer', note: 'Customer approved the final offer. Order confirmed.' });
+    await recordCustomer(order);
+
+    try {
+      const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
+      for (const it of items || []) {
+        const { data: p } = await supabase.from('products').select('id, sold_count, stock').eq('id', it.product_id).maybeSingle();
+        if (p) {
+          const qty = payment.toNumber(it.quantity) || 0;
+          await supabase.from('products').update({
+            sold_count: (payment.toNumber(p.sold_count) || 0) + qty,
+            stock: Math.max(0, (payment.toNumber(p.stock) || 0) - qty)
+          }).eq('id', it.product_id);
+        }
+      }
+    } catch (e) {}
+
+    res.json({ success: true, status: 'CONFIRMED', message: orderWorkflow.notificationMessage('approved', order) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Customer: decline the offer (cancels the request, no charge).
+app.post('/api/orders/:id/decline', async (req, res) => {
+  try {
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const token = String((req.body && req.body.tracking_token) || req.query.token || req.headers['x-order-token'] || '').trim();
+    if (!order.tracking_token || !orderWorkflow.safeEquals(order.tracking_token, token)) {
+      return res.status(403).json({ error: 'This link is not valid for that order.' });
+    }
+    if (orderWorkflow.CUSTOMER_CANCELLABLE.indexOf(order.status) === -1) {
+      return res.status(400).json({ error: 'This order can no longer be declined here. Please contact the shop.' });
+    }
+    const now = new Date().toISOString();
+    const reason = String((req.body && req.body.reason) || '').trim().slice(0, 300);
+    const { error } = await from('orders').update({ status: 'CANCELLED', offer_status: 'declined', declined_at: now, cancel_reason: reason, cancelled_by: 'customer', updated_at: now }).eq('id', order.id);
+    if (error) throw error;
+    const latest = await getLatestOffer(order.id);
+    if (latest) await from('order_offers').update({ status: 'declined', responded_at: now }).eq('id', latest.id);
+    if (order.coupon_code) await adjustCouponUsage(order.coupon_code, -1);
+    await appendOrderTracking(order.id, { status: 'CANCELLED', actor: 'customer', note: reason ? 'Customer declined: ' + reason : 'Customer declined the offer.' });
+    res.json({ success: true, status: 'CANCELLED', message: orderWorkflow.notificationMessage('declined', order) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Customer: request a change instead of approving.
+app.post('/api/orders/:id/request-change', async (req, res) => {
+  try {
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const token = String((req.body && req.body.tracking_token) || req.query.token || req.headers['x-order-token'] || '').trim();
+    if (!order.tracking_token || !orderWorkflow.safeEquals(order.tracking_token, token)) {
+      return res.status(403).json({ error: 'This link is not valid for that order.' });
+    }
+    const message = String((req.body && req.body.message) || '').trim().slice(0, 1000);
+    if (!message) return res.status(400).json({ error: 'Please describe the change you need.' });
+    if (['AWAITING_APPROVAL', 'UNDER_REVIEW', 'DELIVERY_CHECK', 'REQUESTED'].indexOf(order.status) === -1) {
+      return res.status(400).json({ error: 'This order can no longer be changed here. Please contact the shop.' });
+    }
+    const now = new Date().toISOString();
+    const { error } = await from('orders').update({ status: 'UNDER_REVIEW', offer_status: 'change_requested', admin_notes: message, updated_at: now }).eq('id', order.id);
+    if (error) throw error;
+    await appendOrderTracking(order.id, { status: 'UNDER_REVIEW', type: 'message', actor: 'customer', note: message });
+    res.json({ success: true, status: 'UNDER_REVIEW' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========== PAYMENT SUBMISSION (customer) ==========
-// "I Have Paid" only flags the order as submitted - it is never auto-verified.
+// "I Have Paid" only flags the order as pending verification - never auto-verified.
 app.post('/api/orders/:id/payment-submit', async (req, res) => {
   try {
-    const token = String((req.body && req.body.payment_token) || '').trim();
+    const token = String((req.body && req.body.payment_token) || req.query.token || req.headers['x-order-token'] || '').trim();
     if (!token) return res.status(400).json({ error: 'Missing payment token' });
-
-    const { data: order, error } = await supabase.from('orders').select('*').eq('id', req.params.id).maybeSingle();
-    if (error) throw error;
+    const order = await getOrderRow(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    if (!order.payment_token || !payment.safeEquals(order.payment_token, token)) {
+    if (!order.tracking_token || !orderWorkflow.safeEquals(order.tracking_token, token)) {
       return res.status(403).json({ error: 'Invalid payment token' });
     }
-    if (payment.normalizePaymentMethod(order.payment_method) !== payment.PAYMENT_METHOD) {
-      return res.status(400).json({ error: 'This order is not an online payment order.' });
+    if (['CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'DISPATCHED'].indexOf(order.status) === -1) {
+      return res.status(400).json({ error: 'You can submit payment once the order is confirmed.' });
     }
-
-    const current = order.payment_status || 'pending';
-    if (current === 'verified') {
-      return res.json({ success: true, payment_status: 'verified', message: 'Payment already verified.' });
-    }
-    if (current === 'submitted') {
-      return res.json({ success: true, payment_status: 'submitted', message: 'Payment already submitted.' });
-    }
+    const current = order.payment_status || 'UNPAID';
+    if (current === 'PAID') return res.json({ success: true, payment_status: 'PAID', message: 'Payment already verified.' });
+    if (current === 'PAYMENT_PENDING') return res.json({ success: true, payment_status: 'PAYMENT_PENDING', message: 'Payment already submitted.' });
 
     const reference = String((req.body && req.body.payment_reference) || '').trim().slice(0, 120);
-    const { error: updateError } = await supabaseUpdate('orders', order.id, {
-      payment_status: 'submitted',
+    const { error } = await from('orders').update({
+      payment_status: 'PAYMENT_PENDING',
+      payment_reference: reference,
       payment_submitted_at: new Date().toISOString(),
-      payment_reference: reference
+      updated_at: new Date().toISOString()
+    }).eq('id', order.id);
+    if (error) throw error;
+    await appendOrderTracking(order.id, {
+      status: order.status,
+      type: 'payment',
+      actor: 'customer',
+      note: 'Customer says they have paid' + (reference ? ' (ref ' + reference + ')' : '') + '. Awaiting verification.'
     });
-    if (updateError) throw updateError;
-
-    await supabase.from('order_tracking').insert({
-      order_id: order.id,
-      status: order.status || 'pending',
-      note: 'Customer submitted online payment for verification'
-    });
-
     res.json({
       success: true,
-      payment_status: 'submitted',
-      message: 'Payment submitted. Our team will verify it shortly.',
-      amount: payment.formatAmount(payment.toNumber(order.total_amount) || 0)
+      payment_status: 'PAYMENT_PENDING',
+      message: 'Thank you. Our team will verify your payment shortly.',
+      amount: orderWorkflow.money(order.total_amount)
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1083,45 +1495,87 @@ app.post('/api/orders/:id/payment-submit', async (req, res) => {
 // ========== PAYMENT VERIFICATION (admin) ==========
 app.put('/api/orders/:id/payment-status', adminMiddleware, async (req, res) => {
   try {
-    const status = String((req.body && req.body.payment_status) || '').trim().toLowerCase();
+    const raw = String((req.body && req.body.payment_status) || '').trim();
     const note = String((req.body && req.body.note) || '').trim().slice(0, 300);
-    if (!payment.ADMIN_SETTABLE_PAYMENT_STATUSES.includes(status)) {
-      return res.status(400).json({ error: 'Invalid payment status' });
-    }
+    const legacyMap = {
+      verified: 'PAID', paid: 'PAID', submitted: 'PAYMENT_PENDING', pending: 'UNPAID', rejected: 'UNPAID',
+      refunded: 'REFUNDED', refund_pending: 'REFUND_PENDING', partially_refunded: 'PARTIALLY_REFUNDED'
+    };
+    const status = orderWorkflow.isKnownPaymentStatus(raw) ? raw : legacyMap[raw.toLowerCase()];
+    if (!status) return res.status(400).json({ error: 'Invalid payment status' });
 
-    const { data: order, error } = await supabase.from('orders').select('*').eq('id', req.params.id).maybeSingle();
-    if (error) throw error;
+    const order = await getOrderRow(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    const now = new Date().toISOString();
-    const patch = { payment_status: status, payment_note: note };
-    if (status === 'verified') patch.payment_verified_at = now;
-    if (status === 'rejected') patch.payment_verified_at = null;
-
-    const { error: updateError } = await supabaseUpdate('orders', order.id, patch);
-    if (updateError) throw updateError;
-
-    const label = status === 'verified' ? 'Payment verified by admin'
-      : status === 'rejected' ? 'Payment rejected by admin'
-      : 'Payment marked as submitted by admin';
-    await supabase.from('order_tracking').insert({
-      order_id: order.id,
-      status: order.status || 'pending',
-      note: note ? label + ': ' + note : label
-    });
-
+    const patch = { payment_status: status, payment_note: note, updated_at: new Date().toISOString() };
+    if (status === 'PAID') { patch.payment_verified_at = new Date().toISOString(); patch.paid_amount = orderWorkflow.money(order.total_amount); }
+    if (status === 'UNPAID') patch.payment_verified_at = '';
+    const { error } = await from('orders').update(patch).eq('id', order.id);
+    if (error) throw error;
+    await appendOrderTracking(order.id, { status: order.status, type: 'payment', actor: 'admin', note: note || ('Payment marked as ' + orderWorkflow.paymentLabel(status)) });
     res.json({ success: true, payment_status: status });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ========== REFUNDS (admin) ==========
+app.post('/api/orders/:id/refund', adminMiddleware, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const amount = orderWorkflow.money(body.amount);
+    if (amount <= 0) return res.status(400).json({ error: 'Enter a refund amount greater than zero.' });
+    const { data: refundRow, error } = await from('order_refunds').insert({
+      order_id: order.id,
+      amount: amount,
+      reason: String(body.reason || '').trim().slice(0, 300),
+      method: String(body.method || '').trim().slice(0, 80),
+      reference: String(body.reference || '').trim().slice(0, 120),
+      status: 'pending'
+    });
+    if (error) throw error;
+    const patch = { payment_status: 'REFUND_PENDING', updated_at: new Date().toISOString() };
+    if (orderWorkflow.canTransition(order.status, 'REFUND_PENDING')) patch.status = 'REFUND_PENDING';
+    await from('orders').update(patch).eq('id', order.id);
+    await appendOrderTracking(order.id, { status: patch.status || order.status, type: 'payment', actor: 'admin', note: 'Refund of Rs. ' + amount + ' initiated.' + (body.reason ? ' Reason: ' + body.reason : '') });
+    res.json({ success: true, refund: (refundRow && refundRow[0]) || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/orders/:id/refund/:refundId/complete', adminMiddleware, async (req, res) => {
+  try {
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const now = new Date().toISOString();
+    const reference = String((req.body && req.body.reference) || '').trim().slice(0, 120);
+    await from('order_refunds').update({ status: 'completed', completed_at: now, reference: reference }).eq('id', Number(req.params.refundId));
+    const { data: refunds } = await from('order_refunds').select('*').eq('order_id', order.id);
+    const totalRefunded = (refunds || []).filter(function (r) { return r.status === 'completed'; }).reduce(function (s, r) {
+      return s + (orderWorkflow.toNumber(r.amount) || 0);
+    }, 0);
+    const paid = orderWorkflow.money(order.paid_amount) || orderWorkflow.money(order.total_amount);
+    const patch = { refund_amount: orderWorkflow.round2(totalRefunded), updated_at: now };
+    patch.payment_status = (paid > 0 && totalRefunded >= paid) ? 'REFUNDED' : (totalRefunded > 0 ? 'PARTIALLY_REFUNDED' : order.payment_status);
+    if (patch.payment_status === 'REFUNDED' && orderWorkflow.canTransition(order.status, 'REFUNDED')) patch.status = 'REFUNDED';
+    await from('orders').update(patch).eq('id', order.id);
+    await appendOrderTracking(order.id, { status: patch.status || order.status, type: 'payment', actor: 'admin', note: 'Refund completed. Total refunded: Rs. ' + orderWorkflow.round2(totalRefunded) + '.' });
+    res.json({ success: true, refunded: orderWorkflow.round2(totalRefunded) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.delete('/api/orders/:id', adminMiddleware, async (req, res) => {
   try {
-    await supabase.from('order_tracking').delete().eq('order_id', req.params.id);
-    await supabase.from('order_items').delete().eq('order_id', req.params.id);
-    const { error } = await supabase.from('orders').delete().eq('id', req.params.id);
+    await from('order_tracking').delete().eq('order_id', req.params.id);
+    await from('order_items').delete().eq('order_id', req.params.id);
+    await from('order_offers').delete().eq('order_id', req.params.id);
+    await from('order_refunds').delete().eq('order_id', req.params.id);
+    const { error } = await from('orders').delete().eq('id', req.params.id);
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {
@@ -1132,9 +1586,12 @@ app.delete('/api/orders/:id', adminMiddleware, async (req, res) => {
 // ========== ORDER TRACKING ==========
 app.get('/api/orders/:id/tracking', async (req, res) => {
   try {
-    const { data: tracking, error } = await supabase.from('order_tracking').select('*').eq('order_id', req.params.id).order('created_at');
-    if (error) throw error;
-    res.json(tracking || []);
+    const order = await getOrderRow(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('id');
+    res.json((tracking || []).filter(function (t) { return t.visible !== 0; }).map(function (t) {
+      return { status: t.status, label: orderWorkflow.customerLabel(t.status), note: t.note, created_at: t.created_at };
+    }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1644,13 +2101,15 @@ app.get('/api/customers', adminMiddleware, async (req, res) => {
 
 app.get('/api/customers/:phone/orders', async (req, res) => {
   try {
-    const { data: orders, error } = await supabase.from('orders').select('*').eq('customer_phone', req.params.phone).order('id', { ascending: false });
+    const { data: orders, error } = await from('orders').select('*').eq('customer_phone', req.params.phone).order('id', { ascending: false });
     if (error) throw error;
     for (const order of orders || []) {
-      const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
+      const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
       order.items = items || [];
-      const { data: tracking } = await supabase.from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
+      const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
       order.tracking = tracking || [];
+      delete order.tracking_token;
+      delete order.idempotency_key;
     }
     res.json(orders || []);
   } catch (err) {
@@ -1972,13 +2431,15 @@ app.delete('/api/addresses/:id', async (req, res) => {
 // ========== ORDER HISTORY & REORDER ==========
 app.get('/api/orders/by-phone/:phone', async (req, res) => {
   try {
-    const { data: orders, error } = await supabase.from('orders').select('*').eq('customer_phone', req.params.phone).order('id', { ascending: false });
+    const { data: orders, error } = await from('orders').select('*').eq('customer_phone', req.params.phone).order('id', { ascending: false });
     if (error) throw error;
     for (const order of orders || []) {
-      const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
+      const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
       order.items = items || [];
-      const { data: tracking } = await supabase.from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
+      const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
       order.tracking = tracking || [];
+      delete order.tracking_token;
+      delete order.idempotency_key;
     }
     res.json(orders || []);
   } catch (err) {
@@ -1988,10 +2449,10 @@ app.get('/api/orders/by-phone/:phone', async (req, res) => {
 
 app.post('/api/orders/reorder/:id', async (req, res) => {
   try {
-    const { data: order, error } = await supabase.from('orders').select('*').eq('id', req.params.id).maybeSingle();
+    const { data: order, error } = await from('orders').select('*').eq('id', req.params.id).maybeSingle();
     if (error) throw error;
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    const { data: items } = await supabase.from('order_items').select('*').eq('order_id', req.params.id);
+    const { data: items } = await from('order_items').select('*').eq('order_id', req.params.id);
     res.json({ items: items || [], order });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2070,7 +2531,7 @@ app.get('/api/products/recommended', async (req, res) => {
 
 app.get('/api/products/also-bought/:id', async (req, res) => {
   try {
-    const { data: orderItems } = await supabase.from('order_items').select('order_id').eq('product_id', req.params.id);
+    const { data: orderItems } = await from('order_items').select('order_id').eq('product_id', req.params.id);
     let alsoBought = [];
     if (orderItems && orderItems.length) {
       const orderIds = orderItems.map(function(o) { return o.order_id; });
@@ -2211,11 +2672,11 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
     const { count: totalViews } = await supabase.from('site_analytics').select('*', { count: 'exact', head: true });
     const todayStr = new Date().toISOString().split('T')[0];
     const { count: todayViews } = await supabase.from('site_analytics').select('*', { count: 'exact', head: true }).gte('created_at', todayStr);
-    const { count: totalOrders } = await supabase.from('orders').select('*', { count: 'exact', head: true });
-    const { count: todayOrders } = await supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', todayStr);
+    const { count: totalOrders } = await from('orders').select('*', { count: 'exact', head: true });
+    const { count: todayOrders } = await from('orders').select('*', { count: 'exact', head: true }).gte('created_at', todayStr);
 
-    const { data: allOrders } = await supabase.from('orders').select('total_amount, status, created_at');
-    const nonCancelled = (allOrders || []).filter(function(o) { return o.status !== 'cancelled'; });
+    const { data: allOrders } = await from('orders').select('total_amount, status, created_at');
+    const nonCancelled = (allOrders || []).filter(function(o) { return o.status !== 'cancelled' && o.status !== 'CANCELLED' && o.status !== 'REFUNDED' && o.status !== 'REFUND_PENDING'; });
     const totalRevenue = nonCancelled.reduce(function(sum, o) {
       return sum + (parseFloat(String(o.total_amount || '0').replace(/[^0-9.]/g, '')) || 0);
     }, 0);
@@ -2231,7 +2692,7 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
     const { count: totalSubscribers } = await supabase.from('subscribers').select('*', { count: 'exact', head: true });
     const { count: totalMessages } = await supabase.from('messages').select('*', { count: 'exact', head: true });
 
-    const { data: ordersByStatusData } = await supabase.from('orders').select('status');
+    const { data: ordersByStatusData } = await from('orders').select('status');
     const statusCounts = {};
     for (const o of ordersByStatusData || []) {
       statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
@@ -2240,12 +2701,12 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
 
     const { data: topProducts } = await supabase.from('products').select('id, name, sold_count, price, rating').eq('status', 'active').order('sold_count', { ascending: false }).limit(10);
 
-    const { data: recentOrders } = await supabase.from('orders').select('id, customer_name, total_amount, status, created_at').order('id', { ascending: false }).limit(5);
+    const { data: recentOrders } = await from('orders').select('id, customer_name, total_amount, status, created_at').order('id', { ascending: false }).limit(5);
 
     const { data: lowStock } = await supabase.from('products').select('id, name, stock').eq('status', 'active').lt('stock', 10).order('stock').limit(10);
     const lowStockCount = (lowStock || []).length;
 
-    const { data: allOrderItems } = await supabase.from('order_items').select('product_id, quantity, unit_price');
+    const { data: allOrderItems } = await from('order_items').select('product_id, quantity, unit_price');
     const { data: allProducts } = await supabase.from('products').select('id, category');
     const prodCategory = {};
     if (allProducts) allProducts.forEach(function(p) { prodCategory[p.id] = p.category; });
@@ -2299,36 +2760,31 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
 // ========== ORDER REORDER ==========
 app.post('/api/orders/:id/reorder', async (req, res) => {
   try {
-    const { data: order, error: orderError } = await supabase.from('orders').select('*').eq('id', req.params.id).maybeSingle();
-    if (orderError) throw orderError;
+    const order = await getOrderRow(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    const { data: items } = await supabase.from('order_items').select('*').eq('order_id', req.params.id);
-    const { data: newOrderData, error: insertError } = await supabaseInsert('orders', {
+    const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
+    if (!items || !items.length) return res.status(400).json({ error: 'This order has no items to reorder.' });
+    const result = await createOrderFromRequest({
       customer_name: order.customer_name,
       customer_phone: order.customer_phone,
       customer_email: order.customer_email,
       customer_address: order.customer_address,
-      payment_method: payment.PAYMENT_METHOD,
-      payment_status: 'pending',
-      payment_token: payment.createPaymentToken(),
-      notes: 'Reorder from #' + order.id,
-      total_amount: order.total_amount,
-      subtotal: order.subtotal,
-      shipping_method: order.shipping_method || 'standard',
-      shipping_cost: order.shipping_cost || 0,
-      status: 'pending'
+      customer_city: order.customer_city,
+      customer_state: order.customer_state,
+      customer_landmark: order.customer_landmark,
+      notes: 'Reorder from order ' + (order.order_code || order.id),
+      items: items.map(function (i) {
+        return { product_id: i.product_id, quantity: i.quantity, size: i.size, color: i.color };
+      }),
+      shipping_method: order.shipping_method,
+      payment_method: order.payment_method
     });
-    if (insertError) throw insertError;
-    const newOrder = newOrderData[0];
-    for (const item of items || []) {
-      await supabase.from('order_items').insert({
-        order_id: newOrder.id, product_id: item.product_id,
-        product_name: item.product_name, quantity: item.quantity,
-        unit_price: item.unit_price, size: item.size, color: item.color
-      });
-    }
-    await supabase.from('order_tracking').insert({ order_id: newOrder.id, status: 'pending', note: 'Reorder placed' });
-    res.json({ success: true, order_id: newOrder.id });
+    res.json({
+      success: true,
+      order_id: result.order.id,
+      order_code: result.order.order_code,
+      tracking_token: result.order.tracking_token
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2391,7 +2847,7 @@ app.post('/api/data/export', adminMiddleware, async (req, res) => {
     const { data: contact } = await supabase.from('contact').select('*').eq('id', 1).maybeSingle();
     const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
     const { data: messages } = await supabase.from('messages').select('*').order('id', { ascending: false });
-    const { data: orders } = await supabase.from('orders').select('*').order('id', { ascending: false });
+    const { data: orders } = await from('orders').select('*').order('id', { ascending: false });
     const { data: coupons } = await supabase.from('coupons').select('*').order('id', { ascending: false });
     const { data: customers } = await supabase.from('customers').select('*').order('id', { ascending: false });
     const { data: subscribers } = await supabase.from('subscribers').select('*').order('id', { ascending: false });
@@ -2410,9 +2866,11 @@ app.post('/api/data/export', adminMiddleware, async (req, res) => {
 
 app.post('/api/data/reset', adminMiddleware, async (req, res) => {
   try {
-    await supabase.from('order_tracking').delete().gte('id', 0);
-    await supabase.from('order_items').delete().gte('id', 0);
-    await supabase.from('orders').delete().gte('id', 0);
+    await from('order_tracking').delete().gte('id', 0);
+    await from('order_items').delete().gte('id', 0);
+    await from('order_offers').delete().gte('id', 0);
+    await from('order_refunds').delete().gte('id', 0);
+    await from('orders').delete().gte('id', 0);
     await supabase.from('return_requests').delete().gte('id', 0);
     await supabase.from('product_images').delete().gte('id', 0);
     await supabase.from('products').delete().gte('id', 0);
@@ -2561,11 +3019,11 @@ app.get('/api/recommendations/:product_id', async (req, res) => {
       .order('sold_count', { ascending: false })
       .limit(4);
     if (sameCategory.length >= 4) return res.json(sameCategory);
-    const { data: orderItems } = await supabase.from('order_items').select('order_id').eq('product_id', req.params.product_id);
+    const { data: orderItems } = await from('order_items').select('order_id').eq('product_id', req.params.product_id);
     let alsoBought = [];
     if (orderItems && orderItems.length) {
       const orderIds = orderItems.map(function(o) { return o.order_id; });
-      const { data: otherItems } = await supabase.from('order_items').select('product_id').in('order_id', orderIds).neq('product_id', req.params.product_id);
+      const { data: otherItems } = await from('order_items').select('product_id').in('order_id', orderIds).neq('product_id', req.params.product_id);
       if (otherItems && otherItems.length) {
         const productIds = [...new Set(otherItems.map(function(i) { return i.product_id; }))];
         const { data: products } = await supabase.from('products').select('*').in('id', productIds).eq('status', 'active').order('sold_count', { ascending: false }).limit(4);
