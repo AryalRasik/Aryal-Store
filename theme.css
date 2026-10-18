@@ -1,42 +1,47 @@
 /* ==========================================================================
-   ARYAL STORE — MONOCHROME EDITORIAL THEME LAYER
+   ARYAL STORE — BLUSH EDITORIAL THEME LAYER
    Loaded AFTER every page stylesheet so it can refine tokens & components.
-   Palette: #111111 (ink) · #FFFFFF (white) · #F7F7F7 (soft) ·
-            #E5E5E5 (border) · #666666 (secondary text)
+   Palette: #FFFFFF (white) · #111111 (soft-black) · #E8B4B8 (blush) ·
+            #F7F5F4 (soft surface) · #EAE6E5 (border) · #666666 (secondary)
    Sections:
      1. design tokens (storefront + checkout/auth retint, light & dark)
      2. global typography
      3. storefront components (scoped to body.lux-store)
      4. motion system
      5. accessibility & reduced motion
-   ========================================================================== */
+    ========================================================================== */
 
 /* ------------------------------------------------------------------ *
    1. DESIGN TOKENS
    ------------------------------------------------------------------ */
 :root {
-  /* Storefront monochrome palette */
+  /* Storefront blush palette */
   --lux-bg: #FFFFFF;
-  --lux-bg-2: #F7F7F7;
+  --lux-bg-2: #F7F5F4;
   --lux-surface: #FFFFFF;
   --lux-text: #111111;
   --lux-text-2: #666666;
-  --lux-border: #E5E5E5;
+  --lux-border: #EAE6E5;
 
   --lux-ink: #111111;
   --lux-ink-2: #333333;
   --lux-muted: #666666;
-  --lux-soft: #F7F7F7;
-  --lux-line: #E5E5E5;
+  --lux-soft: #F7F5F4;
+  --lux-line: #EAE6E5;
+
+  --lux-blush: #E8B4B8;
+  --lux-blush-deep: #D9A0A6;
+  --lux-blush-soft: rgba(232, 180, 184, 0.16);
+  --lux-blush-ring: rgba(232, 180, 184, 0.38);
 
   --lux-dark: #111111;
   --lux-dark-2: #1A1A1A;
   --lux-on-dark: #FFFFFF;
   --lux-on-dark-2: #C9C9C9;
 
-  --lux-btn-bg: #111111;
-  --lux-btn-fg: #FFFFFF;
-  --lux-btn-bg-hover: #333333;
+  --lux-btn-bg: #E8B4B8;
+  --lux-btn-fg: #111111;
+  --lux-btn-bg-hover: #D9A0A6;
 
   --lux-success: #2F7D4F;
   --lux-error: #B23A2E;
@@ -60,20 +65,20 @@
   /* ---- Checkout token retint (light) ---- */
   --co-primary: #111111;
   --co-primary-dark: #333333;
-  --co-primary-light: rgba(17, 17, 17, 0.06);
+  --co-primary-light: rgba(232, 180, 184, 0.16);
   --co-bg: #FFFFFF;
   --co-surface: #FFFFFF;
   --co-text: #111111;
   --co-text-secondary: #666666;
   --co-text-muted: #999999;
-  --co-border: #E5E5E5;
-  --co-border-light: #F0F0F0;
+  --co-border: #EAE6E5;
+  --co-border-light: #F0EEED;
   --co-success: #2F7D4F;
   --co-error: #B23A2E;
   --co-warning: #111111;
-  --co-step-done: #111111;
+  --co-step-done: #E8B4B8;
   --co-step-active: #111111;
-  --co-step-pending: #DDDDDD;
+  --co-step-pending: #EAE6E5;
   --co-radius: 8px;
   --co-radius-sm: 6px;
   --co-radius-lg: 10px;
@@ -84,18 +89,18 @@
   /* ---- Auth token retint (light) ---- */
   --auth-primary: #111111;
   --auth-primary-dark: #333333;
-  --auth-primary-light: rgba(17, 17, 17, 0.06);
+  --auth-primary-light: rgba(232, 180, 184, 0.16);
   --auth-bg: #FFFFFF;
-  --auth-bg-alt: #F7F7F7;
+  --auth-bg-alt: #F7F5F4;
   --auth-surface: #FFFFFF;
   --auth-text: #111111;
   --auth-text-secondary: #666666;
   --auth-text-muted: #999999;
-  --auth-border: #E5E5E5;
-  --auth-border-focus: #111111;
+  --auth-border: #EAE6E5;
+  --auth-border-focus: #E8B4B8;
   --auth-input-bg: #FFFFFF;
   --auth-gradient-start: #111111;
-  --auth-gradient-end: #1A1A1A;
+  --auth-gradient-end: #2A1E20;
   --auth-radius: 8px;
   --auth-radius-sm: 6px;
   --auth-radius-lg: 10px;
@@ -103,7 +108,7 @@
   --auth-shadow-lg: 0 16px 40px rgba(17, 17, 17, 0.10);
 }
 
-/* Dark theme: inverted monochrome (black surfaces, white ink) */
+/* Dark theme: inverted palette with blush accents */
 [data-theme="dark"] {
   --lux-bg: #0F0F0F;
   --lux-bg-2: #161616;
@@ -121,14 +126,14 @@
   --lux-dark: #111111;
   --lux-dark-2: #1A1A1A;
 
-  --lux-btn-bg: #F5F5F5;
+  --lux-btn-bg: #E8B4B8;
   --lux-btn-fg: #111111;
-  --lux-btn-bg-hover: #DADADA;
+  --lux-btn-bg-hover: #F0C6C9;
 
   /* ---- Checkout retint (dark) ---- */
   --co-primary: #F5F5F5;
   --co-primary-dark: #FFFFFF;
-  --co-primary-light: rgba(255, 255, 255, 0.08);
+  --co-primary-light: rgba(232, 180, 184, 0.14);
   --co-bg: #0F0F0F;
   --co-surface: #171717;
   --co-text: #F5F5F5;
@@ -141,7 +146,7 @@
   /* ---- Auth retint (dark) ---- */
   --auth-primary: #F5F5F5;
   --auth-primary-dark: #FFFFFF;
-  --auth-primary-light: rgba(255, 255, 255, 0.08);
+  --auth-primary-light: rgba(232, 180, 184, 0.14);
   --auth-bg: #0F0F0F;
   --auth-bg-alt: #161616;
   --auth-surface: #171717;
@@ -151,7 +156,7 @@
   --auth-border: #2A2A2A;
   --auth-input-bg: #161616;
   --auth-gradient-start: #111111;
-  --auth-gradient-end: #1A1A1A;
+  --auth-gradient-end: #2A1E20;
 }
 
 /* ------------------------------------------------------------------ *
@@ -162,7 +167,7 @@ body {
 }
 
 h1, h2, .section-title,
-.hero-carousel .carousel-slide .slide-content h1 {
+.lux-hero .lux-hero-copy h1 {
   font-family: var(--font-display);
   letter-spacing: 0.2px;
 }
@@ -176,7 +181,7 @@ h1, h2, .section-title,
   color: var(--lux-text);
 }
 
-/* --- Announcement strip --- */
+/* --- Announcement strip: blush, ink text --- */
 .lux-announce {
   position: fixed;
   top: 0;
@@ -185,11 +190,11 @@ h1, h2, .section-title,
   height: var(--lux-announce-h);
   z-index: 1001;
   overflow: hidden;
-  background: var(--lux-dark);
-  color: var(--lux-on-dark);
+  background: var(--lux-blush);
+  color: var(--lux-ink);
   display: flex;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(17, 17, 17, 0.06);
 }
 .lux-announce-track {
   display: inline-flex;
@@ -200,10 +205,10 @@ h1, h2, .section-title,
   font-size: 0.76rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
   animation: luxMarquee 38s linear infinite;
 }
-.lux-announce-track .lux-dot { color: rgba(255, 255, 255, 0.45); }
+.lux-announce-track .lux-dot { color: rgba(17, 17, 17, 0.35); }
 @keyframes luxMarquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -212,29 +217,71 @@ h1, h2, .section-title,
 /* Shift fixed header below the announcement strip */
 .lux-store header { top: var(--lux-announce-h); }
 
-/* --- Header refinement --- */
+/* --- Header: white, ink text --- */
 .lux-store header {
-  background: rgba(17, 17, 17, 0.96);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.97);
+  border-bottom: 1px solid var(--lux-border);
   transition: background 0.35s var(--lux-ease), box-shadow 0.35s var(--lux-ease);
 }
 .lux-store header.lux-scrolled {
-  background: rgba(17, 17, 17, 0.99);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.30);
+  background: rgba(255, 255, 255, 0.99);
+  box-shadow: 0 10px 30px rgba(17, 17, 17, 0.08);
 }
+.lux-store header, .lux-store header .logo { color: var(--lux-ink); }
 .lux-store .logo {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1.7rem;
   line-height: 1.15;
   letter-spacing: 0.5px;
-  color: var(--lux-on-dark);
+  color: var(--lux-ink);
 }
-.lux-store .logo span { color: var(--lux-on-dark-2); }
-.lux-store .nav-icons > *:hover { color: var(--lux-on-dark); }
-.lux-store .nav-icons .count-badge { background: var(--lux-on-dark); color: var(--lux-ink); }
-.lux-store .slide-menu-header h3 span { color: var(--lux-on-dark); }
+.lux-store .logo span { color: var(--lux-blush-deep); }
+.lux-store header nav ul li a { color: var(--lux-text-2); }
+.lux-store header nav ul li a:hover { color: var(--lux-ink); background: var(--lux-blush-soft); }
+.lux-store .nav-icons { color: var(--lux-ink); }
+.lux-store .nav-icons > *:hover { color: var(--lux-ink); background: var(--lux-blush-soft); }
+.lux-store .nav-icons .count-badge { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .hamburger { color: var(--lux-ink); }
+.lux-store .slide-menu-header { background: var(--lux-dark); }
+.lux-store .slide-menu-header h3 span { color: var(--lux-blush); }
 .lux-store .category-nav { top: var(--lux-nav-top, calc(var(--lux-announce-h) + var(--lux-header-h))); }
+
+/* Mobile header: white too (overrides inline dark gradient) */
+@media (max-width: 768px) {
+  .lux-store header { background: rgba(255, 255, 255, 0.98); }
+  .lux-store .header-tagline { color: var(--lux-text-2); }
+  .lux-store .header-search-mobile .search-box {
+    border-color: var(--lux-border);
+    background: var(--lux-soft);
+  }
+  .lux-store .header-search-mobile .search-box input { color: var(--lux-ink); }
+  .lux-store .header-search-mobile .search-box input::placeholder { color: var(--lux-muted); }
+  .lux-store .header-search-mobile .search-box button {
+    background: var(--lux-blush);
+    color: var(--lux-ink);
+  }
+  .lux-store header nav ul {
+    background: rgba(255, 255, 255, 0.99);
+    border-bottom: 1px solid var(--lux-border);
+    box-shadow: var(--lux-shadow-lg);
+  }
+  .lux-store header nav ul li a { color: var(--lux-text); }
+}
+
+/* --- Category nav bar --- */
+.lux-store .category-nav {
+  background: var(--lux-surface);
+  border-bottom: 1px solid var(--lux-border);
+}
+.lux-store .category-nav-inner a { color: var(--lux-text-2); }
+.lux-store .category-nav-inner a:hover,
+.lux-store .category-nav-inner a.active {
+  color: var(--lux-ink);
+  border-bottom-color: var(--lux-blush);
+  background: var(--lux-blush-soft);
+}
+.lux-store .category-nav-inner .nav-more { color: var(--lux-ink); }
 
 /* --- Section titles --- */
 .lux-store .section-title {
@@ -243,7 +290,7 @@ h1, h2, .section-title,
   letter-spacing: 0.4px;
 }
 .lux-store .section-title::after {
-  background: var(--lux-ink);
+  background: var(--lux-blush);
   height: 2px;
   width: 72px;
 }
@@ -257,7 +304,7 @@ h1, h2, .section-title,
 }
 .lux-store .btn-primary:hover {
   background: var(--lux-btn-bg-hover);
-  box-shadow: 0 8px 22px rgba(17, 17, 17, 0.18);
+  box-shadow: 0 8px 22px rgba(217, 160, 166, 0.45);
 }
 .lux-store .btn-secondary {
   background: var(--lux-surface);
@@ -268,78 +315,149 @@ h1, h2, .section-title,
   background: var(--lux-ink);
   color: var(--lux-surface);
 }
+.lux-store .btn-dark {
+  background: var(--lux-ink);
+  color: var(--lux-surface);
+}
+.lux-store .btn-dark:hover { background: var(--lux-ink-2); }
+.lux-store .btn-outline {
+  background: transparent;
+  color: var(--lux-ink);
+  border: 2px solid var(--lux-ink);
+}
+.lux-store .btn-outline:hover { background: var(--lux-ink); color: var(--lux-surface); }
 
 /* --- Search --- */
 .lux-store .header-search-desktop .search-box,
 .lux-store .search-box {
   border-radius: 8px;
+  background: var(--lux-surface);
+  border-color: var(--lux-border);
 }
-/* Mobile search sits on the dark header */
-.lux-store .header-search-mobile .search-box button {
-  background: var(--lux-on-dark);
+.lux-store .header-search-desktop .search-box:focus-within,
+.lux-store .search-wrapper .search-box:focus-within {
+  border-color: var(--lux-blush);
+  box-shadow: 0 0 0 4px var(--lux-blush-ring);
+}
+.lux-store .header-search-desktop .search-box select { background: var(--lux-soft); color: var(--lux-text-2); }
+.lux-store .header-search-desktop .search-box button,
+.lux-store .search-wrapper .search-box button {
+  background: var(--lux-blush);
   color: var(--lux-ink);
 }
+.lux-store .header-search-desktop .search-box button:hover,
+.lux-store .search-wrapper .search-box button:hover { background: var(--lux-blush-deep); }
 
-/* --- Hero carousel editorial treatment --- */
-.lux-store .hero-carousel { background: var(--lux-dark); }
-.lux-store .hero-carousel .carousel-slide .slide-overlay {
-  background: linear-gradient(90deg, rgba(17, 17, 17, 0.84) 0%, rgba(17, 17, 17, 0.52) 48%, rgba(17, 17, 17, 0.14) 100%);
+/* --- Split hero (replaces carousel) --- */
+.lux-hero {
+  background: var(--lux-bg);
+  padding: calc(var(--lux-announce-h) + var(--lux-header-h) + 48px) 0 56px;
 }
-.lux-store .hero-carousel .carousel-slide .slide-badge {
-  background: rgba(255, 255, 255, 0.10);
-  color: var(--lux-on-dark);
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  letter-spacing: 0.14em;
+.lux-hero-inner {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.lux-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-size: 0.7rem;
-  border-radius: 40px;
+  color: var(--lux-ink);
+  background: var(--lux-blush-soft);
+  border: 1px solid var(--lux-blush-ring);
+  border-radius: 50px;
+  padding: 6px 16px;
+  margin-bottom: 18px;
 }
-.lux-store .hero-carousel .carousel-slide .slide-content h1 {
+.lux-hero-copy h1 {
+  font-size: clamp(2.2rem, 4.6vw, 3.6rem);
   font-weight: 600;
-  letter-spacing: 0.5px;
-  color: var(--lux-on-dark);
-}
-.lux-store .hero-carousel .carousel-slide .slide-content h1 span { color: var(--lux-on-dark); }
-.lux-store .hero-carousel .carousel-slide .slide-content p {
-  color: #E6E6E6;
-  font-weight: 300;
+  line-height: 1.12;
+  color: var(--lux-ink);
+  margin-bottom: 16px;
   letter-spacing: 0.2px;
 }
-/* Keep the black "Shop Now" button legible against dark hero photography */
-.lux-store .hero-carousel .carousel-slide .slide-buttons .btn-primary {
-  border: 1px solid rgba(255, 255, 255, 0.55);
+.lux-hero-copy h1 em {
+  font-style: italic;
+  color: var(--lux-blush-deep);
 }
-.lux-store .hero-carousel .carousel-slide .btn-secondary-hero {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--lux-on-dark);
-  border: 1px solid rgba(255, 255, 255, 0.45);
+.lux-hero-sub {
+  font-size: 1.02rem;
+  color: var(--lux-text-2);
+  line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 28px;
 }
-.lux-store .hero-carousel .carousel-slide .btn-secondary-hero:hover {
-  background: var(--lux-on-dark);
+.lux-hero-actions { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.lux-hero-actions .btn { padding: 14px 32px; font-size: 0.95rem; }
+.lux-hero-link {
+  font-size: 0.92rem;
+  font-weight: 600;
   color: var(--lux-ink);
-  transform: translateY(-2px);
+  border-bottom: 1px solid var(--lux-blush);
+  padding-bottom: 2px;
+  transition: color 0.2s, border-color 0.2s;
 }
-.lux-store .hero-carousel .carousel-dots .dot.active {
-  background: var(--lux-on-dark);
-  border-color: var(--lux-on-dark);
+.lux-hero-link:hover { color: var(--lux-blush-deep); border-color: var(--lux-blush-deep); }
+.lux-hero-collage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 150px 150px;
+  gap: 12px;
 }
-.lux-store .hero-carousel .carousel-progress { background: var(--lux-on-dark); }
+.lux-hero-collage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 14px;
+  background: var(--lux-soft);
+}
+.lux-hero-collage img:first-child { grid-row: span 2; height: 100%; }
+.lux-hero-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 30px;
+}
+.lux-hero-trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lux-text-2);
+}
+.lux-hero-trust i { color: var(--lux-blush-deep); font-size: 0.9rem; }
+@media (max-width: 900px) {
+  .lux-hero-inner { grid-template-columns: 1fr; gap: 32px; }
+  .lux-hero-collage { grid-template-rows: 120px 120px; }
+}
+@media (max-width: 480px) {
+  .lux-hero { padding-top: calc(var(--lux-announce-h) + 120px); padding-bottom: 36px; }
+  .lux-hero-collage { grid-template-rows: 100px 100px; gap: 8px; }
+  .lux-hero-actions .btn { width: 100%; justify-content: center; }
+}
 
 /* --- Filter chips --- */
-.lux-store .filter-btn { border-color: var(--lux-border); color: var(--lux-text-2); }
+.lux-store .filter-btn { border-color: var(--lux-border); color: var(--lux-text-2); background: var(--lux-surface); }
 .lux-store .filter-btn.active {
-  border-color: var(--lux-ink);
-  background: var(--lux-ink);
-  color: var(--lux-surface);
-  box-shadow: 0 3px 12px rgba(17, 17, 17, 0.14);
+  border-color: var(--lux-blush);
+  background: var(--lux-blush);
+  color: var(--lux-ink);
+  box-shadow: 0 3px 12px rgba(217, 160, 166, 0.35);
 }
-.lux-store .filter-btn:hover { border-color: var(--lux-ink); color: var(--lux-ink); }
-.lux-store .filter-btn.active:hover { color: var(--lux-surface); }
+.lux-store .filter-btn:hover { border-color: var(--lux-blush-deep); color: var(--lux-ink); }
+.lux-store .filter-btn.active:hover { color: var(--lux-ink); }
 
 /* --- Product cards --- */
 .lux-store .product-card {
   border: 1px solid var(--lux-border);
-  border-radius: var(--lux-radius);
+  border-radius: 14px;
   box-shadow: var(--lux-shadow-sm);
   background: var(--lux-surface);
   transition: transform 0.35s var(--lux-ease), box-shadow 0.35s var(--lux-ease), border-color 0.35s var(--lux-ease);
@@ -347,24 +465,89 @@ h1, h2, .section-title,
 .lux-store .product-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--lux-shadow-lg);
-  border-color: var(--lux-ink);
+  border-color: var(--lux-blush);
 }
-.lux-store .product-card .product-img { overflow: hidden; }
-.lux-store .product-card .product-img img {
-  transition: transform 0.55s var(--lux-ease);
-}
+.lux-store .product-card .product-img { background: var(--lux-soft); overflow: hidden; }
+.lux-store .product-card .product-img img { transition: transform 0.55s var(--lux-ease); }
 .lux-store .product-card:hover .product-img img { transform: scale(1.05); }
+.lux-store .product-card .price-row .current { color: var(--lux-ink); }
+.lux-store .product-card .discount-chip { background: var(--lux-blush-soft); color: var(--lux-ink); }
+.lux-store .product-card .stock-bar .fill { background: var(--lux-blush); }
+.lux-store .product-card .quick-view-btn { background: rgba(17, 17, 17, 0.9); }
+.lux-store .product-card .discount-badge { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .product-card .wishlist-btn:hover,
+.lux-store .product-card .wishlist-btn.active { color: var(--lux-blush-deep); }
 
 /* --- Badges --- */
-.lux-store .badge-sale {
-  background: var(--lux-ink);
-  color: #fff;
-  letter-spacing: 0.06em;
+.lux-store .badge-new { background: var(--lux-ink); color: #fff; }
+.lux-store .badge-sale { background: var(--lux-blush); color: var(--lux-ink); letter-spacing: 0.06em; }
+.lux-store .badge-seller { background: var(--lux-blush-deep); color: var(--lux-ink); }
+.lux-store .badge-trending { background: var(--lux-soft); color: var(--lux-ink); border: 1px solid var(--lux-blush-ring); }
+
+/* --- Showcase rows --- */
+.lux-store .product-showcase { background: var(--lux-bg); }
+.lux-store .product-showcase.bg-light { background: var(--lux-soft); }
+.lux-store .showcase-header h3 span { color: var(--lux-blush-deep); }
+.lux-store .showcase-header a { color: var(--lux-ink) !important; }
+
+/* --- Category preview cards --- */
+.lux-store .cat-preview-card { border-radius: 16px; }
+.lux-store .cat-preview-card .cat-overlay {
+  background: linear-gradient(to top, rgba(17, 17, 17, 0.68) 0%, rgba(17, 17, 17, 0.05) 55%);
+}
+.lux-store .cat-preview-card .cat-count { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .cat-preview-card:hover { box-shadow: 0 14px 35px rgba(217, 160, 166, 0.35); }
+
+/* --- Marquee (category strip) --- */
+.lux-store .brand-showcase {
+  background: var(--lux-soft);
+  border-top: 1px solid var(--lux-border);
+  border-bottom: 1px solid var(--lux-border);
+}
+.lux-store .brand-item {
+  background: var(--lux-surface);
+  color: var(--lux-text-2);
+  border: 1px solid var(--lux-border);
+}
+.lux-store .brand-item:hover {
+  background: var(--lux-blush);
+  color: var(--lux-ink);
+  border-color: var(--lux-blush);
+  box-shadow: 0 4px 15px rgba(217, 160, 166, 0.35);
 }
 
-/* --- Trust / promo surfaces --- */
+/* --- Flash sale: ink section, blush accents --- */
+.lux-store .flash-sale-section {
+  background: linear-gradient(135deg, #111111 0%, #1C1516 100%);
+  color: var(--lux-on-dark);
+}
+.lux-store .flash-sale-header h2 { color: var(--lux-on-dark); }
+.lux-store .flash-sale-header h2 i { color: var(--lux-blush); }
+.lux-store .flash-countdown .unit {
+  background: rgba(232, 180, 184, 0.14);
+  border: 1px solid rgba(232, 180, 184, 0.35);
+}
+.lux-store .flash-countdown .unit .num { color: var(--lux-blush); }
+.lux-store .flash-countdown .unit .label { color: var(--lux-on-dark-2); }
+.lux-store .flash-card .flash-img .flash-discount-badge { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .flash-card .flash-body .flash-price { color: var(--lux-ink); }
+.lux-store .flash-card .flash-body .flash-stock .bar .fill { background: var(--lux-blush); }
+.lux-store .flash-card .flash-body .btn-primary {
+  background: var(--lux-blush);
+  color: var(--lux-ink);
+}
+
+/* --- Trust / about badges --- */
 .lux-store .trust-section,
 .lux-store .hero-categories { background: transparent; }
+.lux-store .about { background: var(--lux-bg); border-bottom: 1px solid var(--lux-border); }
+.lux-store .about-badge { background: var(--lux-soft); border: 1px solid transparent; }
+.lux-store .about-badge:hover { background: var(--lux-surface); border-color: var(--lux-blush-ring); box-shadow: 0 4px 15px rgba(217, 160, 166, 0.22); }
+.lux-store .about-badge .ab-icon {
+  background: linear-gradient(135deg, var(--lux-blush), var(--lux-blush-deep));
+  color: var(--lux-ink);
+  box-shadow: 0 4px 14px rgba(217, 160, 166, 0.35);
+}
 .lux-store .trust-card {
   background: var(--lux-surface);
   border: 1px solid var(--lux-border);
@@ -372,44 +555,185 @@ h1, h2, .section-title,
 }
 .lux-store .trust-card:hover { box-shadow: var(--lux-shadow-lg); }
 .lux-store .trust-card .trust-icon {
-  background: var(--lux-ink);
-  color: var(--lux-surface);
+  background: var(--lux-blush);
+  color: var(--lux-ink);
   border-radius: var(--lux-radius-sm);
-  box-shadow: 0 4px 14px rgba(17, 17, 17, 0.14);
+  box-shadow: 0 4px 14px rgba(217, 160, 166, 0.3);
+}
+
+/* --- Testimonials --- */
+.lux-store .testimonials { background: var(--lux-soft); }
+.lux-store .testimonial-card .tc-header .avatar {
+  background: linear-gradient(135deg, var(--lux-blush), var(--lux-blush-deep));
+  color: var(--lux-ink);
 }
 
 /* --- Newsletter --- */
 .lux-store .newsletter-section {
-  background: var(--lux-dark);
+  background: linear-gradient(135deg, #111111 0%, #1C1516 100%);
   color: var(--lux-on-dark);
 }
 .lux-store .newsletter-section p { color: var(--lux-on-dark-2); }
 .lux-store .newsletter-form button {
-  background: var(--lux-on-dark);
+  background: var(--lux-blush);
   color: var(--lux-ink);
 }
+.lux-store .newsletter-form button:hover { background: var(--lux-blush-deep); }
+
+/* --- Contact --- */
+.lux-store .contact-info .info-item i { background: var(--lux-blush-soft); color: var(--lux-ink); }
+.lux-store .contact-form input:focus,
+.lux-store .contact-form textarea:focus { border-color: var(--lux-blush); box-shadow: 0 0 0 4px var(--lux-blush-ring); }
 
 /* --- Footer --- */
 .lux-store footer { background: var(--lux-dark); }
-.lux-store footer .footer-col h4 { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.5px; }
-.lux-store footer .footer-col h4::after { background: var(--lux-on-dark); }
-.lux-store footer .footer-col ul li a:hover {
+.lux-store footer .footer-col h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.5px;
   color: var(--lux-on-dark);
-  border-color: var(--lux-on-dark);
-  background: transparent;
 }
+.lux-store footer .footer-col h4::after { background: var(--lux-blush); }
+.lux-store footer .footer-col ul li a:hover { color: var(--lux-blush); }
 .lux-store footer .social-links a:hover {
   color: var(--lux-ink);
-  border-color: var(--lux-on-dark);
-  background: var(--lux-on-dark);
+  border-color: var(--lux-blush);
+  background: var(--lux-blush);
 }
-.lux-store footer .footer-bottom span { color: var(--lux-on-dark); }
+.lux-store footer .footer-bottom span { color: var(--lux-blush); }
+.lux-store footer .newsletter-form button { background: var(--lux-blush); color: var(--lux-ink); }
 
-/* Dark surfaces need a light focus ring */
-.lux-store header :focus-visible,
+/* --- Cart sidebar --- */
+.lux-store .cart-header h3 span { color: var(--lux-blush-deep); }
+.lux-store .cart-close-btn:hover { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .cart-footer { background: var(--lux-soft); }
+.lux-store .cart-footer .coupon-row button { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .cart-footer .btn-back { color: var(--lux-ink); border-color: var(--lux-ink); }
+.lux-store .cart-footer .btn-back:hover { background: var(--lux-ink); color: var(--lux-surface); }
+.lux-store .cart-item-info .qty-controls button:hover { border-color: var(--lux-blush); color: var(--lux-blush-deep); }
+
+/* --- Checkout modal --- */
+.lux-store .cm-step.active .cm-step-num { background: var(--lux-ink); border-color: var(--lux-ink); color: #fff; }
+.lux-store .cm-step.done .cm-step-num { background: var(--lux-blush); border-color: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .cm-step.done { color: var(--lux-blush-deep); }
+.lux-store .cm-payment-option.selected,
+.lux-store .cm-shipping-option.selected {
+  border-color: var(--lux-blush);
+  background: var(--lux-blush-soft);
+}
+.lux-store .cm-actions .btn-primary { background: var(--lux-blush); color: var(--lux-ink); }
+
+/* --- Product modal --- */
+.lux-store .modal-info .btn-primary { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .modal-info .btn-primary:hover { background: var(--lux-blush-deep); }
+.lux-store .modal-info .category-tag { background: var(--lux-blush-soft); color: var(--lux-ink); }
+.lux-store .modal-info .option-group .options .opt-btn.active {
+  border-color: var(--lux-blush);
+  background: var(--lux-blush-soft);
+  box-shadow: 0 0 0 1px var(--lux-blush);
+}
+.lux-store .modal-info .option-group .options .color-opt.active {
+  border-color: var(--lux-blush);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--lux-blush);
+}
+.lux-store .modal-info .price-row .sale-tag { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .modal-images .thumb-row .thumb.active,
+.lux-store .modal-images .thumb-row .thumb:hover { border-color: var(--lux-blush); }
+
+/* --- Forms / inputs --- */
+.lux-store .sort-select:focus,
+.lux-store .advanced-filters select:focus,
+.lux-store .advanced-filters input:focus,
+.lux-store .checkout-form .form-group input:focus,
+.lux-store .checkout-form .form-group textarea:focus,
+.lux-store .checkout-form .form-group select:focus,
+.lux-store .auth-form .auth-field input:focus,
+.lux-store .review-modal .form-group input:focus,
+.lux-store .review-modal .form-group textarea:focus,
+.lux-store .order-track-modal .track-form input:focus {
+  border-color: var(--lux-blush);
+  box-shadow: 0 0 0 4px var(--lux-blush-ring);
+}
+.lux-store .auth-tab.active { color: var(--lux-ink); border-bottom-color: var(--lux-blush); }
+.lux-store .auth-form h3::after { background: var(--lux-blush); }
+.lux-store .auth-remember input[type="checkbox"] { accent-color: var(--lux-blush-deep); }
+.lux-store .search-box:focus-within { border-color: var(--lux-blush); box-shadow: 0 0 0 4px var(--lux-blush-ring); }
+
+/* --- Address form --- */
+.lux-store .addr-btn-primary { background: linear-gradient(135deg, var(--lux-blush), var(--lux-blush-deep)); color: var(--lux-ink); box-shadow: 0 4px 12px rgba(217, 160, 166, 0.4); }
+.lux-store .addr-checkbox input:checked + .addr-checkmark { background: var(--lux-blush); border-color: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .addr-form-header { background: linear-gradient(135deg, #111111, #1C1516); }
+.lux-store .addr-form-header .addr-form-icon { color: var(--lux-blush); }
+.lux-store .addr-field input:focus, .lux-store .addr-field textarea:focus,
+.lux-store .addr-select-wrap select:focus {
+  border-color: var(--lux-blush);
+  box-shadow: 0 0 0 4px var(--lux-blush-ring);
+}
+
+/* --- Profile / account --- */
+.lux-store .profile-header { background: linear-gradient(135deg, #111111, #1C1516); }
+.lux-store .profile-avatar { background: linear-gradient(135deg, var(--lux-blush), var(--lux-blush-deep)); color: var(--lux-ink); }
+.lux-store .profile-tab.active { color: var(--lux-ink); border-bottom-color: var(--lux-blush); }
+.lux-store .address-card:hover { border-color: var(--lux-blush); }
+.lux-store .address-card .addr-label,
+.lux-store .address-card .addr-label.default,
+.lux-store .address-card .default-badge { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .address-card .address-actions .btn-use { background: var(--lux-blush); color: var(--lux-ink); }
+
+/* --- Notifications --- */
+.lux-store .notif-dropdown-header .mark-read { color: var(--lux-blush-deep); }
+.lux-store .notif-item.unread { background: var(--lux-blush-soft); }
+.lux-store .notif-item .notif-icon.order { background: var(--lux-blush-soft); color: var(--lux-ink); }
+
+/* --- Search suggestions --- */
+.lux-store .search-tabs .stab.active { color: var(--lux-ink); border-bottom-color: var(--lux-blush); }
+.lux-store .trending-item .trend-num.top { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .search-hl { background: var(--lux-blush-soft); color: var(--lux-ink); }
+
+/* --- Loading / empty states --- */
+.lux-store .skeleton,
+.lux-store .skel { background: linear-gradient(90deg, #F0EEED 25%, #E8E4E3 50%, #F0EEED 75%); background-size: 200% 100%; }
+.lux-store .skeleton-card { border: 1px solid var(--lux-border); }
+.lux-store .empty-state i { color: var(--lux-blush); }
+.lux-store .empty-state h3 { color: var(--lux-text-2); }
+
+/* --- Bottom nav --- */
+.lux-store .bottom-nav {
+  background: var(--lux-surface);
+  border-top: 1px solid var(--lux-border);
+}
+.lux-store .bottom-nav-item.active { color: var(--lux-blush-deep); }
+.lux-store .bottom-nav-item .bnav-badge,
+.lux-store .bottom-nav-item .count-badge { background: var(--lux-blush); color: var(--lux-ink); }
+
+/* --- Scroll top --- */
+.lux-store .scroll-top {
+  background: var(--lux-blush);
+  color: var(--lux-ink);
+  box-shadow: 0 4px 14px rgba(217, 160, 166, 0.45);
+}
+.lux-store .scroll-top:hover { background: var(--lux-blush-deep); }
+
+/* --- Order cards / status --- */
+.lux-store .order-card .timeline .step .dot.current { background: var(--lux-blush-deep); }
+.lux-store .order-history-card .oh-footer .oh-track-btn { background: var(--lux-blush); color: var(--lux-ink); }
+.lux-store .order-history-card .oh-footer .oh-track-btn:hover { background: var(--lux-blush-deep); }
+
+/* --- Load more --- */
+.lux-store #loadMoreBtn {
+  background: var(--lux-surface);
+  color: var(--lux-ink);
+  border: 1.5px solid var(--lux-ink);
+  padding: 12px 36px;
+}
+.lux-store #loadMoreBtn:hover { background: var(--lux-ink); color: var(--lux-surface); }
+
+/* Dark surfaces need a light focus ring; light surfaces use blush */
 .lux-store footer :focus-visible,
 .lux-store .lux-announce :focus-visible,
-.lux-store .hero-carousel :focus-visible {
+.lux-store .flash-sale-section :focus-visible,
+.lux-store .newsletter-section :focus-visible,
+.lux-store .slide-menu-header :focus-visible {
   outline-color: var(--lux-on-dark);
 }
 
@@ -431,11 +755,11 @@ h1, h2, .section-title,
    5. ACCESSIBILITY
    ------------------------------------------------------------------ */
 :focus-visible {
-  outline: 2px solid var(--lux-ink);
+  outline: 2px solid var(--lux-blush-deep);
   outline-offset: 2px;
 }
 .lux-store a:focus-visible,
-.lux-store button:focus-visible { outline: 2px solid var(--lux-ink); }
+.lux-store button:focus-visible { outline: 2px solid var(--lux-blush-deep); }
 
 @media (max-width: 768px) {
   :root { --lux-announce-h: 32px; }

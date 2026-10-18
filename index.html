@@ -1396,19 +1396,19 @@
 
 <div class="lux-announce" role="region" aria-label="Store announcements">
   <div class="lux-announce-track">
-    <span>Complimentary delivery on eligible orders</span>
+    <span>Fashion &middot; Beauty &middot; Stationery &middot; Cylinder refills</span>
     <span class="lux-dot" aria-hidden="true">&bull;</span>
-    <span>100% authentic beauty &amp; lifestyle products</span>
+    <span>Free delivery on orders over Rs. 2,000</span>
     <span class="lux-dot" aria-hidden="true">&bull;</span>
-    <span>Secure online payment &amp; full order tracking</span>
+    <span>Secure QR payment &amp; full order tracking</span>
     <span class="lux-dot" aria-hidden="true">&bull;</span>
     <span>Delivery scheduled with your approval</span>
     <span class="lux-dot" aria-hidden="true">&bull;</span>
-    <span>Complimentary delivery on eligible orders</span>
+    <span>Fashion &middot; Beauty &middot; Stationery &middot; Cylinder refills</span>
     <span class="lux-dot" aria-hidden="true">&bull;</span>
-    <span>100% authentic beauty &amp; lifestyle products</span>
+    <span>Free delivery on orders over Rs. 2,000</span>
     <span class="lux-dot" aria-hidden="true">&bull;</span>
-    <span>Secure online payment &amp; full order tracking</span>
+    <span>Secure QR payment &amp; full order tracking</span>
     <span class="lux-dot" aria-hidden="true">&bull;</span>
     <span>Delivery scheduled with your approval</span>
     <span class="lux-dot" aria-hidden="true">&bull;</span>
@@ -1424,11 +1424,11 @@
           <select id="headerCategorySelect" aria-label="Search in category">
             <option value="">All Categories</option>
             <option value="clothes">Clothes</option>
+            <option value="men">Men</option>
+            <option value="kids">Kids</option>
             <option value="cosmetics">Cosmetics</option>
             <option value="stationery">Stationery</option>
             <option value="cylinder">Cylinder</option>
-            <option value="shoes">Shoes</option>
-            <option value="accessories">Accessories</option>
           </select>
           <input type="text" id="headerSearchInput" placeholder="Search products..." autocomplete="off" oninput="toggleHeaderSearchClear()" aria-label="Search products">
           <i class="fas fa-times-circle" id="headerSearchClearBtn" style="display:none;cursor:pointer;color:#666666;font-size:1.1rem;padding:0 6px;" onclick="clearHeaderSearch()" role="button" aria-label="Clear search"></i>
@@ -1475,11 +1475,10 @@
   <div class="container">
     <div class="category-nav-inner" id="categoryNavInner">
       <a href="#products" data-category="all" class="active" onclick="filterByCategory('all');event.preventDefault();"><i class="fas fa-fire"></i> New Arrivals</a>
+      <a href="#products" data-category="clothes" onclick="filterByCategory('clothes');event.preventDefault();"><i class="fas fa-tshirt"></i> Clothes</a>
       <a href="#products" data-category="men" onclick="filterByCategory('men');event.preventDefault();"><i class="fas fa-male"></i> Men</a>
-      <a href="#products" data-category="women" onclick="filterByCategory('women');event.preventDefault();"><i class="fas fa-female"></i> Women</a>
-      <a href="#products" data-category="shoes" onclick="filterByCategory('shoes');event.preventDefault();"><i class="fas fa-shoe-prints"></i> Shoes</a>
-      <a href="#products" data-category="accessories" onclick="filterByCategory('accessories');event.preventDefault();"><i class="fas fa-glasses"></i> Accessories</a>
-      <a href="#products" data-category="cosmetics" onclick="filterByCategory('cosmetics');event.preventDefault();"><i class="fas fa-spa"></i> Beauty</a>
+      <a href="#products" data-category="kids" onclick="filterByCategory('kids');event.preventDefault();"><i class="fas fa-child"></i> Kids</a>
+      <a href="#products" data-category="cosmetics" onclick="filterByCategory('cosmetics');event.preventDefault();"><i class="fas fa-spa"></i> Cosmetics</a>
       <a href="#products" data-category="stationery" onclick="filterByCategory('stationery');event.preventDefault();"><i class="fas fa-book"></i> Stationery</a>
       <a href="#products" data-category="cylinder" onclick="filterByCategory('cylinder');event.preventDefault();"><i class="fas fa-burn"></i> Cylinder</a>
       <span class="nav-more" onclick="openSlideMenu()"><i class="fas fa-bars"></i> All</span>
@@ -1496,138 +1495,76 @@
   </div>
   <div class="slide-menu-items">
     <a href="#products" onclick="filterByCategory('all');closeSlideMenu();event.preventDefault();"><i class="fas fa-fire"></i> New Arrivals</a>
-    <a href="#products" onclick="filterByCategory('men');closeSlideMenu();event.preventDefault();"><i class="fas fa-male"></i> Men's Fashion</a>
-    <a href="#products" onclick="filterByCategory('women');closeSlideMenu();event.preventDefault();"><i class="fas fa-female"></i> Women's Fashion</a>
-    <a href="#products" onclick="filterByCategory('shoes');closeSlideMenu();event.preventDefault();"><i class="fas fa-shoe-prints"></i> Shoes</a>
-    <a href="#products" onclick="filterByCategory('bags');closeSlideMenu();event.preventDefault();"><i class="fas fa-shopping-bag"></i> Bags</a>
-    <a href="#products" onclick="filterByCategory('accessories');closeSlideMenu();event.preventDefault();"><i class="fas fa-glasses"></i> Accessories</a>
-    <a href="#products" onclick="filterByCategory('cosmetics');closeSlideMenu();event.preventDefault();"><i class="fas fa-spa"></i> Beauty</a>
-    <a href="#products" onclick="filterByCategory('sports');closeSlideMenu();event.preventDefault();"><i class="fas fa-running"></i> Sports</a>
-    <a href="#products" onclick="filterByCategory('cylinder');closeSlideMenu();event.preventDefault();"><i class="fas fa-burn"></i> Cylinder</a>
+    <a href="#products" onclick="filterByCategory('clothes');closeSlideMenu();event.preventDefault();"><i class="fas fa-tshirt"></i> Clothes</a>
+    <a href="#products" onclick="filterByCategory('men');closeSlideMenu();event.preventDefault();"><i class="fas fa-male"></i> Men</a>
+    <a href="#products" onclick="filterByCategory('kids');closeSlideMenu();event.preventDefault();"><i class="fas fa-child"></i> Kids</a>
+    <a href="#products" onclick="filterByCategory('cosmetics');closeSlideMenu();event.preventDefault();"><i class="fas fa-spa"></i> Cosmetics</a>
     <a href="#products" onclick="filterByCategory('stationery');closeSlideMenu();event.preventDefault();"><i class="fas fa-book"></i> Stationery</a>
+    <a href="#products" onclick="filterByCategory('cylinder');closeSlideMenu();event.preventDefault();"><i class="fas fa-burn"></i> Cylinder</a>
   </div>
 </div>
 
-<!-- ===== AMAZON-STYLE HERO CAROUSEL ===== -->
-<div class="hero-carousel" id="heroCarousel" role="region" aria-label="Featured promotions">
-  <div class="carousel-track" id="carouselTrack">
-    <!-- Slide 1 -->
-    <div class="carousel-slide active">
-      <img class="slide-bg" src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=80" alt="" loading="eager">
-      <div class="slide-overlay"></div>
-      <div class="slide-content">
-        <div class="slide-badge"><i class="fas fa-crown"></i> New Season 2026</div>
-        <h1><span>STYLE THAT SPEAKS</span><br>FOR YOU.</h1>
-        <p>Discover quality clothing with affordable prices, secure payments, and fast delivery across Nepal.</p>
-        <div class="slide-buttons">
-          <a href="#products" class="btn btn-primary"><i class="fas fa-shopping-bag"></i> Shop Now</a>
-          <a href="#heroCategories" class="btn btn-secondary-hero"><i class="fas fa-grid-2"></i> Explore Collections</a>
-        </div>
+<!-- ===== PRIMARY SPLIT HERO ===== -->
+<section class="lux-hero" id="home" aria-label="Welcome to Aryal Store">
+  <div class="container lux-hero-inner">
+    <div class="lux-hero-copy">
+      <p class="lux-hero-eyebrow"><i class="fas fa-store"></i> Aryal Store &middot; Gulmi, Nepal</p>
+      <h1>Everyday essentials, <em>beautifully</em> curated.</h1>
+      <p class="lux-hero-sub">Men's and kids' clothing, cosmetics, stationery, and gas cylinder refills — one trusted local store, secure QR payment, and delivery scheduled with your approval.</p>
+      <div class="lux-hero-actions">
+        <a href="#products" class="btn btn-primary"><i class="fas fa-shopping-bag"></i> Shop Now</a>
+        <a href="#heroCategories" class="lux-hero-link">Explore categories <i class="fas fa-arrow-right"></i></a>
+      </div>
+      <div class="lux-hero-trust">
+        <span><i class="fas fa-qrcode"></i> QR payment</span>
+        <span><i class="fas fa-truck"></i> Free over Rs. 2,000</span>
+        <span><i class="fas fa-calendar-check"></i> Delivery with your approval</span>
       </div>
     </div>
-    <!-- Slide 2 -->
-    <div class="carousel-slide">
-      <img class="slide-bg" src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1600&q=80" alt="" loading="lazy">
-      <div class="slide-overlay"></div>
-      <div class="slide-content">
-        <div class="slide-badge"><i class="fas fa-bolt"></i> Flash Sale</div>
-        <h1><span>Up to 40% Off</span><br>Trending Styles</h1>
-        <p>Limited-time deals on fashion, cosmetics, and more. Grab your favorites before they're gone!</p>
-        <div class="slide-buttons">
-          <a href="#flashSaleSection" class="btn btn-primary"><i class="fas fa-bolt"></i> Shop Sale</a>
-          <a href="#products" class="btn btn-secondary-hero"><i class="fas fa-search"></i> Browse All</a>
-        </div>
-      </div>
-    </div>
-    <!-- Slide 3 -->
-    <div class="carousel-slide">
-      <img class="slide-bg" src="https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1600&q=80" alt="" loading="lazy">
-      <div class="slide-overlay"></div>
-      <div class="slide-content">
-        <div class="slide-badge"><i class="fas fa-truck"></i> Free Delivery</div>
-        <h1><span>Free Shipping</span><br>on Orders Over Rs. 2,000</h1>
-        <p>Shop from the comfort of your home and enjoy free delivery across Nepal on all qualifying orders.</p>
-        <div class="slide-buttons">
-          <a href="#products" class="btn btn-primary"><i class="fas fa-shopping-bag"></i> Start Shopping</a>
-          <a href="#products" class="btn btn-secondary-hero"><i class="fas fa-shield-alt"></i> Learn More</a>
-        </div>
-      </div>
-    </div>
-    <!-- Slide 4 -->
-    <div class="carousel-slide">
-      <img class="slide-bg" src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=1600&q=80" alt="" loading="lazy">
-      <div class="slide-overlay"></div>
-      <div class="slide-content">
-        <div class="slide-badge"><i class="fas fa-gem"></i> New Arrivals</div>
-        <h1><span>Fresh Looks</span><br>for Every Occasion</h1>
-        <p>Explore our latest collection of men's and women's fashion, accessories, and beauty essentials.</p>
-        <div class="slide-buttons">
-          <a href="#newArrivalsSection" class="btn btn-primary"><i class="fas fa-clock"></i> New Arrivals</a>
-          <a href="#products" class="btn btn-secondary-hero"><i class="fas fa-th-large"></i> Shop All</a>
-        </div>
-      </div>
+    <div class="lux-hero-collage" aria-hidden="true">
+      <img src="https://images.unsplash.com/photo-1617137968427-85924c800a22?w=700&q=80" alt="" loading="eager">
+      <img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80" alt="" loading="eager">
+      <img src="https://images.unsplash.com/photo-1531346680769-a1d79b57de5c?w=500&q=80" alt="" loading="lazy">
     </div>
   </div>
-  <!-- Arrows -->
-  <button class="carousel-arrow prev" onclick="prevSlide()" aria-label="Previous slide"><i class="fas fa-chevron-left"></i></button>
-  <button class="carousel-arrow next" onclick="nextSlide()" aria-label="Next slide"><i class="fas fa-chevron-right"></i></button>
-  <!-- Dots -->
-  <div class="carousel-dots" id="carouselDots"></div>
-  <!-- Progress bar -->
-  <div class="carousel-progress" id="carouselProgress"></div>
-</div>
+</section>
 
 <!-- ===== CATEGORY PREVIEW ===== -->
 <div class="hero-categories" id="heroCategories">
   <div class="container">
     <h2 class="section-title">Shop by <span style="color:#111111;">Category</span></h2>
     <div class="cat-preview-grid">
-      <div class="cat-preview-card" onclick="filterByCategory('men')" role="button" tabindex="0" aria-label="Men's Fashion">
-        <img src="https://images.unsplash.com/photo-1617137968427-85924c800a22?w=400&q=80" alt="Men's Fashion" loading="lazy">
+      <div class="cat-preview-card" onclick="filterByCategory('clothes')" role="button" tabindex="0" aria-label="Clothes">
+        <img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&q=80" alt="Clothes" loading="lazy">
         <div class="cat-overlay"></div>
-        <span class="cat-title">Men's Fashion</span>
+        <span class="cat-title">Clothes</span>
       </div>
-      <div class="cat-preview-card" onclick="filterByCategory('women')" role="button" tabindex="0" aria-label="Women's Fashion">
-        <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&q=80" alt="Women's Fashion" loading="lazy">
+      <div class="cat-preview-card" onclick="filterByCategory('men')" role="button" tabindex="0" aria-label="Men">
+        <img src="https://images.unsplash.com/photo-1617137968427-85924c800a22?w=400&q=80" alt="Men" loading="lazy">
         <div class="cat-overlay"></div>
-        <span class="cat-title">Women's Fashion</span>
+        <span class="cat-title">Men</span>
       </div>
       <div class="cat-preview-card" onclick="filterByCategory('kids')" role="button" tabindex="0" aria-label="Kids">
         <img src="https://images.unsplash.com/photo-1622290291468-a28b7a7dc6a8?w=400&q=80" alt="Kids" loading="lazy">
         <div class="cat-overlay"></div>
         <span class="cat-title">Kids</span>
       </div>
-      <div class="cat-preview-card" onclick="filterByCategory('shoes')" role="button" tabindex="0" aria-label="Shoes">
-        <img src="https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80" alt="Shoes" loading="lazy">
+      <div class="cat-preview-card" onclick="filterByCategory('cosmetics')" role="button" tabindex="0" aria-label="Cosmetics">
+        <img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80" alt="Cosmetics" loading="lazy">
         <div class="cat-overlay"></div>
-        <span class="cat-title">Shoes</span>
+        <span class="cat-title">Cosmetics</span>
       </div>
-      <div class="cat-preview-card" onclick="filterByCategory('accessories')" role="button" tabindex="0" aria-label="Accessories">
-        <img src="https://images.unsplash.com/photo-1607082349566-187342175e2f?w=400&q=80" alt="Accessories" loading="lazy">
+      <div class="cat-preview-card" onclick="filterByCategory('stationery')" role="button" tabindex="0" aria-label="Stationery">
+        <img src="https://images.unsplash.com/photo-1531346680769-a1d79b57de5c?w=400&q=80" alt="Stationery" loading="lazy">
         <div class="cat-overlay"></div>
-        <span class="cat-title">Accessories</span>
+        <span class="cat-title">Stationery</span>
+      </div>
+      <div class="cat-preview-card" onclick="filterByCategory('cylinder')" role="button" tabindex="0" aria-label="Cylinder">
+        <img src="https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&q=80" alt="Cylinder" loading="lazy">
+        <div class="cat-overlay"></div>
+        <span class="cat-title">Cylinder</span>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="product-showcase" id="featuredSection">
-  <div class="container">
-    <div class="showcase-header">
-      <h3>Featured <span>Products</span></h3>
-      <a href="#products" style="font-size:0.9rem;color:#111111;font-weight:600;">View All <i class="fas fa-arrow-right"></i></a>
-    </div>
-    <div class="scroll-row" id="featuredRow"></div>
-  </div>
-</div>
-
-<div class="product-showcase bg-light" id="bestSellerSection">
-  <div class="container">
-    <div class="showcase-header">
-      <h3>Best <span>Sellers</span></h3>
-      <a href="#products" style="font-size:0.9rem;color:#111111;font-weight:600;">View All <i class="fas fa-arrow-right"></i></a>
-    </div>
-    <div class="scroll-row" id="bestSellerRow"></div>
   </div>
 </div>
 
@@ -1635,16 +1572,26 @@
   <div class="container">
     <div class="showcase-header">
       <h3>New <span>Arrivals</span></h3>
-      <a href="#products" style="font-size:0.9rem;color:#111111;font-weight:600;">View All <i class="fas fa-arrow-right"></i></a>
+      <a href="#products" style="font-size:0.9rem;color:#111111;font-weight:600;" onclick="filterByCategory('all');event.preventDefault();">View All <i class="fas fa-arrow-right"></i></a>
     </div>
     <div class="scroll-row" id="newArrivalsRow"></div>
   </div>
 </div>
 
-<div class="flash-sale-section" id="flashSaleSection">
+<div class="product-showcase bg-light" id="bestSellerSection">
+  <div class="container">
+    <div class="showcase-header">
+      <h3>Best <span>Sellers</span></h3>
+      <a href="#products" style="font-size:0.9rem;color:#111111;font-weight:600;" onclick="filterByCategory('all');event.preventDefault();">View All <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="scroll-row" id="bestSellerRow"></div>
+  </div>
+</div>
+
+<div class="flash-sale-section" id="flashSaleSection" style="display:none;">
   <div class="container">
     <div class="flash-sale-header">
-      <h2><i class="fas fa-bolt"></i> Flash Sale</h2>
+      <h2><i class="fas fa-bolt"></i> Special Offers</h2>
       <div class="flash-countdown" id="flashCountdown">
         <div class="unit"><div class="num" id="flashHours">00</div><div class="label">Hours</div></div>
         <div class="unit"><div class="num" id="flashMins">00</div><div class="label">Mins</div></div>
@@ -1652,6 +1599,16 @@
       </div>
     </div>
     <div class="flash-scroll" id="flashScroll"></div>
+  </div>
+</div>
+
+<div class="product-showcase" id="featuredSection">
+  <div class="container">
+    <div class="showcase-header">
+      <h3>Featured <span>Picks</span></h3>
+      <a href="#products" style="font-size:0.9rem;color:#111111;font-weight:600;" onclick="filterByCategory('all');event.preventDefault();">View All <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="scroll-row" id="featuredRow"></div>
   </div>
 </div>
 
@@ -1668,18 +1625,18 @@
   <div class="container">
     <div class="brand-scroll">
       <div class="brand-scroll-inner" id="brandScrollInner">
-        <span class="brand-item"><i class="fas fa-tshirt"></i> Aryal Fashion</span>
-        <span class="brand-item"><i class="fas fa-spa"></i> Glamour Nepal</span>
-        <span class="brand-item"><i class="fas fa-book"></i> Stationery Pro</span>
-        <span class="brand-item"><i class="fas fa-burn"></i> Gas Direct</span>
-        <span class="brand-item"><i class="fas fa-shoe-prints"></i> WalkStyle</span>
-        <span class="brand-item"><i class="fas fa-glasses"></i> Trendy Eyes</span>
-        <span class="brand-item"><i class="fas fa-tshirt"></i> Aryal Fashion</span>
-        <span class="brand-item"><i class="fas fa-spa"></i> Glamour Nepal</span>
-        <span class="brand-item"><i class="fas fa-book"></i> Stationery Pro</span>
-        <span class="brand-item"><i class="fas fa-burn"></i> Gas Direct</span>
-        <span class="brand-item"><i class="fas fa-shoe-prints"></i> WalkStyle</span>
-        <span class="brand-item"><i class="fas fa-glasses"></i> Trendy Eyes</span>
+        <span class="brand-item"><i class="fas fa-tshirt"></i> Clothes</span>
+        <span class="brand-item"><i class="fas fa-male"></i> Men</span>
+        <span class="brand-item"><i class="fas fa-child"></i> Kids</span>
+        <span class="brand-item"><i class="fas fa-spa"></i> Cosmetics</span>
+        <span class="brand-item"><i class="fas fa-book"></i> Stationery</span>
+        <span class="brand-item"><i class="fas fa-burn"></i> Cylinder</span>
+        <span class="brand-item"><i class="fas fa-tshirt"></i> Clothes</span>
+        <span class="brand-item"><i class="fas fa-male"></i> Men</span>
+        <span class="brand-item"><i class="fas fa-child"></i> Kids</span>
+        <span class="brand-item"><i class="fas fa-spa"></i> Cosmetics</span>
+        <span class="brand-item"><i class="fas fa-book"></i> Stationery</span>
+        <span class="brand-item"><i class="fas fa-burn"></i> Cylinder</span>
       </div>
     </div>
   </div>
@@ -1702,11 +1659,9 @@
         <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
         <button class="filter-btn" data-filter="clothes" onclick="setFilter('clothes')">Clothes</button>
         <button class="filter-btn" data-filter="men" onclick="setFilter('men')">Men</button>
-        <button class="filter-btn" data-filter="women" onclick="setFilter('women')">Women</button>
         <button class="filter-btn" data-filter="kids" onclick="setFilter('kids')">Kids</button>
-        <button class="filter-btn" data-filter="accessories" onclick="setFilter('accessories')">Accessories</button>
-        <button class="filter-btn" data-filter="stationery" onclick="setFilter('stationery')">Stationery</button>
         <button class="filter-btn" data-filter="cosmetics" onclick="setFilter('cosmetics')">Cosmetics</button>
+        <button class="filter-btn" data-filter="stationery" onclick="setFilter('stationery')">Stationery</button>
         <button class="filter-btn" data-filter="cylinder" onclick="setFilter('cylinder')">Cylinder</button>
       </div>
       <div class="right">
@@ -1747,6 +1702,9 @@
       <i class="fas fa-search" style="font-size:2.5rem;display:block;margin-bottom:12px;"></i>
       <p>No products found matching your criteria.</p>
     </div>
+    <div style="text-align:center;margin-top:28px;">
+      <button type="button" id="loadMoreBtn" class="btn" style="display:none;" onclick="loadMoreProducts()">Load More <i class="fas fa-arrow-down"></i></button>
+    </div>
   </div>
 </section>
 
@@ -1766,17 +1724,17 @@
     </div>
     <div class="about-badges" id="aboutBadges">
       <div class="about-badge">
-        <div class="ab-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="ab-icon"><i class="fas fa-qrcode"></i></div>
         <div class="ab-text">
-          <h4>100% Authentic</h4>
-          <p>Genuine products guaranteed</p>
+          <h4>Secure QR Payment</h4>
+          <p>Pay online with the shop QR code</p>
         </div>
       </div>
       <div class="about-badge">
-        <div class="ab-icon"><i class="fas fa-undo-alt"></i></div>
+        <div class="ab-icon"><i class="fas fa-calendar-check"></i></div>
         <div class="ab-text">
-          <h4>Easy Returns</h4>
-          <p>7-day return policy</p>
+          <h4>Delivery With Approval</h4>
+          <p>We schedule delivery with you first</p>
         </div>
       </div>
       <div class="about-badge">
@@ -1787,24 +1745,24 @@
         </div>
       </div>
       <div class="about-badge">
-        <div class="ab-icon"><i class="fas fa-lock"></i></div>
+        <div class="ab-icon"><i class="fas fa-map-marker-alt"></i></div>
         <div class="ab-text">
-          <h4>Secure Payment</h4>
-          <p>Online payment via QR</p>
+          <h4>Order Tracking</h4>
+          <p>Follow every order to your door</p>
         </div>
       </div>
       <div class="about-badge">
-        <div class="ab-icon"><i class="fas fa-headset"></i></div>
+        <div class="ab-icon"><i class="fas fa-undo-alt"></i></div>
         <div class="ab-text">
-          <h4>24/7 Support</h4>
-          <p>We're here to help</p>
+          <h4>Easy Returns</h4>
+          <p>7-day return &amp; refund policy</p>
         </div>
       </div>
       <div class="about-badge">
-        <div class="ab-icon"><i class="fas fa-tag"></i></div>
+        <div class="ab-icon"><i class="fab fa-whatsapp"></i></div>
         <div class="ab-text">
-          <h4>Best Prices</h4>
-          <p>Unbeatable deals daily</p>
+          <h4>WhatsApp Support</h4>
+          <p>Chat with us any time</p>
         </div>
       </div>
     </div>
@@ -1819,7 +1777,7 @@
         <div class="ts-header">
           <div class="ts-big-rating">4.8</div>
           <div class="ts-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
-          <div class="ts-count">Based on 250+ reviews</div>
+          <div class="ts-count">Recent customer reviews</div>
         </div>
         <div class="ts-bars">
           <div class="ts-bar-row"><span class="ts-bar-label">5</span><i class="fas fa-star ts-bar-star"></i><div class="ts-bar-track"><div class="ts-bar-fill" style="width:78%"></div></div><span class="ts-bar-pct">78%</span></div>
@@ -2001,7 +1959,7 @@
         <p>Subscribe for exclusive offers and updates.</p>
         <form class="newsletter-form" id="footerNewsletterForm" style="display:flex;gap:6px;margin-top:10px;" onsubmit="event.preventDefault();subscribeNewsletter()">
           <input type="email" id="footerNewsletterEmail" placeholder="Your email" style="flex:1;padding:10px;border-radius:8px;border:none;outline:none;">
-          <button type="submit" style="padding:10px 16px;border-radius:8px;border:none;background:#111111;color:#fff;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+          <button type="submit" style="padding:10px 16px;border-radius:8px;border:none;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
         </form>
       </div>
     </div>
@@ -2012,7 +1970,6 @@
 </footer>
 
 <button class="whatsapp-btn" id="whatsappBtn" title="Chat on WhatsApp" onclick="window.open('https://wa.me/9779867135403', '_blank')"><i class="fab fa-whatsapp"></i></button>
-<button class="scroll-top" id="scrollTop"><i class="fas fa-arrow-up"></i></button>
 
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
 <div class="cart-sidebar" id="cartSidebar">
@@ -2473,34 +2430,6 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
-<div class="bottom-nav" id="bottomNav">
-  <div class="bottom-nav-items">
-    <a class="bottom-nav-item active" href="#home">
-      <i class="fas fa-home"></i>
-      <span>Home</span>
-    </a>
-    <a class="bottom-nav-item" href="#products" onclick="filterByCategory('all')">
-      <i class="fas fa-th-large"></i>
-      <span>Categories</span>
-    </a>
-    <div class="bottom-nav-item" onclick="openWishlist()">
-      <i class="fas fa-heart"></i>
-      <span>Wishlist</span>
-    </div>
-    <div class="bottom-nav-item" onclick="openCart()">
-      <div class="bn-count">
-        <i class="fas fa-shopping-bag"></i>
-        <span class="count-badge" id="bottomCartCount">0</span>
-      </div>
-      <span>Cart</span>
-    </div>
-    <div class="bottom-nav-item" onclick="toggleUserMenu()">
-      <i class="fas fa-user"></i>
-      <span>Account</span>
-    </div>
-  </div>
-</div>
-
 <script src="auth.js"></script>
 <script src="auth-session.js"></script>
 <script>
@@ -2606,8 +2535,8 @@ function productImgError(img) {
 }
 
 function mapProduct(p) {
-  const catIcons = { clothes: 'fas fa-tshirt', cosmetics: 'fas fa-spa', stationery: 'fas fa-book', cylinder: 'fas fa-burn' };
-  const catGrads = { clothes: 'linear-gradient(135deg, #111111, #666666)', cosmetics: 'linear-gradient(135deg, #111111, #CCCCCC)', stationery: 'linear-gradient(135deg, #555555, #666666)', cylinder: 'linear-gradient(135deg, #111111, #111111)' };
+  const catIcons = { clothes: 'fas fa-tshirt', men: 'fas fa-male', kids: 'fas fa-child', cosmetics: 'fas fa-spa', stationery: 'fas fa-book', cylinder: 'fas fa-burn' };
+  const catGrads = { clothes: 'linear-gradient(135deg, #E8B4B8, #F7F5F4)', men: 'linear-gradient(135deg, #111111, #666666)', kids: 'linear-gradient(135deg, #E8B4B8, #EAE6E5)', cosmetics: 'linear-gradient(135deg, #E8B4B8, #FFFFFF)', stationery: 'linear-gradient(135deg, #F7F5F4, #EAE6E5)', cylinder: 'linear-gradient(135deg, #111111, #1A1A1A)' };
   return {
     id: p.id, name: p.name,
     desc: p.description || p.desc || '',
@@ -2631,16 +2560,6 @@ function mapProduct(p) {
 let allProducts = [];
 let cart = []; try { cart = JSON.parse(localStorage.getItem('aryal_cart')) || []; } catch {};
 let currentFilter = 'all';
-const DEMO_PRODUCTS = [
-  { id: 'demo_1', name: 'Classic Cotton T-Shirt', description: 'Premium cotton t-shirt for everyday comfort.', price: 1299, compare_price: 1999, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400', category: 'clothes', is_new: 1, is_featured: 1, rating: 4.5, stock_count: 50, brand: 'Aryal Fashion', sizes: 'S,M,L,XL', colors: 'Black,White,Navy' },
-  { id: 'demo_2', name: 'Designer Sunglasses', description: 'UV-protected stylish sunglasses for men and women.', price: 2499, compare_price: 3499, image: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400', category: 'clothes', is_new: 0, is_featured: 1, rating: 4.2, stock_count: 30, brand: 'Trendy Eyes' },
-  { id: 'demo_3', name: 'Natural Lip Balm Set', description: 'Set of 3 organic lip balms — strawberry, mint, vanilla.', price: 599, compare_price: 899, image: 'https://images.unsplash.com/photo-1617897903246-719242758050?w=400', category: 'cosmetics', is_new: 1, is_featured: 1, rating: 4.8, stock_count: 100, brand: 'Glamour Nepal' },
-  { id: 'demo_4', name: 'A5 Premium Notebook', description: 'Hardcover dotted notebook, 200 pages, lay-flat binding.', price: 499, compare_price: 0, image: 'https://images.unsplash.com/photo-1531346680769-a1d79b57de5c?w=400', category: 'stationery', is_new: 0, is_featured: 0, rating: 4.0, stock_count: 200, brand: 'Stationery Pro' },
-  { id: 'demo_5', name: 'LPG Gas Cylinder 14.2kg', description: 'Standard household LPG cylinder with safety valve.', price: 2150, compare_price: 0, image: 'https://images.unsplash.com/photo-1583337130417-9d8b4b8f44ba?w=400', category: 'cylinder', is_new: 0, is_featured: 1, rating: 4.6, stock_count: 15, brand: 'Gas Direct' },
-  { id: 'demo_6', name: 'Running Shoes Men', description: 'Lightweight mesh running shoes with arch support.', price: 3999, compare_price: 5499, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', category: 'shoes', is_new: 1, is_featured: 0, rating: 4.3, stock_count: 25, brand: 'WalkStyle' },
-  { id: 'demo_7', name: 'Vitamin C Face Serum', description: 'Brightening serum with hyaluronic acid and vitamin C.', price: 899, compare_price: 1299, image: 'https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?w=400', category: 'cosmetics', is_new: 0, is_featured: 0, rating: 4.7, stock_count: 75, brand: 'Glamour Nepal', is_best_seller: 1 },
-  { id: 'demo_8', name: 'Stainless Steel Water Bottle', description: '750ml vacuum insulated, keeps cold 24h / hot 12h.', price: 1299, compare_price: 1799, image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=400', category: 'stationery', is_new: 0, is_featured: 0, rating: 4.4, stock_count: 60, brand: 'Stationery Pro', is_best_seller: 1 }
-];
 let currentSort = '';
 let wishlistItems = [];
 let selectedPayment = '';
@@ -3302,25 +3221,45 @@ async function loadProducts(params) {
     if (prods && prods.length) {
       allProducts = prods.map(mapProduct);
     } else {
-      allProducts = DEMO_PRODUCTS.map(mapProduct);
+      allProducts = [];
     }
   } catch {
     if (!allProducts || !allProducts.length) {
-      allProducts = DEMO_PRODUCTS.map(mapProduct);
+      allProducts = [];
     }
   }
   renderProducts(allProducts);
 }
 
+let productPage = 1;
+const PRODUCT_PAGE_SIZE = 12;
+let _pagedSource = [];
+
 function renderProducts(prods) {
   var grid = document.getElementById('productGrid');
   var noRes = document.getElementById('noResults');
-  if (!prods || !prods.length) {
+  var moreBtn = document.getElementById('loadMoreBtn');
+  _pagedSource = prods || [];
+  productPage = 1;
+  if (!_pagedSource.length) {
     grid.innerHTML = '';
     noRes.style.display = 'block';
+    if (moreBtn) moreBtn.style.display = 'none';
     return;
   }
   noRes.style.display = 'none';
+  paintProductPage();
+}
+
+function loadMoreProducts() {
+  productPage += 1;
+  paintProductPage();
+}
+
+function paintProductPage() {
+  var grid = document.getElementById('productGrid');
+  var moreBtn = document.getElementById('loadMoreBtn');
+  var prods = _pagedSource.slice(0, productPage * PRODUCT_PAGE_SIZE);
   var sq = (document.getElementById('searchInput').value || '').trim().toLowerCase();
   grid.innerHTML = prods.map(function(p) {
     var pName = escHtml(p.name);
@@ -3372,8 +3311,9 @@ function renderProducts(prods) {
           '<button type="button" class="btn btn-secondary btn-sm" aria-label="Buy now" onclick="buyNow(\'' + p.id + '\')"><i class="fas fa-bolt"></i> Buy Now</button>' +
           '<button type="button" class="btn btn-dark btn-sm" aria-label="Quick view" title="Quick View" onclick="viewProduct(\'' + p.id + '\')"><i class="fas fa-eye"></i></button>' +
         '</div>' +
-      '</div></div>';
+        '</div></div>';
   }).join('');
+  if (moreBtn) moreBtn.style.display = (_pagedSource.length > prods.length) ? '' : 'none';
 }
 
 async function viewProduct(id) {
@@ -3943,25 +3883,24 @@ async function loadDynamicContent() {
   var settingsP = supaSingle('settings').then(function(s) {
     if (s) window._freeShippingThreshold = s.free_shipping_threshold || 2000;
   });
-  await Promise.all([heroP, aboutP, contactP, settingsP]);
+  await Promise.all([aboutP, contactP, settingsP]);
 }
 
 async function loadShowcaseSections() {
   const endpoints = [
-    { url: '/api/products/featured', id: 'featuredRow' },
-    { url: '/api/products/best-sellers', id: 'bestSellerRow' },
-    { url: '/api/products/new-arrivals', id: 'newArrivalsRow' }
+    { url: '/api/products/featured', id: 'featuredRow', flag: 'is_featured' },
+    { url: '/api/products/best-sellers', id: 'bestSellerRow', flag: 'is_best_seller' },
+    { url: '/api/products/new-arrivals', id: 'newArrivalsRow', flag: 'is_new' }
   ];
-  const getFallback = function(id) {
-    return DEMO_PRODUCTS.filter(function(d) {
-      if (id === 'featuredRow') return d.is_featured;
-      if (id === 'bestSellerRow') return d.is_best_seller;
-      if (id === 'newArrivalsRow') return d.is_new;
-      return true;
-    }).slice(0, 4).map(mapProduct);
+  const skeletonCards = function() {
+    var one = '<div class="skel-card"><div class="skel skel-img"></div><div class="skel-body"><div class="skel skel-line"></div><div class="skel skel-line"></div></div></div>';
+    return new Array(6).join('|').split('|').map(function() { return one; }).join('');
   };
   const renderCards = function(container, mapped) {
-    if (!mapped || !mapped.length) return;
+    if (!mapped || !mapped.length) {
+      container.innerHTML = '<div class="empty-state" style="padding:28px 0;width:100%;"><i class="fas fa-box-open"></i><h3>Nothing here yet</h3><p>Fresh picks will appear here soon.</p></div>';
+      return;
+    }
     container.innerHTML = mapped.map(function(p) {
       return '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;">' +
       '<div class="product-img" style="height:160px;" onclick="viewProduct(\'' + p.id + '\')">' +
@@ -3974,23 +3913,52 @@ async function loadShowcaseSections() {
       '</div></div>';
     }).join('');
   };
+  var fetchFallbackProducts = function() {
+    if (allProducts && allProducts.length) return Promise.resolve(allProducts);
+    return fetch('/api/products').then(function(r) { return r.ok ? r.json() : null; }).then(function(prods) {
+      if (prods && prods.length) return prods.map(mapProduct);
+      return supaFetch('products', { order: 'created_at.desc' }).then(function(s) {
+        return (s || []).map(mapProduct);
+      }).catch(function() { return []; });
+    }).catch(function() { return []; });
+  };
+  var pickDiverse = function(pool, flag) {
+    if (!pool || !pool.length) return [];
+    var flagged = pool.filter(function(p) { return p[flag]; });
+    var base = flagged.length ? flagged : pool;
+    var seen = {}, out = [];
+    for (var i = 0; i < base.length && out.length < 8; i++) {
+      var p = base[i];
+      var key = p.id;
+      if (seen[key]) continue;
+      seen[key] = 1;
+      out.push(p);
+    }
+    return out;
+  };
   var containers = endpoints.map(function(s) { return document.getElementById(s.id); });
-  // Show demo fallback immediately
   endpoints.forEach(function(ep, i) {
-    if (containers[i]) renderCards(containers[i], getFallback(ep.id));
+    if (containers[i]) containers[i].innerHTML = skeletonCards();
   });
-  // Fetch real data from backend API in parallel
   var results = await Promise.all(endpoints.map(function(ep) {
     return fetch(ep.url).then(function(r) { return r.ok ? r.json() : null; }).then(function(prods) {
-      return { id: ep.id, prods: prods };
+      return { ep: ep, prods: prods };
     }).catch(function() {
-      return { id: ep.id, prods: null };
+      return { ep: ep, prods: null };
     });
   }));
+  var needFallback = results.filter(function(r) { return !r.prods || !r.prods.length; });
+  var fallbackPool = null;
+  if (needFallback.length) {
+    fallbackPool = await fetchFallbackProducts();
+  }
   results.forEach(function(r) {
-    var container = document.getElementById(r.id);
-    if (container && r.prods && r.prods.length) {
+    var container = document.getElementById(r.ep.id);
+    if (!container) return;
+    if (r.prods && r.prods.length) {
       renderCards(container, r.prods.slice(0, 8).map(mapProduct));
+    } else {
+      renderCards(container, pickDiverse(fallbackPool, r.ep.flag));
     }
   });
 }
@@ -4076,15 +4044,17 @@ document.querySelectorAll('#navMenu a').forEach(link => {
   link.addEventListener('click', () => document.getElementById('navMenu').classList.remove('show'));
 });
 
-// Scroll to top
-const scrollBtn = document.getElementById('scrollTop');
-window.addEventListener('scroll', () => scrollBtn.classList.toggle('visible', window.scrollY > 400));
-scrollBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+// Scroll to top (button display handled near boot; click bound here if present)
+const scrollBtn = document.getElementById('scrollTopBtn');
+if (scrollBtn) {
+  window.addEventListener('scroll', () => scrollBtn.classList.toggle('visible', window.scrollY > 400));
+}
 
-// Header shrink
+// Header background is theme-managed; only toggle the lux-scrolled shadow class
 const header = document.querySelector('header');
 window.addEventListener('scroll', () => {
-  header.style.background = window.scrollY > 100 ? 'rgba(17,17,17,0.98)' : 'rgba(17,17,17,0.95)';
+  if (window.scrollY > 100) header.classList.add('lux-scrolled');
+  else header.classList.remove('lux-scrolled');
 });
 
 // Close search suggestions on click outside
@@ -5588,27 +5558,6 @@ function showSkeleton(containerId, count) {
   }
 }
 
-// Override loadShowcaseSections to show skeleton first
-const origLoadShowcase = loadShowcaseSections;
-loadShowcaseSections = async function() {
-  showSkeleton('featuredRow', 4);
-  showSkeleton('bestSellerRow', 4);
-  showSkeleton('newArrivalsRow', 4);
-  await origLoadShowcase();
-};
-
-// ==================== SYNC BOTTOM NAV CART COUNT ====================
-const origUpdateCartUI = updateCartUI;
-updateCartUI = function() {
-  origUpdateCartUI();
-  const count = cart.reduce(function(s, i) { return s + i.qty; }, 0);
-  const bottomEl = document.getElementById('bottomCartCount');
-  if (bottomEl) {
-    bottomEl.textContent = count;
-    bottomEl.style.display = count > 0 ? '' : 'none';
-  }
-};
-
 // Close mobile menu on nav link click
 document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.bottom-nav-item').forEach(function(item) {
@@ -5727,8 +5676,11 @@ function initCarousel() {
     } catch {}
   }
   if (!allProducts || !allProducts.length) {
-    allProducts = DEMO_PRODUCTS.map(mapProduct);
-    renderProducts(allProducts);
+    var bootGrid = document.getElementById('productGrid');
+    if (bootGrid) {
+      var bootSkel = '<div class="skel" style="height:320px;border-radius:14px;"></div>';
+      bootGrid.innerHTML = bootSkel + bootSkel + bootSkel + bootSkel + bootSkel + bootSkel;
+    }
   }
 
   // Start all data fetches in parallel immediately (don't wait for auth)
