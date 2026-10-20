@@ -396,12 +396,30 @@ h1, h2, .section-title,
 
 /* --- Split hero (replaces carousel) --- */
 .lux-hero {
+  position: relative;
   background: var(--lux-bg);
   padding: calc(var(--lux-announce-h) + var(--lux-header-h) + 48px) 0 56px;
+  overflow: hidden;
+}
+.lux-hero-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.lux-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.75) 45%, rgba(255,255,255,0.25) 100%);
+  z-index: 1;
 }
 .lux-hero-inner {
+  position: relative;
+  z-index: 2;
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
+  grid-template-columns: 1fr;
   gap: 48px;
   align-items: center;
 }
@@ -419,6 +437,9 @@ h1, h2, .section-title,
   border-radius: 50px;
   padding: 6px 16px;
   margin-bottom: 18px;
+}
+.lux-hero-copy {
+  max-width: 640px;
 }
 .lux-hero-copy h1 {
   font-size: clamp(2.2rem, 4.6vw, 3.6rem);

@@ -76,6 +76,17 @@
     .filter-btn { padding: 6px 16px; border-radius: 50px; border: 2px solid #ddd; background: transparent; font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 0.8rem; color: #555; }
     .filter-btn.active, .filter-btn:hover { border-color: #e94560; background: #e94560; color: #fff; }
     .inline-flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .tag-box { border: 1px solid #ddd; border-radius: 8px; padding: 8px; background: #fff; }
+    .tag-box:focus-within { border-color: #e94560; }
+    .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+    .tag-chips:empty { display: none; }
+    .tag-chip { display: inline-flex; align-items: center; gap: 6px; background: #e94560; color: #fff; border-radius: 50px; padding: 3px 10px; font-size: 0.75rem; font-weight: 600; }
+    .tag-chip button { background: none; border: none; color: #fff; cursor: pointer; padding: 0; font-size: 0.8rem; line-height: 1; }
+    .tag-box input[type="text"] { border: none; outline: none; width: 100%; font-size: 0.85rem; padding: 4px 2px; }
+    .tag-presets { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+    .tag-preset { border: 1px solid #ddd; background: #f8f9fa; border-radius: 50px; padding: 3px 11px; font-size: 0.72rem; font-weight: 600; color: #555; cursor: pointer; transition: all 0.2s; }
+    .tag-preset:hover { border-color: #e94560; background: #e94560; color: #fff; }
+    .tag-hint { font-size: 0.7rem; color: #999; margin-top: 5px; }
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .stat-card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
     .stat-card .num { font-size: 1.8rem; font-weight: 800; color: #e94560; }
@@ -209,8 +220,26 @@
             <div class="form-group"><label>SKU</label><input type="text" id="prodSku"></div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label>Sizes (comma separated)</label><input type="text" id="prodSizes"></div>
-            <div class="form-group"><label>Colors (comma separated)</label><input type="text" id="prodColors"></div>
+            <div class="form-group">
+              <label>Sizes</label>
+              <input type="hidden" id="prodSizes" value="">
+              <div class="tag-box">
+                <div class="tag-chips" id="prodSizesChips"></div>
+                <input type="text" id="prodSizesInput" placeholder="Type a size and press Enter">
+              </div>
+              <div class="tag-presets" id="prodSizesPresets"></div>
+              <div class="tag-hint">Click a suggestion or type a custom size, then press Enter</div>
+            </div>
+            <div class="form-group">
+              <label>Colors</label>
+              <input type="hidden" id="prodColors" value="">
+              <div class="tag-box">
+                <div class="tag-chips" id="prodColorsChips"></div>
+                <input type="text" id="prodColorsInput" placeholder="Type a color and press Enter">
+              </div>
+              <div class="tag-presets" id="prodColorsPresets"></div>
+              <div class="tag-hint">Click a suggestion or type a custom color, then press Enter</div>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group"><label>Material</label><input type="text" id="prodMaterial"></div>
@@ -699,6 +728,75 @@ function previewProdImage(e) {
   reader.readAsDataURL(file);
 }
 
+// ========== SIZE / COLOR TAG INPUTS ==========
+const TAG_PRESETS = {
+  prodSizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Free Size'],
+  prodColors: ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Pink', 'Grey', 'Navy', 'Beige', 'Maroon', 'Purple', 'Orange', 'Brown']
+};
+
+function tagValues(hiddenId) {
+  const v = document.getElementById(hiddenId).value || '';
+  return v.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function setTagValues(hiddenId, values) {
+  document.getElementById(hiddenId).value = values.join(',');
+  renderTagChips(hiddenId);
+}
+
+function addTagValue(hiddenId, value) {
+  value = (value || '').trim();
+  if (!value) return;
+  const values = tagValues(hiddenId);
+  if (!values.some(v => v.toLowerCase() === value.toLowerCase())) {
+    values.push(value);
+    setTagValues(hiddenId, values);
+  }
+}
+
+function removeTagValue(hiddenId, index) {
+  const values = tagValues(hiddenId);
+  values.splice(index, 1);
+  setTagValues(hiddenId, values);
+}
+
+function renderTagChips(hiddenId) {
+  const chips = document.getElementById(hiddenId + 'Chips');
+  const values = tagValues(hiddenId);
+  chips.innerHTML = values.map((v, i) =>
+    '<span class="tag-chip">' + escape(v) + ' <button type="button" onclick="removeTagValue(\'' + hiddenId + '\',' + i + ')" aria-label="Remove ' + escape(v) + '">&times;</button></span>'
+  ).join('');
+}
+
+function initTagField(hiddenId) {
+  const presets = TAG_PRESETS[hiddenId] || [];
+  const presetBox = document.getElementById(hiddenId + 'Presets');
+  presetBox.innerHTML = presets.map(p =>
+    '<button type="button" class="tag-preset" onclick="addTagValue(\'' + hiddenId + '\',\'' + p.replace(/'/g, "\\'") + '\')">' + escape(p) + '</button>'
+  ).join('');
+  const input = document.getElementById(hiddenId + 'Input');
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const parts = input.value.split(',').map(s => s.trim()).filter(Boolean);
+      parts.forEach(p => addTagValue(hiddenId, p));
+      input.value = '';
+    } else if (e.key === 'Backspace' && !input.value) {
+      const values = tagValues(hiddenId);
+      if (values.length) removeTagValue(hiddenId, values.length - 1);
+    }
+  });
+  input.addEventListener('blur', function() {
+    const parts = input.value.split(',').map(s => s.trim()).filter(Boolean);
+    parts.forEach(p => addTagValue(hiddenId, p));
+    input.value = '';
+  });
+  renderTagChips(hiddenId);
+}
+
+initTagField('prodSizes');
+initTagField('prodColors');
+
 async function saveProduct() {
   const id = document.getElementById('editProductId').value;
   const name = document.getElementById('prodName').value.trim();
@@ -752,6 +850,10 @@ async function saveProduct() {
 function resetForm() {
   document.getElementById('editProductId').value = '';
   ['prodName','prodDesc','prodPrice','prodCompare','prodBrand','prodSku','prodSizes','prodColors','prodMaterial'].forEach(id => document.getElementById(id).value = '');
+  renderTagChips('prodSizes');
+  renderTagChips('prodColors');
+  document.getElementById('prodSizesInput').value = '';
+  document.getElementById('prodColorsInput').value = '';
   document.getElementById('prodStock').value = '100';
   document.getElementById('prodSubcategory').value = '';
   document.getElementById('prodFeatured').checked = false;
@@ -778,6 +880,8 @@ function editProduct(id) {
   document.getElementById('prodSku').value = p.sku || '';
   document.getElementById('prodSizes').value = p.sizes || '';
   document.getElementById('prodColors').value = p.colors || '';
+  renderTagChips('prodSizes');
+  renderTagChips('prodColors');
   document.getElementById('prodMaterial').value = p.material || '';
   document.getElementById('prodStock').value = p.stock || 100;
   document.getElementById('prodSubcategory').value = p.subcategory || '';
