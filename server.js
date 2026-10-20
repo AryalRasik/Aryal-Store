@@ -310,6 +310,28 @@ app.post('/api/upload/multiple', adminMiddleware, (req, res) => {
 
 // Google OAuth is handled by authRoutes (/api/auth/google and /api/users/google)
 
+// ========== DIAGNOSTICS (safe: no secrets exposed) ==========
+app.get('/api/diag', async (req, res) => {
+  const out = { node: process.version, vercel: !!process.env.VERCEL };
+  try {
+    const url = (process.env.SUPABASE_URL || 'https://srlejludttajosnrfkca.supabase.co').replace(/\/$/, '');
+    out.supabaseHost = new URL(url).host;
+    const r = await fetch(url + '/auth/v1/health', { headers: { apikey: process.env.SUPABASE_KEY || '' } });
+    out.directFetch = r.status;
+  } catch (e) {
+    out.directFetch = 'FAILED: ' + e.message;
+    out.cause = e.cause ? (e.cause.code || e.cause.message || String(e.cause)) : null;
+  }
+  try {
+    const { error } = await supabase.from('products').select('id', { count: 'exact', head: true });
+    out.supabaseClient = error ? 'ERROR: ' + error.message : 'OK';
+  } catch (e) {
+    out.supabaseClient = 'THREW: ' + e.message;
+    out.cause2 = e.cause ? (e.cause.code || e.cause.message || String(e.cause)) : null;
+  }
+  res.json(out);
+});
+
 // ========== OAUTH CONFIG ==========
 app.get('/api/config/oauth', (req, res) => {
   res.json({
