@@ -1,7 +1,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'aryal_store.db');
+// On Vercel the deployment filesystem is read-only — SQLite must live in /tmp.
+const DB_PATH = process.env.VERCEL
+  ? path.join('/tmp', 'aryal_store.db')
+  : path.join(__dirname, 'aryal_store.db');
 let db;
 
 function getDb() {
