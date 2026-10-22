@@ -4115,13 +4115,12 @@ window.addEventListener('scroll', () => {
 // Close search suggestions on click outside
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.search-wrapper')) {
-    document.getElementById('searchSuggestions').classList.remove('show');
-  }
-  if (!e.target.closest('.notif-bell')) {
-    document.getElementById('notifDropdown').classList.remove('show');
+    const sug = document.getElementById('searchSuggestions');
+    if (sug) sug.classList.remove('show');
   }
   if (!e.target.closest('.user-menu-btn')) {
-    document.getElementById('userDropdown').classList.remove('show');
+    const ud = document.getElementById('userDropdown');
+    if (ud) ud.classList.remove('show');
   }
 });
 
@@ -4350,41 +4349,18 @@ function searchByCategory(category) {
 
 // ==================== NOTIFICATIONS ====================
 async function loadNotifications() {
-  try {
-    const res = await fetch('/api/notifications', { headers: { 'x-session-id': SESSION_ID } });
-    const data = await res.json();
-    const list = document.getElementById('notifList');
-    if (!data || !data.length) {
-      list.innerHTML = '<div class="notif-empty"><i class="fas fa-bell"></i>No notifications</div>';
-      updateNotifCount(0);
-      return;
-    }
-    const unread = data.filter(n => !n.is_read).length;
-    updateNotifCount(unread);
-    list.innerHTML = data.slice(0, 10).map(n => {
-      const iconMap = { order: 'order', promo: 'promo', system: 'system' };
-      const iconClass = iconMap[n.type] || 'order';
-      const iconName = n.type === 'promo' ? 'fas fa-tag' : n.type === 'system' ? 'fas fa-info-circle' : 'fas fa-shopping-bag';
-      return '<div class="notif-item ' + (!n.is_read ? 'unread' : '') + '" onclick="markNotifRead(\'' + n.id + '\');' + (n.link ? 'window.location.href=\'' + n.link + '\'' : '') + '">' +
-        '<div class="notif-icon ' + iconClass + '"><i class="' + iconName + '"></i></div>' +
-        '<div class="notif-content"><h5>' + n.title + '</h5><p>' + n.message + '</p><div class="notif-time">' + timeAgo(n.created_at) + '</div></div>' +
-        '</div>';
-    }).join('');
-    if (data.length > 10) {
-      list.innerHTML += '<div style="padding:8px;text-align:center;"><a style="font-size:0.75rem;color:#111111;cursor:pointer;" onclick="openNotifCenter()">View all</a></div>';
-    }
-  } catch { document.getElementById('notifList').innerHTML = '<div class="notif-empty">Error loading</div>'; }
+  await loadFullNotifList();
 }
 
 function updateNotifCount(count) {
-  document.getElementById('notifCount').textContent = count;
-  document.getElementById('notifCount').style.display = count > 0 ? '' : 'none';
+  const badge = document.getElementById('notifCount');
+  if (!badge) return;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
 }
 
 function toggleNotifDropdown() {
-  const dd = document.getElementById('notifDropdown');
-  dd.classList.toggle('show');
-  if (dd.classList.contains('show')) loadNotifications();
+  openNotifCenter();
 }
 
 async function markNotifRead(id) {
@@ -4410,7 +4386,6 @@ function timeAgo(dateStr) {
 }
 
 function openNotifCenter() {
-  document.getElementById('notifDropdown').classList.remove('show');
   document.getElementById('notifCenterModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   loadFullNotifList();
