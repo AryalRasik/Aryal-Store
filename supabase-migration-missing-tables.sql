@@ -39,6 +39,10 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS notes            TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_notes      TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS offer_status     TEXT DEFAULT 'none';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS offer_revision   INTEGER DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS approved_at      TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS declined_at      TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancel_reason    TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_by     TEXT DEFAULT '';
 
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_name TEXT DEFAULT '';
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS unit_price  NUMERIC DEFAULT 0;
@@ -78,6 +82,7 @@ CREATE TABLE IF NOT EXISTS order_offers (
   payment_methods TEXT DEFAULT '',
   message         TEXT DEFAULT '',
   status          TEXT DEFAULT 'sent',
+  responded_at    TIMESTAMPTZ,
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 

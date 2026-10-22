@@ -538,17 +538,16 @@ router.delete('/addresses/:id', authMiddleware, async (req, res) => {
 router.get('/orders', authMiddleware, async (req, res) => {
   try {
     const user = req.userData;
-    const { data: orders } = await supabase
-      .from('orders')
+    const { data: orders } = await from('orders')
       .select('*')
       .or(`customer_email.eq.${user.email},customer_phone.eq.${user.phone}`)
       .order('created_at', { ascending: false })
       .limit(50);
 
     for (const order of orders || []) {
-      const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
+      const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
       order.items = items || [];
-      const { data: tracking } = await supabase.from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
+      const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
       order.tracking = tracking || [];
     }
 

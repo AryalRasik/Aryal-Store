@@ -10,7 +10,7 @@ const fs = require('fs');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
-const { supabase, from, initDb } = require('./db');
+const { supabase, from, initDb, isSupabaseTable } = require('./db');
 const authRoutes = require('./server/routes/auth');
 const payment = require('./server/payment');
 const orderWorkflow = require('./server/orderWorkflow');
@@ -430,12 +430,15 @@ app.get('/api/products', async (req, res) => {
     if (min_price) products = products.filter(p => { const v = parsePrice(p.price); return !isNaN(v) && v >= parseFloat(min_price); });
     if (max_price) products = products.filter(p => { const v = parsePrice(p.price); return !isNaN(v) && v <= parseFloat(max_price); });
 
+    // Hosted products use a uuid primary key, so ids are not comparable
+    // numerically and are not chronological either - sort on created_at.
+    const byCreated = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
     if (sort === 'price_asc') products.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
     else if (sort === 'price_desc') products.sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
-    else if (sort === 'newest') products.sort((a, b) => b.id - a.id);
+    else if (sort === 'newest') products.sort(byCreated);
     else if (sort === 'popular') products.sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0));
     else if (sort === 'rating') products.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    else products.sort((a, b) => a.id - b.id);
+    else products.sort(byCreated);
 
     res.json(products);
   } catch (err) {
@@ -499,7 +502,8 @@ app.get('/api/products/best-sellers', async (req, res) => {
 
 app.get('/api/products/new-arrivals', async (req, res) => {
   try {
-    const { data: products, error } = await supabase.from('products').select('*').order('id', { ascending: false }).limit(8);
+    // Hosted products use a uuid primary key, so `id` is not chronological.
+    const { data: products, error } = await supabase.from('products').select('*').order('created_at', { ascending: false }).limit(8);
     if (error) throw error;
     res.json(products || []);
   } catch (err) {
@@ -993,9 +997,13 @@ async function appendOrderTracking(orderId, opts) {
 }
 
 async function getOrderRow(idOrCode) {
-  const isNumeric = /^\d+$/.test(String(idOrCode));
+  const raw = String(idOrCode || '');
+  // Hosted orders use a uuid primary key; local SQLite uses an integer one.
+  // Anything that is neither is treated as the human-readable order code.
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
+  const useId = isUuid || (!isSupabaseTable('orders') && /^\d+$/.test(raw));
   const query = from('orders').select('*');
-  const { data, error } = await (isNumeric ? query.eq('id', Number(idOrCode)) : query.eq('order_code', String(idOrCode))).maybeSingle();
+  const { data, error } = await (useId ? query.eq('id', raw) : query.eq('order_code', raw)).maybeSingle();
   if (error) throw error;
   return data || null;
 }
@@ -1008,9 +1016,9 @@ async function getLatestOffer(orderId) {
 async function getOrderBundle(order) {
   if (!order) return null;
   const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
-  const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('id');
+  const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
   const { data: offers } = await from('order_offers').select('*').eq('order_id', order.id).order('revision');
-  const { data: refunds } = await from('order_refunds').select('*').eq('order_id', order.id).order('id');
+  const { data: refunds } = await from('order_refunds').select('*').eq('order_id', order.id).order('created_at');
   const bundle = Object.assign({}, order, {
     items: items || [],
     tracking: tracking || [],
@@ -1219,7 +1227,7 @@ app.get('/api/orders/track', async (req, res) => {
 app.get('/api/orders', adminMiddleware, async (req, res) => {
   try {
     const { status, phone } = req.query;
-    let query = from('orders').select('*').order('id', { ascending: false });
+    let query = from('orders').select('*').order('created_at', { ascending: false });
     if (status && status !== 'all') {
       const norm = normalizeStatus(status);
       if (norm) query = query.eq('status', norm);
@@ -1574,7 +1582,7 @@ app.put('/api/orders/:id/refund/:refundId/complete', adminMiddleware, async (req
     if (!order) return res.status(404).json({ error: 'Order not found' });
     const now = new Date().toISOString();
     const reference = String((req.body && req.body.reference) || '').trim().slice(0, 120);
-    await from('order_refunds').update({ status: 'completed', completed_at: now, reference: reference }).eq('id', Number(req.params.refundId));
+    await from('order_refunds').update({ status: 'completed', completed_at: now, reference: reference }).eq('id', String(req.params.refundId));
     const { data: refunds } = await from('order_refunds').select('*').eq('order_id', order.id);
     const totalRefunded = (refunds || []).filter(function (r) { return r.status === 'completed'; }).reduce(function (s, r) {
       return s + (orderWorkflow.toNumber(r.amount) || 0);
@@ -1610,7 +1618,7 @@ app.get('/api/orders/:id/tracking', async (req, res) => {
   try {
     const order = await getOrderRow(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('id');
+    const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
     res.json((tracking || []).filter(function (t) { return t.visible !== 0; }).map(function (t) {
       return { status: t.status, label: orderWorkflow.customerLabel(t.status), note: t.note, created_at: t.created_at };
     }));
@@ -2123,7 +2131,7 @@ app.get('/api/customers', adminMiddleware, async (req, res) => {
 
 app.get('/api/customers/:phone/orders', async (req, res) => {
   try {
-    const { data: orders, error } = await from('orders').select('*').eq('customer_phone', req.params.phone).order('id', { ascending: false });
+    const { data: orders, error } = await from('orders').select('*').eq('customer_phone', req.params.phone).order('created_at', { ascending: false });
     if (error) throw error;
     for (const order of orders || []) {
       const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
@@ -2453,7 +2461,7 @@ app.delete('/api/addresses/:id', async (req, res) => {
 // ========== ORDER HISTORY & REORDER ==========
 app.get('/api/orders/by-phone/:phone', async (req, res) => {
   try {
-    const { data: orders, error } = await from('orders').select('*').eq('customer_phone', req.params.phone).order('id', { ascending: false });
+    const { data: orders, error } = await from('orders').select('*').eq('customer_phone', req.params.phone).order('created_at', { ascending: false });
     if (error) throw error;
     for (const order of orders || []) {
       const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
@@ -2723,7 +2731,7 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
 
     const { data: topProducts } = await supabase.from('products').select('id, name, sold_count, price, rating').eq('status', 'active').order('sold_count', { ascending: false }).limit(10);
 
-    const { data: recentOrders } = await from('orders').select('id, customer_name, total_amount, status, created_at').order('id', { ascending: false }).limit(5);
+    const { data: recentOrders } = await from('orders').select('id, order_code, customer_name, total_amount, status, created_at').order('created_at', { ascending: false }).limit(5);
 
     const { data: lowStock } = await supabase.from('products').select('id, name, stock').eq('status', 'active').lt('stock', 10).order('stock').limit(10);
     const lowStockCount = (lowStock || []).length;
@@ -2869,7 +2877,7 @@ app.post('/api/data/export', adminMiddleware, async (req, res) => {
     const { data: contact } = await supabase.from('contact').select('*').eq('id', 1).maybeSingle();
     const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
     const { data: messages } = await supabase.from('messages').select('*').order('id', { ascending: false });
-    const { data: orders } = await from('orders').select('*').order('id', { ascending: false });
+    const { data: orders } = await from('orders').select('*').order('created_at', { ascending: false });
     const { data: coupons } = await supabase.from('coupons').select('*').order('id', { ascending: false });
     const { data: customers } = await supabase.from('customers').select('*').order('id', { ascending: false });
     const { data: subscribers } = await supabase.from('subscribers').select('*').order('id', { ascending: false });
@@ -2886,27 +2894,37 @@ app.post('/api/data/export', adminMiddleware, async (req, res) => {
   }
 });
 
+// Delete every row in a table. Hosted tables use a uuid primary key, so
+// `id >= 0` is not a valid comparison there; the local SQLite fallback keeps
+// integer ids and still needs the range form.
+async function deleteAllRows(tableName) {
+  if (isSupabaseTable(tableName)) {
+    return await from(tableName).delete().not('id', 'is', null);
+  }
+  return await from(tableName).delete().gte('id', 0);
+}
+
 app.post('/api/data/reset', adminMiddleware, async (req, res) => {
   try {
-    await from('order_tracking').delete().gte('id', 0);
-    await from('order_items').delete().gte('id', 0);
-    await from('order_offers').delete().gte('id', 0);
-    await from('order_refunds').delete().gte('id', 0);
-    await from('orders').delete().gte('id', 0);
-    await supabase.from('return_requests').delete().gte('id', 0);
-    await supabase.from('product_images').delete().gte('id', 0);
-    await supabase.from('products').delete().gte('id', 0);
-    await supabase.from('categories').delete().gte('id', 0);
-    await supabase.from('testimonials').delete().gte('id', 0);
-    await supabase.from('messages').delete().gte('id', 0);
-    await supabase.from('wishlist').delete().gte('id', 0);
-    await supabase.from('recently_viewed').delete().gte('id', 0);
-    await supabase.from('reviews').delete().gte('id', 0);
-    await supabase.from('coupons').delete().gte('id', 0);
-    await supabase.from('customers').delete().gte('id', 0);
-    await supabase.from('subscribers').delete().gte('id', 0);
-    await supabase.from('site_analytics').delete().gte('id', 0);
-    await supabase.from('size_chart').delete().gte('id', 0);
+    await deleteAllRows('order_tracking');
+    await deleteAllRows('order_items');
+    await deleteAllRows('order_offers');
+    await deleteAllRows('order_refunds');
+    await deleteAllRows('orders');
+    await deleteAllRows('return_requests');
+    await deleteAllRows('product_images');
+    await deleteAllRows('products');
+    await deleteAllRows('categories');
+    await deleteAllRows('testimonials');
+    await deleteAllRows('messages');
+    await deleteAllRows('wishlist');
+    await deleteAllRows('recently_viewed');
+    await deleteAllRows('reviews');
+    await deleteAllRows('coupons');
+    await deleteAllRows('customers');
+    await deleteAllRows('subscribers');
+    await deleteAllRows('site_analytics');
+    await deleteAllRows('size_chart');
 
     await supabase.from('hero').upsert({
       id: 1, heading: 'Welcome to Aryal Store',

@@ -8,4 +8,6 @@ data/
 *.db-shm
 *.db-wal
 *.db-journal
+.tmp_*.js
+
 

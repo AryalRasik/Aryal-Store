@@ -333,6 +333,15 @@ function table(name) {
               params.push(c.value);
               return `${c.field} IS ?`;
             }
+            if (c.op === 'not_is') {
+              if (c.value === null) return `${c.field} IS NOT NULL`;
+              params.push(c.value);
+              return `${c.field} IS NOT ?`;
+            }
+            if (c.op === 'not_eq') {
+              params.push(c.value);
+              return `${c.field} != ?`;
+            }
             params.push(c.value);
             return `${c.field} ${opMap[c.op] || '='} ?`;
           }).join(' AND ');
@@ -387,7 +396,12 @@ function table(name) {
       const chain = {
         eq(field, value) { q.conditions.push({ field, op: 'eq', value }); return chain; },
         neq(field, value) { q.conditions.push({ field, op: 'neq', value }); return chain; },
+        gt(field, value) { q.conditions.push({ field, op: 'gt', value }); return chain; },
+        gte(field, value) { q.conditions.push({ field, op: 'gte', value }); return chain; },
+        lt(field, value) { q.conditions.push({ field, op: 'lt', value }); return chain; },
+        lte(field, value) { q.conditions.push({ field, op: 'lte', value }); return chain; },
         is(field, value) { q.conditions.push({ field, op: 'is', value }); return chain; },
+        not(field, op, value) { q.conditions.push({ field, op: 'not_' + op, value }); return chain; },
         in(field, values) { q.conditions.push({ field, op: 'in', value: values || [] }); return chain; },
         like(field, value) { q.conditions.push({ field, op: 'like', value }); return chain; },
         ilike(field, value) { q.conditions.push({ field, op: 'ilike', value }); return chain; },

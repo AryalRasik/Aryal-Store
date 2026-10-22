@@ -8,12 +8,25 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Auth tables that might not exist in Supabase
 const AUTH_TABLES = ['users', 'user_addresses', 'password_reset_tokens', 'email_verification_tokens', 'user_sessions', 'user_cart'];
-// Order & delivery workflow tables. The hosted orders schema is legacy and
-// incomplete for the manual confirmation workflow, so these always live in the
-// local SQLite database (same store used for auth tables).
+// Order & delivery workflow tables. The hosted orders schema used to be legacy
+// and incomplete for the manual confirmation workflow, so these were parked in
+// the local SQLite database. On Vercel that means /tmp: per-instance and
+// wiped on every redeploy, so customer orders would not survive. Now the
+// routing is decided at startup by probing the hosted schema, and orders move
+// to Supabase as soon as supabase-migration-missing-tables.sql has been run.
 const ORDER_TABLES = ['orders', 'order_items', 'order_tracking', 'order_offers', 'order_refunds'];
+// Columns the manual confirmation workflow writes. If any of them are missing
+// in the hosted tables, orders stay in local SQLite.
+const ORDER_SCHEMA_PROBE = {
+  orders: ['order_code', 'tracking_token', 'customer_phone', 'customer_address', 'admin_notes', 'approved_at', 'declined_at', 'cancel_reason', 'cancelled_by', 'offer_status', 'offer_revision', 'updated_at'],
+  order_items: ['product_name', 'unit_price', 'size', 'color'],
+  order_tracking: ['type', 'actor', 'visible'],
+  order_offers: ['id', 'order_id', 'revision', 'responded_at'],
+  order_refunds: ['id', 'order_id', 'amount', 'reason']
+};
 const LOCAL_TABLES = AUTH_TABLES.concat(ORDER_TABLES);
 const tableSource = {};
+let orderTablesInSupabase = false;
 
 async function getTableSource(name) {
   if (!AUTH_TABLES.includes(name)) return 'supabase';
@@ -22,9 +35,32 @@ async function getTableSource(name) {
   return 'local';
 }
 
+// True when the given table is read from/written to Supabase rather than the
+// local SQLite fallback.
+function isSupabaseTable(name) {
+  if (AUTH_TABLES.includes(name)) return false;
+  if (ORDER_TABLES.includes(name)) return orderTablesInSupabase;
+  return true;
+}
+
+async function probeOrderSchema() {
+  for (const table of Object.keys(ORDER_SCHEMA_PROBE)) {
+    const cols = ORDER_SCHEMA_PROBE[table].join(',');
+    const { error } = await supabase.from(table).select(cols).limit(1);
+    if (error) {
+      console.warn(`Hosted table "${table}" is missing order-workflow columns (${error.message}).`);
+      return false;
+    }
+  }
+  return true;
+}
+
 function from(tableName) {
-  if (LOCAL_TABLES.includes(tableName)) {
+  if (AUTH_TABLES.includes(tableName)) {
     return localDb.from(tableName);
+  }
+  if (ORDER_TABLES.includes(tableName)) {
+    return orderTablesInSupabase ? supabase.from(tableName) : localDb.from(tableName);
   }
   return supabase.from(tableName);
 }
@@ -316,6 +352,15 @@ async function initDb() {
 
   await migrateDb();
 
+  // Order tables move to Supabase once the hosted schema carries the full
+  // manual-confirmation workflow. Otherwise they stay in local SQLite.
+  orderTablesInSupabase = await probeOrderSchema();
+  if (orderTablesInSupabase) {
+    console.log('Order tables are hosted in Supabase.');
+  } else {
+    console.log('Hosted order schema incomplete - order tables stay in local SQLite.');
+  }
+
   // Pre-check auth tables and fall back to local if needed
   for (const t of AUTH_TABLES) {
     await getTableSource(t);
@@ -376,4 +421,4 @@ async function seedData() {
   ]);
 }
 
-module.exports = { supabase, initDb, from, getTableSource, tableSource, AUTH_TABLES, ORDER_TABLES, LOCAL_TABLES };
+module.exports = { supabase, initDb, from, getTableSource, tableSource, isSupabaseTable, AUTH_TABLES, ORDER_TABLES, LOCAL_TABLES };
