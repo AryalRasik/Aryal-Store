@@ -1681,14 +1681,24 @@ app.delete('/api/return-requests/:id', adminMiddleware, async (req, res) => {
 app.get('/api/wishlist', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
-    const { data: items, error } = await supabase
+    const { data: wishlist, error } = await supabase
       .from('wishlist')
-      .select('*, products!inner(*)')
+      .select('*')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    const mapped = (items || []).map(function(w) { return w.products; });
-    res.json(mapped);
+    if (!wishlist || !wishlist.length) return res.json([]);
+    const ids = wishlist.map(w => w.product_id).filter(Boolean);
+    const { data: products } = await supabase
+      .from('products')
+      .select('*')
+      .in('id', ids);
+    const prodMap = {};
+    (products || []).forEach(p => { prodMap[String(p.id)] = p; });
+    res.json(wishlist.map(w => {
+      const p = prodMap[String(w.product_id)];
+      return p ? { ...p, wishlist_id: w.id } : null;
+    }).filter(Boolean));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1725,15 +1735,22 @@ app.delete('/api/wishlist/:product_id', async (req, res) => {
 app.get('/api/recently-viewed', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
-    const { data: items, error } = await supabase
+    const { data: recent, error } = await supabase
       .from('recently_viewed')
-      .select('*, products!inner(*)')
+      .select('*')
       .eq('session_id', sessionId)
       .order('viewed_at', { ascending: false })
-      .limit(10);
+      .limit(20);
     if (error) throw error;
-    const mapped = (items || []).map(function(rv) { return Object.assign({}, rv.products, { viewed_at: rv.viewed_at }); });
-    res.json(mapped);
+    if (!recent || !recent.length) return res.json([]);
+    const ids = recent.map(r => r.product_id).filter(Boolean);
+    const { data: products } = await supabase
+      .from('products')
+      .select('*')
+      .in('id', ids);
+    const prodMap = {};
+    (products || []).forEach(p => { prodMap[String(p.id)] = p; });
+    res.json(recent.map(r => prodMap[String(r.product_id)]).filter(Boolean));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2032,7 +2049,7 @@ app.delete('/api/subscribers/:id', adminMiddleware, async (req, res) => {
 app.get('/api/cart', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
-    let query = supabase.from('user_cart').select('*, products!inner(*)').order('created_at', { ascending: false });
+    let query = supabase.from('user_cart').select('*').order('created_at', { ascending: false });
     const user = getCurrentUserFromRequest(req);
     if (user) {
       query = query.eq('user_id', user.id);
