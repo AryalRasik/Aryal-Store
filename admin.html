@@ -584,28 +584,35 @@ async function handleLogin() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
   document.getElementById('loginError').style.display = 'none';
-  // Try localStorage password first (works offline)
-  // Default password is 'admin123' if not changed in Settings
+  // Always try the backend first: protected routes like /api/orders and
+  // /api/return-requests require a valid JWT, not the local placeholder token.
+  try {
+    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.token) {
+      saveAdminToken(data.token);
+      document.getElementById('loginPage').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      await loadAllTabs();
+      btn.disabled = false;
+      btn.innerHTML = 'Login';
+      return;
+    }
+    document.getElementById('loginError').textContent = data.error || 'Invalid password';
+    document.getElementById('loginError').style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = 'Login';
+    return;
+  } catch (e) {
+    // Backend unreachable — fall back to the local password for offline use.
+  }
   if (pw === getLocalPw() || pw === 'admin123') {
     saveAdminToken(btoa(JSON.stringify({ role: 'admin', id: 'local', exp: Date.now() + 86400000 })));
     document.getElementById('loginPage').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     try { await loadAllTabs(); } catch (e) { console.error(e); }
-    btn.disabled = false;
-    btn.innerHTML = 'Login';
-    return;
-  }
-  // Otherwise try backend
-  try {
-    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
-    const data = await res.json();
-    if (!res.ok) { document.getElementById('loginError').textContent = data.error || 'Invalid password'; document.getElementById('loginError').style.display = 'block'; btn.disabled = false; btn.innerHTML = 'Login'; return; }
-    saveAdminToken(data.token);
-    document.getElementById('loginPage').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-    await loadAllTabs();
-  } catch (e) {
-    document.getElementById('loginError').innerHTML = 'Cannot connect to server. Try default password <strong>admin123</strong> (or start the Node.js server).';
+  } else {
+    document.getElementById('loginError').textContent = 'Invalid password';
     document.getElementById('loginError').style.display = 'block';
   }
   btn.disabled = false;
@@ -657,14 +664,17 @@ if (location.search.includes('reset=')) {
         return;
       }
     } catch {}
-    // Fallback: check locally if token is not expired
+    // Fallback for offline use: only accept a real JWT (3 dot-separated parts).
     try {
-      const decoded = JSON.parse(atob(token));
-      if (decoded.role === 'admin' && decoded.exp > Date.now()) {
-        document.getElementById('loginPage').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        await loadAllTabs();
-        return;
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (payload.role === 'admin' && (!payload.exp || payload.exp * 1000 > Date.now())) {
+          document.getElementById('loginPage').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          await loadAllTabs();
+          return;
+        }
       }
     } catch {}
     clearAdminToken();
