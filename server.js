@@ -398,7 +398,10 @@ app.get('/api/products', async (req, res) => {
     async function fetchProducts(filterStatus) {
       let q = supabase.from('products').select('*');
       if (filterStatus) q = q.eq('status', 'active');
-      if (category && category !== 'all') q = q.eq('category', category);
+      if (category && category !== 'all') {
+        const cats = String(category).split(',').map(c => c.trim()).filter(Boolean);
+        q = cats.length > 1 ? q.in('category', cats) : q.eq('category', category);
+      }
       if (brand) q = q.eq('brand', brand);
       if (material) q = q.ilike('material', '%' + material + '%');
       if (search) q = q.or('name.ilike.%' + search + '%,description.ilike.%' + search + '%');
@@ -413,7 +416,10 @@ app.get('/api/products', async (req, res) => {
       products = fallback.data;
     } else if (error && error.message && error.message.includes('Could not find') && search) {
       const q2 = supabase.from('products').select('*');
-      if (category && category !== 'all') q2.eq('category', category);
+      if (category && category !== 'all') {
+        const cats2 = String(category).split(',').map(c => c.trim()).filter(Boolean);
+        if (cats2.length > 1) q2.in('category', cats2); else q2.eq('category', category);
+      }
       if (brand) q2.eq('brand', brand);
       if (material) q2.ilike('material', '%' + material + '%');
       if (search) q2.or('name.ilike.%' + search + '%');

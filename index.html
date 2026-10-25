@@ -1215,7 +1215,7 @@
     /* ===== CATEGORY PREVIEW ===== */
     .hero-categories { padding:0 0 50px; background:#fff; }
     .hero-categories .section-title { margin-bottom:30px; }
-    .cat-preview-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:16px; }
+    .cat-preview-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
     .cat-preview-card { position:relative; border-radius:16px; overflow:hidden; cursor:pointer; aspect-ratio:3/4; transition:all 0.35s ease; }
     .cat-preview-card:hover { transform:translateY(-4px); box-shadow:0 14px 35px rgba(0,0,0,0.15); }
     .cat-preview-card img { width:100%; height:100%; object-fit:cover; transition:transform 0.5s ease; }
@@ -1278,6 +1278,7 @@
       body { padding-bottom: 56px; }
       .brand-item { padding: 8px 16px; font-size: 0.8rem; }
       .slide-menu { display: block; }
+      .cat-preview-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     }
 
     @media (max-width: 480px) {
@@ -1441,8 +1442,6 @@
           <select id="headerCategorySelect" aria-label="Search in category">
             <option value="">All Categories</option>
             <option value="clothes">Clothes</option>
-            <option value="men">Men</option>
-            <option value="kids">Kids</option>
             <option value="cosmetics">Cosmetics</option>
             <option value="stationery">Stationery</option>
             <option value="cylinder">Cylinder</option>
@@ -1493,8 +1492,6 @@
     <div class="category-nav-inner" id="categoryNavInner">
       <a href="#products" data-category="all" class="active" onclick="filterByCategory('all');event.preventDefault();"><i class="fas fa-fire"></i> New Arrivals</a>
       <a href="#products" data-category="clothes" onclick="filterByCategory('clothes');event.preventDefault();"><i class="fas fa-tshirt"></i> Clothes</a>
-      <a href="#products" data-category="men" onclick="filterByCategory('men');event.preventDefault();"><i class="fas fa-male"></i> Men</a>
-      <a href="#products" data-category="kids" onclick="filterByCategory('kids');event.preventDefault();"><i class="fas fa-child"></i> Kids</a>
       <a href="#products" data-category="cosmetics" onclick="filterByCategory('cosmetics');event.preventDefault();"><i class="fas fa-spa"></i> Cosmetics</a>
       <a href="#products" data-category="stationery" onclick="filterByCategory('stationery');event.preventDefault();"><i class="fas fa-book"></i> Stationery</a>
       <a href="#products" data-category="cylinder" onclick="filterByCategory('cylinder');event.preventDefault();"><i class="fas fa-burn"></i> Cylinder</a>
@@ -1513,8 +1510,6 @@
   <div class="slide-menu-items">
     <a href="#products" onclick="filterByCategory('all');closeSlideMenu();event.preventDefault();"><i class="fas fa-fire"></i> New Arrivals</a>
     <a href="#products" onclick="filterByCategory('clothes');closeSlideMenu();event.preventDefault();"><i class="fas fa-tshirt"></i> Clothes</a>
-    <a href="#products" onclick="filterByCategory('men');closeSlideMenu();event.preventDefault();"><i class="fas fa-male"></i> Men</a>
-    <a href="#products" onclick="filterByCategory('kids');closeSlideMenu();event.preventDefault();"><i class="fas fa-child"></i> Kids</a>
     <a href="#products" onclick="filterByCategory('cosmetics');closeSlideMenu();event.preventDefault();"><i class="fas fa-spa"></i> Cosmetics</a>
     <a href="#products" onclick="filterByCategory('stationery');closeSlideMenu();event.preventDefault();"><i class="fas fa-book"></i> Stationery</a>
     <a href="#products" onclick="filterByCategory('cylinder');closeSlideMenu();event.preventDefault();"><i class="fas fa-burn"></i> Cylinder</a>
@@ -1552,16 +1547,6 @@
         <img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&q=80" alt="Clothes" loading="lazy">
         <div class="cat-overlay"></div>
         <span class="cat-title">Clothes</span>
-      </div>
-      <div class="cat-preview-card" onclick="filterByCategory('men')" role="button" tabindex="0" aria-label="Men">
-        <img src="https://images.unsplash.com/photo-1617137968427-85924c800a22?w=400&q=80" alt="Men" loading="lazy">
-        <div class="cat-overlay"></div>
-        <span class="cat-title">Men</span>
-      </div>
-      <div class="cat-preview-card" onclick="filterByCategory('kids')" role="button" tabindex="0" aria-label="Kids">
-        <img src="https://images.unsplash.com/photo-1622290291468-a28b7a7dc6a8?w=400&q=80" alt="Kids" loading="lazy">
-        <div class="cat-overlay"></div>
-        <span class="cat-title">Kids</span>
       </div>
       <div class="cat-preview-card" onclick="filterByCategory('cosmetics')" role="button" tabindex="0" aria-label="Cosmetics">
         <img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80" alt="Cosmetics" loading="lazy">
@@ -1640,14 +1625,10 @@
     <div class="brand-scroll">
       <div class="brand-scroll-inner" id="brandScrollInner">
         <span class="brand-item"><i class="fas fa-tshirt"></i> Clothes</span>
-        <span class="brand-item"><i class="fas fa-male"></i> Men</span>
-        <span class="brand-item"><i class="fas fa-child"></i> Kids</span>
         <span class="brand-item"><i class="fas fa-spa"></i> Cosmetics</span>
         <span class="brand-item"><i class="fas fa-book"></i> Stationery</span>
         <span class="brand-item"><i class="fas fa-burn"></i> Cylinder</span>
         <span class="brand-item"><i class="fas fa-tshirt"></i> Clothes</span>
-        <span class="brand-item"><i class="fas fa-male"></i> Men</span>
-        <span class="brand-item"><i class="fas fa-child"></i> Kids</span>
         <span class="brand-item"><i class="fas fa-spa"></i> Cosmetics</span>
         <span class="brand-item"><i class="fas fa-book"></i> Stationery</span>
         <span class="brand-item"><i class="fas fa-burn"></i> Cylinder</span>
@@ -1672,8 +1653,6 @@
       <div class="left">
         <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
         <button class="filter-btn" data-filter="clothes" onclick="setFilter('clothes')">Clothes</button>
-        <button class="filter-btn" data-filter="men" onclick="setFilter('men')">Men</button>
-        <button class="filter-btn" data-filter="kids" onclick="setFilter('kids')">Kids</button>
         <button class="filter-btn" data-filter="cosmetics" onclick="setFilter('cosmetics')">Cosmetics</button>
         <button class="filter-btn" data-filter="stationery" onclick="setFilter('stationery')">Stationery</button>
         <button class="filter-btn" data-filter="cylinder" onclick="setFilter('cylinder')">Cylinder</button>
@@ -2574,6 +2553,19 @@ function mapProduct(p) {
 let allProducts = [];
 let cart = []; try { cart = JSON.parse(localStorage.getItem('aryal_cart')) || []; } catch {};
 let currentFilter = 'all';
+const CATEGORY_MERGE = { clothes: ['clothes', 'men', 'kids'] };
+function normalizeCategory(slug) {
+  const key = String(slug || '').toLowerCase();
+  return (key === 'men' || key === 'kids') ? 'clothes' : key;
+}
+function categoryApiValue(slug) {
+  const cats = CATEGORY_MERGE[normalizeCategory(slug)] || [slug];
+  return cats.join(',');
+}
+function categoryFilterValue(slug) {
+  const cats = CATEGORY_MERGE[normalizeCategory(slug)] || [slug];
+  return cats.length > 1 ? 'in.(' + cats.join(',') + ')' : 'eq.' + slug;
+}
 let currentSort = '';
 let wishlistItems = [];
 let selectedPayment = '';
@@ -3211,8 +3203,8 @@ async function selectSuggestion(id) {
 }
 
 function setFilter(filter) {
-  currentFilter = filter;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+  currentFilter = normalizeCategory(filter);
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
   loadProducts();
 }
 
@@ -3241,7 +3233,7 @@ function clearFilters() {
 async function loadProducts(params) {
   try {
     var url = '/api/products?';
-    if (currentFilter && currentFilter !== 'all') url += '&category=' + encodeURIComponent(currentFilter);
+    if (currentFilter && currentFilter !== 'all') url += '&category=' + encodeURIComponent(categoryApiValue(currentFilter));
     if (currentSort) url += '&sort=' + encodeURIComponent(currentSort);
     if (params && params.search) url += '&search=' + encodeURIComponent(params.search);
     var res = await fetch(url);
@@ -3257,7 +3249,7 @@ async function loadProducts(params) {
   try {
     let filters = {};
     if (params && params.search) filters.name = 'ilike.*' + encodeURIComponent(params.search) + '*';
-    if (currentFilter && currentFilter !== 'all') filters.category = 'eq.' + currentFilter;
+    if (currentFilter && currentFilter !== 'all') filters.category = categoryFilterValue(currentFilter);
     if (currentSort) {
       const sortMap = { price_asc: 'price.asc', price_desc: 'price.desc', name_asc: 'name.asc', name_desc: 'name.desc', newest: 'created_at.desc', rating: 'rating.desc' };
       filters.order = sortMap[currentSort] || 'created_at.desc';
@@ -4323,18 +4315,14 @@ function startFlashCountdown() {
 
 
 function filterByCategory(slug) {
-  const filterBtns = document.querySelectorAll('.filter-btn');
-  filterBtns.forEach(b => {
-    if (b.dataset.filter === slug) {
-      b.classList.add('active');
-      currentFilter = slug;
-    } else {
-      b.classList.remove('active');
-    }
+  const target = normalizeCategory(slug);
+  currentFilter = target;
+  document.querySelectorAll('.filter-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.filter === target);
   });
   // Update category nav active state
   document.querySelectorAll('#categoryNavInner a').forEach(function(a) {
-    a.classList.toggle('active', a.dataset.category === slug);
+    a.classList.toggle('active', a.dataset.category === target);
   });
   loadProducts();
   document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
@@ -5513,7 +5501,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
           const cat = document.getElementById('headerCategorySelect')?.value || '';
           let filters = { name: 'ilike.*' + encodeURIComponent(q) + '*', order: 'name.asc' };
-          if (cat) filters.category = 'eq.' + cat;
+          if (cat) filters.category = categoryFilterValue(cat);
           const data = await supaFetch('products', filters);
           if (data.length) {
             const mapped = data.slice(0, 6).map(mapProduct);
