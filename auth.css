@@ -102,7 +102,7 @@ html, body {
   gap: 12px;
 }
 
-.auth-brand-logo span { color: var(--auth-primary); }
+.auth-brand-logo span { color: var(--lux-blush, #E8B4B8); }
 
 .auth-brand h2 {
   font-size: 2rem;
