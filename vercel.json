@@ -29,6 +29,14 @@
       "use": "@vercel/static"
     },
     {
+      "src": "picture/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "uploads/**",
+      "use": "@vercel/static"
+    },
+    {
       "src": "*.{json,woff,woff2,ttf,eot}",
       "use": "@vercel/static"
     }
