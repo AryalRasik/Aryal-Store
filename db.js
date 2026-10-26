@@ -3,8 +3,14 @@ const localDb = require('./local-db');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://srlejludttajosnrfkca.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Auth tables have RLS enabled, so server-side writes need the service role key.
+// Without it we keep using the local SQLite fallback (per-instance on Vercel).
+const supabaseAdmin = SUPABASE_SERVICE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  : null;
 
 // Auth tables that might not exist in Supabase
 const AUTH_TABLES = ['users', 'user_addresses', 'password_reset_tokens', 'email_verification_tokens', 'user_sessions', 'user_cart'];
@@ -31,14 +37,31 @@ let orderTablesInSupabase = false;
 async function getTableSource(name) {
   if (!AUTH_TABLES.includes(name)) return 'supabase';
   if (tableSource[name]) return tableSource[name];
-  tableSource[name] = 'local';
-  return 'local';
+
+  let source = 'local';
+  if (!supabaseAdmin) {
+    console.warn('SUPABASE_SERVICE_ROLE_KEY not set - auth tables use local SQLite.');
+  } else {
+    try {
+      const { error } = await supabaseAdmin.from(name).select('*', { count: 'exact', head: true });
+      if (!error) {
+        source = 'supabase';
+      } else {
+        console.warn(`Auth table "${name}" unavailable in Supabase (${error.message}). Using local SQLite.`);
+      }
+    } catch (err) {
+      console.warn(`Auth table "${name}" probe failed (${err.message}). Using local SQLite.`);
+    }
+  }
+
+  tableSource[name] = source;
+  return source;
 }
 
 // True when the given table is read from/written to Supabase rather than the
 // local SQLite fallback.
 function isSupabaseTable(name) {
-  if (AUTH_TABLES.includes(name)) return false;
+  if (AUTH_TABLES.includes(name)) return tableSource[name] === 'supabase';
   if (ORDER_TABLES.includes(name)) return orderTablesInSupabase;
   return true;
 }
@@ -57,7 +80,9 @@ async function probeOrderSchema() {
 
 function from(tableName) {
   if (AUTH_TABLES.includes(tableName)) {
-    return localDb.from(tableName);
+    return tableSource[tableName] === 'supabase'
+      ? supabaseAdmin.from(tableName)
+      : localDb.from(tableName);
   }
   if (ORDER_TABLES.includes(tableName)) {
     return orderTablesInSupabase ? supabase.from(tableName) : localDb.from(tableName);
@@ -421,4 +446,4 @@ async function seedData() {
   ]);
 }
 
-module.exports = { supabase, initDb, from, getTableSource, tableSource, isSupabaseTable, AUTH_TABLES, ORDER_TABLES, LOCAL_TABLES };
+module.exports = { supabase, supabaseAdmin, initDb, from, getTableSource, tableSource, isSupabaseTable, AUTH_TABLES, ORDER_TABLES, LOCAL_TABLES };

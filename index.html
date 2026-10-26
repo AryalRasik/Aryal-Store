@@ -4760,9 +4760,8 @@ function switchProfileTab(tab) {
   if (tab === 'addresses') loadAddressesPanel();
 }
 
-async function loadProfileSection() {
-  const data = await fetchProfile();
-  if (!data) { closeProfileSection(); return; }
+function renderProfileData(data) {
+  if (!data) return;
   document.getElementById('profileName').textContent = data.name || 'User';
   document.getElementById('profileEmail').textContent = data.email || '';
   document.getElementById('profName').value = data.name || '';
@@ -4781,7 +4780,7 @@ async function loadProfileSection() {
     document.getElementById('profileAvatarText').style.display = 'block';
   }
   const banner = document.getElementById('emailVerificationBanner');
-  if (data.email_verified) {
+  if (data.email_verified || data.email_verified_at) {
     banner.style.display = 'none';
     document.getElementById('profileEmailStatus').textContent = '✓ Email verified';
     document.getElementById('profileEmailStatus').style.color = '#2f7d4f';
@@ -4790,6 +4789,18 @@ async function loadProfileSection() {
     document.getElementById('profileEmailStatus').textContent = '⚠ Email not verified';
     document.getElementById('profileEmailStatus').style.color = '#111111';
   }
+}
+
+async function loadProfileSection() {
+  const cached = getCurrentUser();
+  renderProfileData(cached);
+
+  const data = await fetchProfile();
+  if (data) {
+    renderProfileData(data);
+    return;
+  }
+  if (!getCurrentUser()) closeProfileSection();
 }
 
 async function handleProfileUpdate() {

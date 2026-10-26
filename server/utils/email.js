@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const { supabase } = require('../../db');
+const { supabase, from } = require('../../db');
 const crypto = require('crypto');
 
 async function getMailConfig() {
@@ -72,7 +72,7 @@ async function sendVerificationEmail(user, req) {
   const token = generateToken();
   const baseUrl = getBaseUrl(req);
 
-  await supabase.from('email_verification_tokens').insert({
+  await from('email_verification_tokens').insert({
     user_id: user.id,
     email: user.email,
     token,
@@ -110,7 +110,7 @@ async function sendPasswordResetEmail(user, req) {
   const token = generateToken();
   const baseUrl = getBaseUrl(req);
 
-  await supabase.from('password_reset_tokens').insert({
+  await from('password_reset_tokens').insert({
     user_id: user.id,
     email: user.email,
     token,

@@ -181,11 +181,11 @@ app.post('/api/users/register', async (req, res) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email format' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
     if (!/[0-9]/.test(password)) return res.status(400).json({ error: 'Password must contain at least one number' });
-    const { data: existing } = await supabase.from('users').select('id').eq('email', email.toLowerCase()).maybeSingle();
+    const { data: existing } = await from('users').select('id').eq('email', email.toLowerCase()).maybeSingle();
     if (existing) return res.status(400).json({ error: 'An account with this email already exists' });
     const hashedPassword = await bcrypt.hash(password, 10);
     const id = Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-    const { error: insertErr } = await supabase.from('users').insert({
+    const { error: insertErr } = await from('users').insert({
       id, name, email: email.toLowerCase(), password: hashedPassword, phone: phone || '', address: address || '', facebook_id: '', created_at: new Date().toISOString()
     });
     if (insertErr) throw insertErr;
@@ -203,10 +203,10 @@ app.post('/api/users/login', async (req, res) => {
     if (!identifier || !password) return res.status(400).json({ error: 'Email/Phone and password are required' });
     let user;
     if (email) {
-      const { data: u } = await supabase.from('users').select('*').eq('email', email.toLowerCase()).maybeSingle();
+      const { data: u } = await from('users').select('*').eq('email', email.toLowerCase()).maybeSingle();
       user = u;
     } else {
-      const { data: u } = await supabase.from('users').select('*').eq('phone', phone).maybeSingle();
+      const { data: u } = await from('users').select('*').eq('phone', phone).maybeSingle();
       user = u;
     }
     if (!user) return res.status(401).json({ error: 'No account found with this ' + (email ? 'email' : 'phone number') });
@@ -223,7 +223,7 @@ app.post('/api/users/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
-    const { data: user } = await supabase.from('users').select('id, name, email').eq('email', email.toLowerCase()).maybeSingle();
+    const { data: user } = await from('users').select('id, name, email').eq('email', email.toLowerCase()).maybeSingle();
     if (!user) return res.status(404).json({ error: 'No account found with this email' });
     // In production, send a password reset email here.
     // For now, generate a temporary reset token and return success.
@@ -239,7 +239,7 @@ app.get('/api/users/profile', authMiddleware, async (req, res) => {
     if (req.user.role === 'admin') {
       return res.json({ id: 'admin', name: 'Admin', email: 'admin@aryalstore.com' });
     }
-    const { data: user } = await supabase.from('users').select('*').eq('id', req.user.id).maybeSingle();
+    const { data: user } = await from('users').select('*').eq('id', req.user.id).maybeSingle();
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ id: user.id, name: user.name, email: user.email, phone: user.phone || '', address: user.address || '' });
   } catch (err) {
@@ -2055,7 +2055,7 @@ app.delete('/api/subscribers/:id', adminMiddleware, async (req, res) => {
 app.get('/api/cart', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
-    let query = supabase.from('user_cart').select('*').order('created_at', { ascending: false });
+    let query = from('user_cart').select('*').order('created_at', { ascending: false });
     const user = getCurrentUserFromRequest(req);
     if (user) {
       query = query.eq('user_id', user.id);
@@ -2093,17 +2093,17 @@ app.post('/api/cart', async (req, res) => {
     if (!product_id) return res.status(400).json({ error: 'Product ID required' });
     const user = getCurrentUserFromRequest(req);
     const ownerField = user ? { user_id: user.id } : { session_id: sessionId };
-    const { data: existing } = await supabase.from('user_cart')
+    const { data: existing } = await from('user_cart')
       .select('id, quantity')
       .match(Object.assign({ product_id, size: size || '', color: color || '' }, ownerField))
       .maybeSingle();
     if (existing) {
-      const { error } = await supabase.from('user_cart')
+      const { error } = await from('user_cart')
         .update({ quantity: existing.quantity + (quantity || 1) })
         .eq('id', existing.id);
       if (error) throw error;
     } else {
-      const { error } = await supabase.from('user_cart').insert(
+      const { error } = await from('user_cart').insert(
         Object.assign({ product_id, quantity: quantity || 1, size: size || '', color: color || '' }, ownerField)
       );
       if (error) throw error;
@@ -2119,10 +2119,10 @@ app.put('/api/cart/:id', async (req, res) => {
     const { quantity } = req.body;
     if (quantity === undefined || quantity < 0) return res.status(400).json({ error: 'Valid quantity required' });
     if (quantity === 0) {
-      const { error } = await supabase.from('user_cart').delete().eq('id', req.params.id);
+      const { error } = await from('user_cart').delete().eq('id', req.params.id);
       if (error) throw error;
     } else {
-      const { error } = await supabase.from('user_cart').update({ quantity }).eq('id', req.params.id);
+      const { error } = await from('user_cart').update({ quantity }).eq('id', req.params.id);
       if (error) throw error;
     }
     res.json({ success: true });
@@ -2133,7 +2133,7 @@ app.put('/api/cart/:id', async (req, res) => {
 
 app.delete('/api/cart/:id', async (req, res) => {
   try {
-    const { error } = await supabase.from('user_cart').delete().eq('id', req.params.id);
+    const { error } = await from('user_cart').delete().eq('id', req.params.id);
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {
