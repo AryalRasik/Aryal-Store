@@ -2,44 +2,53 @@ const nodemailer = require('nodemailer');
 const { supabase } = require('../../db');
 const crypto = require('crypto');
 
-async function getMailTransport() {
-  const { data: settings } = await supabase
-    .from('settings')
-    .select('store_name, store_email, smtp_host, smtp_port, smtp_user, smtp_pass')
-    .eq('id', 1)
-    .maybeSingle();
-
-  if (!settings || !settings.smtp_host || !settings.smtp_user || !settings.smtp_pass) {
-    return null;
+async function getMailConfig() {
+  let settings = null;
+  try {
+    const { data } = await supabase
+      .from('settings')
+      .select('store_name, store_email, smtp_host, smtp_port, smtp_user, smtp_pass')
+      .eq('id', 1)
+      .maybeSingle();
+    settings = data;
+  } catch (err) {
+    console.log('Could not load SMTP settings from database:', err.message);
   }
 
-  return nodemailer.createTransport({
-    host: settings.smtp_host,
-    port: settings.smtp_port || 587,
-    secure: (settings.smtp_port || 587) === 465,
-    auth: {
-      user: settings.smtp_user,
-      pass: settings.smtp_pass
-    }
-  });
+  const host = (settings && settings.smtp_host) || process.env.SMTP_HOST || '';
+  const user = (settings && settings.smtp_user) || process.env.SMTP_USER || '';
+  const pass = (settings && settings.smtp_pass) || process.env.SMTP_PASS || '';
+  const port = Number((settings && settings.smtp_port) || process.env.SMTP_PORT || 587);
+
+  if (!host || !user || !pass) return null;
+
+  return {
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+    storeName: (settings && settings.store_name) || process.env.STORE_NAME || 'Aryal Store',
+    fromEmail: (settings && settings.store_email) || process.env.STORE_EMAIL || process.env.SMTP_FROM || user
+  };
 }
 
 async function sendEmail({ to, subject, html }) {
   try {
-    const transporter = await getMailTransport();
-    if (!transporter) {
-      console.log('Email not sent: SMTP not configured');
+    const config = await getMailConfig();
+    if (!config) {
+      console.log('Email not sent: SMTP not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS)');
       return false;
     }
 
-    const { data: settings } = await supabase
-      .from('settings')
-      .select('store_name, store_email')
-      .eq('id', 1)
-      .maybeSingle();
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.auth
+    });
 
     await transporter.sendMail({
-      from: `"${settings?.store_name || 'Aryal Store'}" <${settings?.store_email || 'noreply@aryalstore.com'}>`,
+      from: `"${config.storeName}" <${config.fromEmail}>`,
       to,
       subject,
       html

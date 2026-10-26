@@ -888,28 +888,13 @@ async function completeGoogleLogin(profile, res) {
 }
 
 // POST /api/auth/google (also accessible as /api/users/google)
-// Sends an email OTP to the selected Google account; sign-in completes on /verify-google-otp.
+// Google has already verified the email, so sign in directly without an extra OTP.
 router.post('/google', async (req, res) => {
   try {
     const profile = await verifyGoogleCredential(req.body.credential);
-    const googleEmail = (profile.email || '').toLowerCase().trim();
-
-    const otp = generateOTP();
-    const expiresAt = Date.now() + 5 * 60 * 1000;
-    otpStore.set('email:' + googleEmail, { otp, expiresAt, attempts: 0 });
-
-    const sent = await sendOtpEmail(googleEmail, otp);
-    console.log(`[AUTH] Google OTP for ${googleEmail}: ${otp}${sent ? '' : ' (SMTP not configured — see settings table)'}`);
-
-    return res.json({
-      needsOtp: true,
-      email: googleEmail,
-      expiresIn: 300,
-      message: 'Enter the 6-digit code sent to your email to complete sign-in.',
-      debug: process.env.NODE_ENV !== 'production' ? otp : undefined
-    });
+    return completeGoogleLogin(profile, res);
   } catch (err) {
-    console.log('[AUTH] Google OTP send error:', err.message);
+    console.log('[AUTH] Google login error:', err.message);
     return res.status(err.oauthCode ? 400 : 500).json({
       error: err.message,
       code: err.oauthCode || 'SERVER_ERROR'
