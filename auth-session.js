@@ -28,14 +28,24 @@
     }
   }
 
-  function isTokenExpired(token) {
-    if (!token) return true;
+  function decodeJwtPayload(token) {
     try {
       const parts = token.split('.');
-      if (parts.length !== 3) return true;
-      const payload = JSON.parse(atob(parts[1]));
-      return payload.exp * 1000 < Date.now();
-    } catch { return true; }
+      if (parts.length !== 3) return null;
+      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) base64 += '=';
+      const json = decodeURIComponent(Array.prototype.map.call(atob(base64), function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(json);
+    } catch { return null; }
+  }
+
+  function isTokenExpired(token) {
+    if (!token) return true;
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') return true;
+    return payload.exp * 1000 < Date.now();
   }
 
   async function validateSession() {
@@ -60,7 +70,7 @@
         const data = await res.json();
         const user = getCurrentUser();
         if (user) saveAuth(token, { ...user, ...data });
-      } else {
+      } else if (res.status === 401) {
         clearAuth();
         if (typeof updateUserMenu === 'function') updateUserMenu();
       }

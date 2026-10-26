@@ -1843,7 +1843,7 @@
       <i class="fas fa-shopping-bag"></i><span>Cart</span>
       <span class="bnav-badge" id="bnavCartBadge" style="display:none;">0</span>
     </button>
-    <button class="bottom-nav-item" id="bnavAccount" onclick="closeMobileMenu();openAuthModal();">
+    <button class="bottom-nav-item" id="bnavAccount" onclick="closeMobileMenu();openAccountMenu();">
       <i class="fas fa-user"></i><span>Account</span>
     </button>
   </div>
@@ -5043,6 +5043,11 @@ function closeAddresses() {
 }
 
 // ==================== ACCOUNT DASHBOARD ====================
+function openAccountMenu() {
+  if (getCurrentUser()) openAccountDash();
+  else openAuthModal('login');
+}
+
 function openAccountDash() {
   document.getElementById('userDropdown').classList.remove('show');
   document.getElementById('accountDashModal').classList.add('open');
@@ -5744,12 +5749,13 @@ function initCarousel() {
     try {
       const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token }, signal: authCtrl.signal });
       clearTimeout(authTimer);
-      if (!res.ok) { clearAuth(); updateUserMenu(); }
-      else {
+      if (res.status === 401) { clearAuth(); updateUserMenu(); }
+      else if (res.ok) {
         const data = await res.json();
         saveAuth(token, data);
+        updateUserMenu();
       }
-    } catch { clearAuth(); updateUserMenu(); }
+    } catch {}
   }
 
   await fetches;
