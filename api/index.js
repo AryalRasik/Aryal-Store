@@ -10,6 +10,14 @@ let initPromise = null;
 
 module.exports = async (req, res) => {
   try {
+    if (req.method === 'GET' && req.url.split('?')[0] === '/api/config/oauth') {
+      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+      return res.status(200).json({
+        google_client_id: process.env.GOOGLE_CLIENT_ID || '',
+        facebook_app_id: process.env.FACEBOOK_APP_ID || '',
+        environment: process.env.NODE_ENV || 'production'
+      });
+    }
     if (!initialised) {
       if (!initPromise) {
         initPromise = initDb()

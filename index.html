@@ -1299,7 +1299,7 @@
     var OAUTH_CFG = { google_client_id: '', facebook_app_id: '' };
     var GOOGLE_CLIENT_ID = OAUTH_CFG.google_client_id || '';
     var FB_APP_ID = OAUTH_CFG.facebook_app_id || '';
-    var HARDCODED_CLIENT_ID = '219926749680-b71tc4gv0odg7csjf7ajakggq5h0io2t.apps.googleusercontent.com';
+    var HARDCODED_CLIENT_ID = '219926749680-jeanh13iua30rh05l2gp9j8joptg0au0.apps.googleusercontent.com';
     fetch('/api/config/oauth').then(function(r) { return r.json(); }).then(function(cfg) {
       OAUTH_CFG = cfg;
       GOOGLE_CLIENT_ID = cfg.google_client_id || HARDCODED_CLIENT_ID;
