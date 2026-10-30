@@ -340,3 +340,19 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 --   SELECT table_name FROM information_schema.tables
 --   WHERE table_schema = 'public' ORDER BY table_name;
 -- ==============================================================
+-- ==============================================================
+-- 6. PERSISTENT ADMIN UPLOADS
+-- Vercel serverless filesystems are temporary. Uploaded product photos
+-- use Supabase Storage when SUPABASE_SERVICE_ROLE_KEY is configured,
+-- otherwise they are stored in this table and served by /api/files/:id.
+-- ==============================================================
+CREATE TABLE IF NOT EXISTS uploaded_files (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  file_name TEXT DEFAULT '',
+  mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+  file_data TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE uploaded_files DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE uploaded_files TO anon, authenticated;

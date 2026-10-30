@@ -7,10 +7,11 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
-const { supabase, from, initDb, isSupabaseTable } = require('./db');
+const { supabase, supabaseAdmin, from, initDb, isSupabaseTable } = require('./db');
 const authRoutes = require('./server/routes/auth');
 const payment = require('./server/payment');
 const orderWorkflow = require('./server/orderWorkflow');
@@ -22,15 +23,8 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, 'product_' + Date.now() + '_' + Math.round(Math.random() * 1e9) + ext);
-  }
-});
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /\.(jpg|jpeg|png|gif|webp|bmp|mp4|webm|ogg)$/i;
@@ -38,6 +32,54 @@ const upload = multer({
     cb(new Error('Only image/video files (jpg, jpeg, png, gif, webp, bmp, mp4, webm) are allowed'));
   }
 });
+
+const PRODUCT_IMAGE_BUCKET = 'product-images';
+let productImageBucketReady = false;
+
+async function ensureProductImageBucket() {
+  if (!supabaseAdmin) return false;
+  if (productImageBucketReady) return true;
+  const { error } = await supabaseAdmin.storage.getBucket(PRODUCT_IMAGE_BUCKET);
+  if (error) {
+    const { error: createError } = await supabaseAdmin.storage.createBucket(PRODUCT_IMAGE_BUCKET, { public: true });
+    if (createError && !/already exists/i.test(createError.message || '')) throw createError;
+  }
+  productImageBucketReady = true;
+  return true;
+}
+
+async function saveUploadedFile(file) {
+  if (supabaseAdmin) {
+    try {
+      await ensureProductImageBucket();
+      const ext = (path.extname(file.originalname) || '').toLowerCase();
+      const objectPath = 'products/' + Date.now() + '_' + crypto.randomBytes(8).toString('hex') + ext;
+      const { error } = await supabaseAdmin.storage
+        .from(PRODUCT_IMAGE_BUCKET)
+        .upload(objectPath, file.buffer, {
+          contentType: file.mimetype || 'application/octet-stream',
+          upsert: false
+        });
+      if (error) throw error;
+      const { data } = supabaseAdmin.storage.from(PRODUCT_IMAGE_BUCKET).getPublicUrl(objectPath);
+      if (data && data.publicUrl) return data.publicUrl;
+    } catch (err) {
+      console.warn('Supabase Storage upload failed, using database fallback:', err.message);
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('uploaded_files')
+    .insert({
+      file_name: file.originalname || '',
+      mime_type: file.mimetype || 'application/octet-stream',
+      file_data: file.buffer.toString('base64')
+    })
+    .select('id')
+    .single();
+  if (error) throw new Error('Could not store uploaded file: ' + error.message);
+  return '/api/files/' + data.id;
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -292,20 +334,51 @@ app.post('/api/users/facebook', async (req, res) => {
 
 // ========== UPLOAD ==========
 app.post('/api/upload', adminMiddleware, (req, res) => {
-  upload.single('file')(req, res, (err) => {
+  upload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    res.json({ url: '/uploads/' + req.file.filename });
+    try {
+      res.json({ url: await saveUploadedFile(req.file) });
+    } catch (saveErr) {
+      res.status(500).json({ error: saveErr.message });
+    }
   });
 });
 
 app.post('/api/upload/multiple', adminMiddleware, (req, res) => {
-  upload.array('files', 10)(req, res, (err) => {
+  upload.array('files', 10)(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.files || !req.files.length) return res.status(400).json({ error: 'No files uploaded' });
-    const urls = req.files.map(f => '/uploads/' + f.filename);
-    res.json({ urls });
+    try {
+      const urls = [];
+      for (const file of req.files) urls.push(await saveUploadedFile(file));
+      res.json({ urls });
+    } catch (saveErr) {
+      res.status(500).json({ error: saveErr.message });
+    }
   });
+});
+
+app.get('/api/files/:id', async (req, res) => {
+  const id = req.params.id || '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  try {
+    const { data, error } = await supabase
+      .from('uploaded_files')
+      .select('mime_type,file_data')
+      .eq('id', id)
+      .maybeSingle();
+    if (error || !data || !data.file_data) return res.status(404).json({ error: 'Not found' });
+    const buffer = Buffer.from(data.file_data, 'base64');
+    res.setHeader('Content-Type', data.mime_type || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(buffer);
+  } catch (fileErr) {
+    console.error('File read error:', fileErr.message);
+    res.status(500).json({ error: 'Could not load file' });
+  }
 });
 
 // Google OAuth is handled by authRoutes (/api/auth/google and /api/users/google)

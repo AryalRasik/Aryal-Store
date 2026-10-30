@@ -357,6 +357,14 @@ async function migrateDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_user_cart_user ON user_cart(user_id);
     CREATE INDEX IF NOT EXISTS idx_user_cart_session ON user_cart(session_id);
+    CREATE TABLE IF NOT EXISTS uploaded_files (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      file_name TEXT DEFAULT '',
+      mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+      file_data TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    ALTER TABLE uploaded_files DISABLE ROW LEVEL SECURITY;
   `;
   const ok = await runMigration(sql);
   if (ok) console.log('Database schema migrated successfully.');

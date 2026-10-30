@@ -808,21 +808,70 @@ function removeProdImage(index, pending) {
   renderProdImagePreview();
 }
 
-async function uploadProductImages(files) {
-  const form = new FormData();
-  files.forEach(file => form.append('files', file));
-  const headers = {};
-  const token = getAdminToken();
-  if (token) headers.Authorization = 'Bearer ' + token;
-  const res = await fetch('/api/upload/multiple', { method: 'POST', headers, body: form });
-  if (res.status === 401 || res.status === 403) {
-    clearAdminToken();
-    showLoginPage();
-    throw new Error('Session expired. Please login again.');
+function compressImageForUpload(file) {
+  if (!file || !/^image\/(jpeg|png|webp|bmp)$/i.test(file.type) || file.size <= 400 * 1024) {
+    return Promise.resolve(file);
   }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || data.message || 'Photo upload failed');
-  return Array.isArray(data.urls) ? data.urls : [];
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve(file);
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => resolve(file);
+      img.onload = () => {
+        try {
+          const maxSide = 1800;
+          let width = img.width;
+          let height = img.height;
+          if (!width || !height) return resolve(file);
+          const scale = Math.min(1, maxSide / Math.max(width, height));
+          if (scale === 1 && file.size <= 1024 * 1024) return resolve(file);
+          width = Math.max(1, Math.round(width * scale));
+          height = Math.max(1, Math.round(height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(file);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(blob => {
+            if (!blob || blob.size >= file.size) return resolve(file);
+            const name = (file.name || 'product').replace(/\.[^.]+$/, '') + '.jpg';
+            resolve(new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() }));
+          }, 'image/jpeg', 0.82);
+        } catch (err) {
+          resolve(file);
+        }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadProductImages(files) {
+  const prepared = [];
+  for (const file of files) prepared.push(await compressImageForUpload(file));
+  const token = getAdminToken();
+  const urls = [];
+  for (const file of prepared) {
+    const form = new FormData();
+    form.append('files', file);
+    const headers = {};
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const res = await fetch('/api/upload/multiple', { method: 'POST', headers, body: form });
+    if (res.status === 401 || res.status === 403) {
+      clearAdminToken();
+      showLoginPage();
+      throw new Error('Session expired. Please login again.');
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.message || 'Photo upload failed');
+    if (Array.isArray(data.urls)) urls.push(...data.urls);
+  }
+  return urls;
 }
 
 // ========== SIZE / COLOR TAG INPUTS ==========
