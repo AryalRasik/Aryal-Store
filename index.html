@@ -2527,16 +2527,36 @@ function productImgError(img) {
   if (fb) fb.classList.add('show');
 }
 
+function productImageUrls(p) {
+  const urls = [];
+  const seen = {};
+  const add = (value) => {
+    const url = typeof value === 'string' ? value.trim() : (value && (value.image_url || value.url) || '').trim();
+    if (!url || seen[url]) return;
+    seen[url] = true;
+    urls.push(url);
+  };
+  add(p.image_url || p.image);
+  let raw = p.images;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { raw = raw.split(','); }
+  }
+  if (Array.isArray(raw)) raw.forEach(add);
+  if (Array.isArray(p.images_list)) p.images_list.forEach(add);
+  return urls;
+}
+
 function mapProduct(p) {
   const catIcons = { clothes: 'fas fa-tshirt', men: 'fas fa-male', kids: 'fas fa-child', cosmetics: 'fas fa-spa', stationery: 'fas fa-book', cylinder: 'fas fa-burn' };
   const catGrads = { clothes: 'linear-gradient(135deg, #E8B4B8, #F7F5F4)', men: 'linear-gradient(135deg, #111111, #666666)', kids: 'linear-gradient(135deg, #E8B4B8, #EAE6E5)', cosmetics: 'linear-gradient(135deg, #E8B4B8, #FFFFFF)', stationery: 'linear-gradient(135deg, #F7F5F4, #EAE6E5)', cylinder: 'linear-gradient(135deg, #111111, #1A1A1A)' };
+  const imageUrls = productImageUrls(p);
   return {
     id: p.id, name: p.name,
     desc: p.description || p.desc || '',
     description: p.description || p.desc || '',
     price: 'Rs. ' + (p.price || 0), compare_price: p.compare_price ? 'Rs. ' + p.compare_price : '',
     price_num: Number(p.price) || 0, compare_num: Number(p.compare_price) || 0,
-    image: p.image_url || p.image || '',
+    image: imageUrls[0] || '',
     category: p.category || '',
     icon: p.icon || catIcons[p.category] || 'fas fa-box',
     gradient: p.gradient || catGrads[p.category] || 'linear-gradient(135deg, #111111, #111111)',
@@ -2546,7 +2566,7 @@ function mapProduct(p) {
     is_best_seller: p.is_best_seller || 0, is_trending: p.is_trending || 0,
     sizes: p.sizes || '', colors: p.colors || '', brand: p.brand || '',
     material: p.material || '', status: p.status || 'active',
-    images_list: p.image_url ? [{ image_url: p.image_url, is_primary: 1 }] : []
+    images_list: imageUrls.map((url, index) => ({ image_url: url, is_primary: index === 0 ? 1 : 0 }))
   };
 }
 

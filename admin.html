@@ -246,8 +246,13 @@
             <div class="form-group"><label>Subcategory</label><input type="text" id="prodSubcategory"></div>
           </div>
           <div class="form-group"><label>Description</label><textarea id="prodDesc" rows="2"></textarea></div>
-          <div class="form-group"><label>Product Image</label><input type="file" id="prodImageFile" accept="image/*" onchange="previewProdImage(event)"><div id="prodImagePreview" style="margin-top:6px;display:none;"></div></div>
-          <div class="form-group"><label>Or Image URL</label><input type="text" id="prodImage" placeholder="https://..."></div>
+          <div class="form-group">
+            <label>Product Photos (up to 10)</label>
+            <input type="file" id="prodImageFile" accept="image/*" multiple onchange="previewProdImage(event)">
+            <div class="tag-hint">The first photo is used as the main image. Click a photo to remove it before saving.</div>
+            <div id="prodImagePreview" style="margin-top:8px;display:none;"></div>
+          </div>
+          <div class="form-group"><label>Or Main Image URL</label><input type="text" id="prodImage" placeholder="https://..."></div>
           <div class="checkbox-group">
             <label><input type="checkbox" id="prodFeatured"> Featured</label>
             <label><input type="checkbox" id="prodNew"> New Arrival</label>
@@ -444,6 +449,9 @@ let allProducts = [];
 let allOrders = [];
 let currentProdFilter = 'all';
 let currentOrderFilter = 'all';
+let prodImageUrls = [];
+let prodPendingFiles = [];
+let prodPreviewObjectUrls = [];
 
 function getAdminToken() { return localStorage.getItem(ADMIN_TOKEN_KEY); }
 function saveAdminToken(t) { localStorage.setItem(ADMIN_TOKEN_KEY, t); }
@@ -726,16 +734,95 @@ async function saveContact() {
 }
 
 // PRODUCTS
-function previewProdImage(e) {
-  const file = e.target.files[0];
-  if (!file) { document.getElementById('prodImagePreview').style.display = 'none'; return; }
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const div = document.getElementById('prodImagePreview');
-    div.innerHTML = '<img src="' + ev.target.result + '" style="width:100%;max-height:200px;border-radius:8px;border:1px solid #ddd;object-fit:cover;">';
-    div.style.display = 'block';
+function parseProductImageUrls(p) {
+  const urls = [];
+  const seen = {};
+  const add = (value) => {
+    const url = typeof value === 'string' ? value.trim() : (value && (value.image_url || value.url) || '').trim();
+    if (!url || seen[url]) return;
+    seen[url] = true;
+    urls.push(url);
   };
-  reader.readAsDataURL(file);
+  add(p.image_url || p.image);
+  let raw = p.images;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { raw = raw.split(','); }
+  }
+  if (Array.isArray(raw)) raw.forEach(add);
+  if (Array.isArray(p.images_list)) p.images_list.forEach(add);
+  return urls;
+}
+
+function revokeProdPreviewUrls() {
+  prodPreviewObjectUrls.forEach(url => URL.revokeObjectURL(url));
+  prodPreviewObjectUrls = [];
+}
+
+function renderProdImagePreview() {
+  revokeProdPreviewUrls();
+  const div = document.getElementById('prodImagePreview');
+  const items = [];
+  prodImageUrls.forEach((url, index) => items.push({ url, index, pending: false }));
+  prodPendingFiles.forEach((file, index) => {
+    const url = URL.createObjectURL(file);
+    prodPreviewObjectUrls.push(url);
+    items.push({ url, index, pending: true, name: file.name });
+  });
+  if (!items.length) {
+    div.innerHTML = '';
+    div.style.display = 'none';
+    return;
+  }
+  div.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;">' + items.map(item =>
+    '<div style="position:relative;border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#fafafa;">' +
+      '<img src="' + item.url + '" alt="' + escape(item.name || 'Product photo') + '" style="width:100%;height:92px;object-fit:cover;display:block;">' +
+      '<button type="button" onclick="removeProdImage(' + item.index + ',' + item.pending + ')" title="Remove photo" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;cursor:pointer;line-height:24px;padding:0;font-size:16px;">&times;</button>' +
+      (item.pending ? '<span style="position:absolute;left:4px;bottom:4px;background:#e94560;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px;">NEW</span>' : '') +
+    '</div>'
+  ).join('') + '</div>';
+  div.style.display = 'block';
+}
+
+function previewProdImage(e) {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (!files.length) return;
+  const room = 10 - prodImageUrls.length - prodPendingFiles.length;
+  if (room <= 0) {
+    showMsg('You can upload up to 10 photos per product.', 'error');
+    return;
+  }
+  if (files.length > room) showMsg('Only the first ' + room + ' photo(s) were added. Maximum is 10.', 'info');
+  prodPendingFiles = prodPendingFiles.concat(files.slice(0, room));
+  renderProdImagePreview();
+}
+
+function removeProdImage(index, pending) {
+  if (pending) {
+    prodPendingFiles.splice(index, 1);
+  } else {
+    const removed = prodImageUrls.splice(index, 1)[0];
+    const urlInput = document.getElementById('prodImage');
+    if ((urlInput.value || '').trim() === removed) urlInput.value = '';
+  }
+  renderProdImagePreview();
+}
+
+async function uploadProductImages(files) {
+  const form = new FormData();
+  files.forEach(file => form.append('files', file));
+  const headers = {};
+  const token = getAdminToken();
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const res = await fetch('/api/upload/multiple', { method: 'POST', headers, body: form });
+  if (res.status === 401 || res.status === 403) {
+    clearAdminToken();
+    showLoginPage();
+    throw new Error('Session expired. Please login again.');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || 'Photo upload failed');
+  return Array.isArray(data.urls) ? data.urls : [];
 }
 
 // ========== SIZE / COLOR TAG INPUTS ==========
@@ -812,12 +899,30 @@ async function saveProduct() {
   const name = document.getElementById('prodName').value.trim();
   if (!name) { showMsg('Product name is required', 'error'); return; }
 
-  let imageUrl = document.getElementById('prodImage').value.trim();
-  const fileInput = document.getElementById('prodImageFile');
-  if (fileInput.files && fileInput.files[0]) {
-    showMsg('Upload via direct URL only. Paste an image URL above or use the file for local preview.', 'info');
-    // Image upload is disabled; use a direct URL instead
+  const manualImageUrl = document.getElementById('prodImage').value.trim();
+  let uploadedUrls = [];
+  if (prodPendingFiles.length) {
+    try {
+      showMsg('Uploading ' + prodPendingFiles.length + ' photo(s)...', 'info');
+      uploadedUrls = await uploadProductImages(prodPendingFiles);
+    } catch (e) {
+      showMsg('Photo upload failed: ' + (e.message || 'error'), 'error');
+      return;
+    }
   }
+
+  const allImages = [];
+  const seen = {};
+  const addImage = (url) => {
+    url = (url || '').trim();
+    if (!url || seen[url]) return;
+    seen[url] = true;
+    allImages.push(url);
+  };
+  addImage(manualImageUrl);
+  prodImageUrls.forEach(addImage);
+  uploadedUrls.forEach(addImage);
+  const primaryImage = manualImageUrl || allImages[0] || '';
 
   const payload = {
     name, category: document.getElementById('prodCategory').value,
@@ -825,7 +930,7 @@ async function saveProduct() {
     description: document.getElementById('prodDesc').value,
     price: parseFloat(document.getElementById('prodPrice').value) || 0,
     compare_price: parseFloat(document.getElementById('prodCompare').value) || 0,
-    image_url: imageUrl, sizes: document.getElementById('prodSizes').value,
+    image_url: primaryImage, images: allImages, sizes: document.getElementById('prodSizes').value,
     colors: document.getElementById('prodColors').value,
     material: document.getElementById('prodMaterial').value,
     brand: document.getElementById('prodBrand').value,
@@ -872,7 +977,9 @@ function resetForm() {
   document.getElementById('prodTrending').checked = false;
   document.getElementById('prodImage').value = '';
   document.getElementById('prodImageFile').value = '';
-  document.getElementById('prodImagePreview').style.display = 'none';
+  prodImageUrls = [];
+  prodPendingFiles = [];
+  renderProdImagePreview();
   document.getElementById('formTitle').textContent = 'Add Product';
   document.getElementById('cancelBtn').style.display = 'none';
 }
@@ -901,9 +1008,9 @@ function editProduct(id) {
   document.getElementById('prodTrending').checked = !!p.is_trending;
   document.getElementById('prodImage').value = p.image_url || '';
   document.getElementById('prodImageFile').value = '';
-  const preview = document.getElementById('prodImagePreview');
-  if (p.image_url) { preview.innerHTML = '<img src="' + p.image_url + '" style="width:100%;max-height:200px;border-radius:8px;border:1px solid #ddd;object-fit:cover;">'; preview.style.display = 'block'; }
-  else preview.style.display = 'none';
+  prodImageUrls = parseProductImageUrls(p);
+  prodPendingFiles = [];
+  renderProdImagePreview();
   document.getElementById('formTitle').textContent = 'Edit Product';
   document.getElementById('cancelBtn').style.display = '';
   document.querySelector('[data-tab="products"]').click();

@@ -527,13 +527,49 @@ app.get('/api/products/trending', async (req, res) => {
   }
 });
 
+function parseImageList(value) {
+  const urls = [];
+  const seen = new Set();
+  const add = (item) => {
+    const url = typeof item === 'string' ? item.trim() : (item && (item.image_url || item.url) || '').trim();
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    urls.push(url);
+  };
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) parsed.forEach(add);
+      else add(value);
+    } catch {
+      value.split(',').forEach(add);
+    }
+  } else if (Array.isArray(value)) {
+    value.forEach(add);
+  } else if (value && typeof value === 'object') {
+    add(value);
+  }
+  return urls;
+}
+
 app.get('/api/products/:id', async (req, res) => {
   try {
     const { data: product, error } = await supabase.from('products').select('*').eq('id', req.params.id).maybeSingle();
     if (error) throw error;
     if (!product) return res.status(404).json({ error: 'Product not found' });
     const { data: images } = await supabase.from('product_images').select('*').eq('product_id', product.id).order('sort_order').order('is_primary', { ascending: false });
-    product.images_list = images || [];
+    const imageUrls = [];
+    const seen = new Set();
+    const addImage = (url) => {
+      url = (url || '').trim();
+      if (!url || seen.has(url)) return;
+      seen.add(url);
+      imageUrls.push(url);
+    };
+    addImage(product.image_url || product.image);
+    parseImageList(product.images).forEach(addImage);
+    (images || []).forEach(img => addImage(img.image_url));
+    product.images_list = imageUrls.map((url, index) => ({ image_url: url, is_primary: index === 0 ? 1 : 0 }));
     const { data: reviews } = await supabase.from('reviews').select('*').eq('product_id', product.id).eq('status', 'approved').order('created_at', { ascending: false }).limit(10);
     product.reviews = reviews || [];
     res.json(product);
@@ -546,12 +582,14 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
   try {
     const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
     if (!name || !category) return res.status(400).json({ error: 'Name and category are required' });
+    const imageList = parseImageList(images);
+    const primaryImage = image_url || image || imageList[0] || '';
     const { data, error } = await supabaseInsert('products', {
       name, category, subcategory: subcategory || '',
       description: description || desc || '', price: price || '',
       compare_price: compare_price || '', icon: icon || 'fas fa-box',
       gradient: gradient || 'linear-gradient(135deg, #e94560, #d63851)',
-      image_url: image_url || image || '', images: images || '', video_url: video_url || '',
+      image_url: primaryImage, images: imageList, video_url: video_url || '',
       sizes: sizes || '', colors: colors || '', material: material || '',
       care_instructions: care_instructions || '', fit_info: fit_info || '',
       brand: brand || '', sku: sku || '', stock: stock ?? stock_count ?? 100,
@@ -569,16 +607,18 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
 app.put('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
     const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
-    const { error } = await supabaseUpdate('products', req.params.id, {
+    const updateData = {
       name, category, subcategory, price, compare_price, icon, gradient,
-      images, video_url, sizes, colors, material, care_instructions,
+      video_url, sizes, colors, material, care_instructions,
       fit_info, brand, sku, status,
       is_featured: is_featured ? 1 : 0, is_new: is_new ? 1 : 0,
       is_best_seller: is_best_seller ? 1 : 0, is_trending: is_trending ? 1 : 0,
       description: description || desc,
       image_url: image_url || image,
       stock: stock ?? stock_count
-    });
+    };
+    if (images !== undefined) updateData.images = parseImageList(images);
+    const { error } = await supabaseUpdate('products', req.params.id, updateData);
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {
