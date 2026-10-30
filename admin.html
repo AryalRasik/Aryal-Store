@@ -1365,9 +1365,12 @@ async function viewOrder(id) {
     const o = await api('/orders/' + id);
     const meta = ORDER_STATUS_META[o.status] || { label: o.status, color: '#888', next: [] };
     const pay = PAY_STATUS_META[o.payment_status] || { label: o.payment_status || 'Unpaid', color: '#e67e22' };
-    const items = (o.items || []).map(i =>
-      '<tr><td>' + escape(i.product_name || '') + (i.size || i.color ? '<br><span class="k">' + escape([i.size, i.color].filter(Boolean).join(' / ')) + '</span>' : '') + '</td>' +
-      '<td>' + escape(i.quantity) + '</td><td>Rs. ' + escape(i.unit_price != null ? i.unit_price : '') + '</td></tr>').join('');
+    const items = (o.items || []).map(i => {
+      const photoUrl = i.image_url ? escape(i.image_url).replace(/"/g, '&quot;') : '';
+      const photo = photoUrl ? '<img src="' + photoUrl + '" alt="" style="width:42px;height:42px;border-radius:6px;object-fit:cover;margin-right:8px;vertical-align:middle;">' : '';
+      return '<tr><td>' + photo + escape(i.product_name || '') + (i.size || i.color ? '<br><span class="k">' + escape([i.size, i.color].filter(Boolean).join(' / ')) + '</span>' : '') + '</td>' +
+        '<td>' + escape(i.quantity) + '</td><td>Rs. ' + escape(i.unit_price != null ? i.unit_price : '') + '</td></tr>';
+    }).join('');
     const offer = o.current_offer;
     const timeline = (o.tracking || []).slice().reverse().map(t =>
       '<tr><td class="k">' + escape(String(t.created_at || '').substring(0, 16).replace('T', ' ')) + '</td><td>' + escape(t.note || t.status || '') + '</td></tr>').join('');

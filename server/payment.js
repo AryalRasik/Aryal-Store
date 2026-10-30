@@ -121,36 +121,64 @@ function computeDiscount(coupon, subtotal) {
   return Math.max(0, Math.min(round2(discount), round2(subtotal)));
 }
 
+function productImageUrls(product) {
+  const urls = [];
+  const seen = new Set();
+  const add = (item) => {
+    const url = typeof item === 'string'
+      ? item.trim()
+      : (item && (item.image_url || item.url) || '').trim();
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    urls.push(url);
+  };
+  add(product && (product.image_url || product.image));
+  let raw = product && product.images;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { raw = raw.split(','); }
+  }
+  if (Array.isArray(raw)) raw.forEach(add);
+  return urls;
+}
+
+function resolveItemImage(product, requested) {
+  const images = productImageUrls(product);
+  if (!images.length) return '';
+  const selected = text(requested, 2048);
+  return selected && images.indexOf(selected) !== -1 ? selected : images[0];
+}
+
 /**
  * Build authoritative order lines from database products.
  * Client supplied names/prices are never trusted.
  */
 function buildOrderItems(productsById, requestedItems) {
-  const items = [];
   const merged = new Map();
 
   (requestedItems || []).forEach(raw => {
     const productId = text(raw && raw.product_id);
     if (!productId) throw new Error('Each order item must reference a product.');
+    const product = productsById.get(productId);
+    if (!product) throw new Error('One of the products in your cart is no longer available.');
     const quantity = Number(raw.quantity);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
       throw new Error('Invalid quantity for one of the items.');
     }
     const size = text(raw.size, 40);
     const color = text(raw.color, 40);
-    const key = productId + '::' + size + '::' + color;
+    const imageUrl = resolveItemImage(product, raw.image_url || raw.selected_image);
+    const key = productId + '::' + size + '::' + color + '::' + imageUrl;
     const existing = merged.get(key);
     if (existing) {
       existing.quantity += quantity;
       if (existing.quantity > 99) throw new Error('Too many items of the same variant in one order.');
     } else {
-      merged.set(key, { product_id: productId, quantity, size, color });
+      merged.set(key, { product_id: productId, quantity, size, color, image_url: imageUrl });
     }
   });
 
-  merged.forEach(entry => {
+  return Array.from(merged.values()).map(entry => {
     const product = productsById.get(entry.product_id);
-    if (!product) throw new Error('One of the products in your cart is no longer available.');
     if (product.status && product.status !== 'active') {
       throw new Error('"' + (product.name || 'A product') + '" is no longer available.');
     }
@@ -162,17 +190,16 @@ function buildOrderItems(productsById, requestedItems) {
     if (stock !== null && entry.quantity > stock) {
       throw new Error('Only ' + stock + ' left in stock for "' + (product.name || 'a product') + '".');
     }
-    items.push({
+    return {
       product_id: product.id,
       product_name: product.name || 'Product',
       quantity: entry.quantity,
       unit_price: formatAmount(price),
       size: entry.size,
-      color: entry.color
-    });
+      color: entry.color,
+      image_url: entry.image_url || ''
+    };
   });
-
-  return items;
 }
 
 function computeOrderTotals(items, delivery, freeShippingThreshold, coupon) {

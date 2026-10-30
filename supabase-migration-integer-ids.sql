@@ -176,7 +176,8 @@ CREATE TABLE order_items (
   quantity INTEGER NOT NULL DEFAULT 1,
   unit_price TEXT DEFAULT '',
   size TEXT DEFAULT '',
-  color TEXT DEFAULT ''
+  color TEXT DEFAULT '',
+  image_url TEXT DEFAULT ''
 );
 
 CREATE TABLE order_tracking (

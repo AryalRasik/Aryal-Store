@@ -367,7 +367,7 @@
     $('coCartActions').classList.remove('co-hidden');
     let html = '';
     state.cart.forEach(item => {
-      const img = item.icon || item.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80';
+      const img = item.image || item.icon || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80';
       const variant = [item.size, item.color].filter(Boolean).join(', ');
       html += `<div class="co-cart-item">
         <div class="co-cart-item-img"><img src="${img}" alt="${item.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-box\\'></i>'"></div>
@@ -661,7 +661,7 @@
     const container = $('coSummaryItems');
     if (!container) return;
     container.innerHTML = state.cart.map(item => {
-      const img = item.icon || item.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80';
+      const img = item.image || item.icon || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80';
       const variant = [item.size, item.color].filter(Boolean).join(', ');
       return `<div class="co-summary-mini-item">
         <div class="co-summary-mini-img"><img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-box\\'></i>'"></div>
@@ -697,7 +697,7 @@
       <div class="co-card">
         <div class="co-card-title">Items (${state.cart.reduce((s, c) => s + (c.qty || 1), 0)})</div>
         ${state.cart.map(item => {
-          const img = item.icon || item.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80';
+          const img = item.image || item.icon || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&q=80';
           const variant = [item.size, item.color].filter(Boolean).join(', ');
           return `<div class="co-summary-mini-item">
             <div class="co-summary-mini-img"><img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-box\\'></i>'"></div>
@@ -735,7 +735,8 @@
       product_id: item.id,
       quantity: item.qty || 1,
       size: item.size || '',
-      color: item.color || ''
+      color: item.color || '',
+      image_url: item.image || ''
     }));
 
     const body = {

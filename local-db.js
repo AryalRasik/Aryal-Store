@@ -191,7 +191,8 @@ function migrateOrderTables() {
       quantity INTEGER DEFAULT 1,
       unit_price REAL DEFAULT 0,
       size TEXT DEFAULT '',
-      color TEXT DEFAULT ''
+      color TEXT DEFAULT '',
+      image_url TEXT DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS order_tracking (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -284,7 +285,8 @@ function migrateOrderTables() {
     { name: 'quantity', def: 'INTEGER DEFAULT 1' },
     { name: 'unit_price', def: 'REAL DEFAULT 0' },
     { name: 'size', def: "TEXT DEFAULT ''" },
-    { name: 'color', def: "TEXT DEFAULT ''" }
+    { name: 'color', def: "TEXT DEFAULT ''" },
+    { name: 'image_url', def: "TEXT DEFAULT ''" }
   ]);
   ensureColumns('order_tracking', [
     { name: 'order_id', def: 'INTEGER' },

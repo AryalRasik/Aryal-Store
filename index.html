@@ -2591,6 +2591,7 @@ let wishlistItems = [];
 let selectedPayment = '';
 let currentReviewRating = 0;
 let currentModalProduct = null;
+let currentModalImage = '';
 let selectedSize = '';
 let selectedColor = '';
 let appliedCoupon = null;
@@ -2669,7 +2670,8 @@ function renderCartView() {
   }
   container.innerHTML = cart.map(item => {
     const p = findProduct(item.id);
-    const img = p && p.image ? '<img src="' + imgUrl(p.image) + '" style="width:50px;height:50px;border-radius:10px;object-fit:cover;" loading="lazy">' : '<i class="' + (item.icon || 'fas fa-box') + '"></i>';
+    const imageUrl = item.image || (p && p.image) || '';
+    const img = imageUrl ? '<img src="' + escHtml(imgUrl(imageUrl)) + '" style="width:50px;height:50px;border-radius:10px;object-fit:cover;" loading="lazy">' : '<i class="' + (item.icon || 'fas fa-box') + '"></i>';
     return '<div class="cart-item-info"><div class="thumb" style="background:' + (item.gradient || '#111111') + ';">' + img + '</div><div class="details"><h5>' + item.name + '</h5><div class="meta">' + (item.size ? 'Size: ' + item.size : '') + (item.size && item.color ? ' | ' : '') + (item.color ? 'Color: ' + item.color : '') + '</div><div class="price">' + item.price + '</div><div class="qty-controls"><button onclick="updateQty(\'' + item.cartKey + '\',-1)"><i class="fas fa-minus"></i></button><span>' + item.qty + '</span><button onclick="updateQty(\'' + item.cartKey + '\',1)"><i class="fas fa-plus"></i></button><button class="remove-item" onclick="removeFromCart(\'' + item.cartKey + '\')"><i class="fas fa-trash-alt"></i></button></div></div></div>';
   }).join('');
   document.getElementById('checkoutBtn').style.display = '';
@@ -2733,15 +2735,18 @@ function quickAdd(id) {
   addToCart(id, '', '');
 }
 
-function addToCart(id, size, color) {
+function addToCart(id, size, color, image) {
   const p = findProduct(id);
   if (!p) { toast('Product not found', 'error'); return; }
-  const key = id + '_' + (size || '') + '_' + (color || '');
+  const primaryImage = p.image || '';
+  const selectedImage = image || primaryImage;
+  const photoKey = selectedImage && selectedImage !== primaryImage ? '_' + encodeURIComponent(selectedImage) : '';
+  const key = id + '_' + (size || '') + '_' + (color || '') + photoKey;
   const existing = cart.find(i => i.cartKey === key);
   if (existing) {
     existing.qty += 1;
   } else {
-    cart.push({ cartKey: key, id: p.id, name: p.name, price: p.price, icon: p.icon || 'fas fa-box', gradient: p.gradient || '#111111', qty: 1, size: size || '', color: color || '' });
+    cart.push({ cartKey: key, id: p.id, name: p.name, price: p.price, icon: p.icon || 'fas fa-box', gradient: p.gradient || '#111111', qty: 1, size: size || '', color: color || '', image: selectedImage });
   }
   saveCart();
   triggerCartPulse();
@@ -2972,7 +2977,7 @@ async function submitOnlineOrder(fields) {
     coupon_code: appliedCoupon || '',
     idempotency_key: window.__orderIdempotencyKey,
     items: cart.map(function(i) {
-      return { product_id: i.id, quantity: i.qty, size: i.size || '', color: i.color || '' };
+      return { product_id: i.id, quantity: i.qty, size: i.size || '', color: i.color || '', image_url: i.image || '' };
     })
   };
   const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
@@ -3411,6 +3416,7 @@ function showProductModal(p) {
   selectedSize = ''; selectedColor = '';
   const imgs = p.images_list && p.images_list.length ? p.images_list : (p.image ? [{ image_url: p.image, is_primary: 1 }] : []);
   const mainImg = imgs.length ? imgs[0].image_url : '';
+  currentModalImage = mainImg;
 
   document.getElementById('mainImage').innerHTML = mainImg ? '<img src="' + imgUrl(mainImg) + '" alt="' + p.name + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '" style="font-size:4rem;color:#ccc;"></i>';
   document.getElementById('mainImage').className = 'main-image';
@@ -3508,6 +3514,7 @@ function showProductModal(p) {
 function switchImage(el, url) {
   document.querySelectorAll('.thumb-row .thumb').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
+  currentModalImage = url;
   document.getElementById('mainImage').innerHTML = '<img src="' + imgUrl(url) + '" alt="" loading="lazy">';
   document.getElementById('mainImage').className = 'main-image';
 }
@@ -3536,7 +3543,7 @@ function selectColor(el, color) {
 
 function addFromModal() {
   if (!currentModalProduct) return;
-  addToCart(currentModalProduct.id, selectedSize, selectedColor);
+  addToCart(currentModalProduct.id, selectedSize, selectedColor, currentModalImage);
 }
 
 function buyNow(id) {
@@ -3547,7 +3554,7 @@ function buyNow(id) {
 
 function buyNowFromModal() {
   if (!currentModalProduct) return;
-  addToCart(currentModalProduct.id, selectedSize, selectedColor);
+  addToCart(currentModalProduct.id, selectedSize, selectedColor, currentModalImage);
   closeProductModal();
   openCart();
   setTimeout(showCheckout, 350);
@@ -3557,6 +3564,7 @@ function closeProductModal() {
   document.getElementById('productModal').classList.remove('open');
   document.body.style.overflow = '';
   currentModalProduct = null;
+  currentModalImage = '';
 }
 
 async function loadRecommendations(id) {
@@ -5459,20 +5467,23 @@ renderProducts = function(prods) {
 
 // Patch addToCart to check stock
 const originalAddToCart = addToCart;
-addToCart = function(id, size, color) {
+addToCart = function(id, size, color, image) {
   const p = findProduct(id);
   if (!p) { toast('Product not found', 'error'); return; }
   if (p.stock_count != null && p.stock_count <= 0) {
     toast(p.name + ' is out of stock!', 'error');
     return;
   }
-  const existing = cart.find(i => i.id === id && i.cartKey === id + '_' + (size || '') + '_' + (color || ''));
+  const primaryImage = p.image || '';
+  const selectedImage = image || primaryImage;
+  const photoKey = selectedImage && selectedImage !== primaryImage ? '_' + encodeURIComponent(selectedImage) : '';
+  const existing = cart.find(i => i.id === id && i.cartKey === id + '_' + (size || '') + '_' + (color || '') + photoKey);
   const qtyInCart = existing ? existing.qty : 0;
   if (p.stock_count != null && qtyInCart >= p.stock_count) {
     toast('Only ' + p.stock_count + ' items available!', 'error');
     return;
   }
-  originalAddToCart(id, size, color);
+  originalAddToCart(id, size, color, image);
 };
 
 // ==================== loadRecentlyViewed on product load ====================

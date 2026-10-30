@@ -1218,16 +1218,24 @@ async function createOrderFromRequest(input) {
   const order = inserted[0];
 
   for (const item of orderItems) {
-    const { error: itemError } = await from('order_items').insert({
+    const itemPayload = {
       order_id: order.id,
       product_id: item.product_id,
       product_name: item.product_name,
       quantity: item.quantity,
       unit_price: payment.toNumber(item.unit_price) || 0,
       size: item.size || '',
-      color: item.color || ''
-    });
-    if (itemError) {
+      color: item.color || '',
+      image_url: item.image_url || ''
+    };
+    let itemResult = await from('order_items').insert(itemPayload);
+    if (itemResult.error && /image_url/i.test(itemResult.error.message || '')) {
+      console.warn('order_items.image_url is missing. Run supabase-migration-order-item-image.sql to save selected product photos.');
+      const fallbackPayload = Object.assign({}, itemPayload);
+      delete fallbackPayload.image_url;
+      itemResult = await from('order_items').insert(fallbackPayload);
+    }
+    if (itemResult.error) {
       await from('order_items').delete().eq('order_id', order.id);
       await from('orders').delete().eq('id', order.id);
       throw new Error('Could not save the order items. Please try again.');
@@ -2867,7 +2875,7 @@ app.post('/api/orders/:id/reorder', async (req, res) => {
       customer_landmark: order.customer_landmark,
       notes: 'Reorder from order ' + (order.order_code || order.id),
       items: items.map(function (i) {
-        return { product_id: i.product_id, quantity: i.quantity, size: i.size, color: i.color };
+        return { product_id: i.product_id, quantity: i.quantity, size: i.size, color: i.color, image_url: i.image_url || '' };
       }),
       shipping_method: order.shipping_method,
       payment_method: order.payment_method

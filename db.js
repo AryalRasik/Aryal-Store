@@ -188,6 +188,7 @@ async function migrateDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount NUMERIC DEFAULT 0;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT DEFAULT '';
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]';
+    ALTER TABLE order_items ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT '';
     -- Online payment (QR) support
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_token TEXT DEFAULT '';
