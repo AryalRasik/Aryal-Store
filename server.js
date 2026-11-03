@@ -1286,8 +1286,13 @@ async function createOrderFromRequest(input) {
     idempotency_key: String(input.idempotency_key || '').trim().slice(0, 100)
   };
 
-  const { data: inserted, error: orderError } = await from('orders').insert(orderPayload);
+  const orderInsertResult = from('orders').insert(orderPayload);
+  const orderInsertQuery = orderInsertResult && typeof orderInsertResult.select === 'function'
+    ? orderInsertResult.select()
+    : orderInsertResult;
+  const { data: inserted, error: orderError } = await orderInsertQuery;
   if (orderError) throw orderError;
+  if (!inserted || !inserted[0]) throw new Error('Could not save the order. Please try again.');
   const order = inserted[0];
 
   for (const item of orderItems) {
@@ -2559,13 +2564,14 @@ app.post('/api/addresses', async (req, res) => {
     const sessionId = getSessionId(req);
     const { label, full_name, phone, address, city, state, zip_code, country, is_default } = req.body;
     if (!full_name || !phone || !address) return res.status(400).json({ error: 'Name, phone and address required' });
-    if (is_default) {
-      await supabase.from('saved_addresses').update({ is_default: false }).eq('session_id', sessionId);
+    const isDefault = is_default ? 1 : 0;
+    if (isDefault) {
+      await supabase.from('saved_addresses').update({ is_default: 0 }).eq('session_id', sessionId);
     }
     const { error } = await supabase.from('saved_addresses').insert({
       session_id: sessionId, label: label || 'Home', full_name, phone, address,
       city: city || '', state: state || '', zip_code: zip_code || '',
-      country: country || 'Nepal', is_default: is_default || false
+      country: country || 'Nepal', is_default: isDefault
     });
     if (error) throw error;
     res.json({ success: true });
@@ -2578,11 +2584,12 @@ app.put('/api/addresses/:id', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
     const { label, full_name, phone, address, city, state, zip_code, country, is_default } = req.body;
-    if (is_default) {
-      await supabase.from('saved_addresses').update({ is_default: false }).eq('session_id', sessionId);
+    const isDefault = is_default ? 1 : 0;
+    if (isDefault) {
+      await supabase.from('saved_addresses').update({ is_default: 0 }).eq('session_id', sessionId);
     }
     const { error } = await supabase.from('saved_addresses').update({
-      label, full_name, phone, address, city, state, zip_code, country, is_default: is_default || false
+      label, full_name, phone, address, city, state, zip_code, country, is_default: isDefault
     }).eq('id', req.params.id).eq('session_id', sessionId);
     if (error) throw error;
     res.json({ success: true });

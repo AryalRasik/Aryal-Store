@@ -1835,7 +1835,7 @@
     <button class="bottom-nav-item" onclick="closeMobileMenu();document.getElementById('searchInput')?.focus();">
       <i class="fas fa-search"></i><span>Search</span>
     </button>
-    <button class="bottom-nav-item" id="bnavWishlist" onclick="closeMobileMenu();toggleWishlistModal();">
+    <button class="bottom-nav-item" id="bnavWishlist" onclick="closeMobileMenu();openWishlist();">
       <i class="fas fa-heart"></i><span>Wishlist</span>
       <span class="bnav-badge" id="bnavWishlistBadge" style="display:none;">0</span>
     </button>
@@ -2210,7 +2210,7 @@
           <div class="addr-field addr-field-full"><label class="addr-checkbox"><input type="checkbox" id="addrDefault"><span class="addr-checkmark"></span> Set as default address</label></div>
         </div>
         <div class="addr-form-footer">
-          <button class="addr-btn addr-btn-primary" onclick="saveAddress()"><i class="fas fa-check"></i> Save Address</button>
+          <button class="addr-btn addr-btn-primary" onclick="saveGuestAddress()"><i class="fas fa-check"></i> Save Address</button>
           <button class="addr-btn addr-btn-secondary" onclick="cancelAddressForm()"><i class="fas fa-times"></i> Cancel</button>
         </div>
       </div>
@@ -2305,32 +2305,32 @@
       <!-- Addresses Panel -->
       <div class="profile-panel" id="panelAddresses">
         <h3>Saved Addresses</h3>
-        <div id="addressesList"></div>
+        <div id="profileAddressesList"></div>
         <button class="btn btn-outline-red btn-sm" onclick="showAddressForm()" style="margin-top:10px;"><i class="fas fa-plus"></i> Add New Address</button>
-        <div id="addressForm" style="display:none;">
+        <div id="profileAddressForm" style="display:none;">
           <div class="addr-form-wrapper">
             <div class="addr-form-header">
-              <h4 id="addressFormTitle">Add New Address</h4>
+              <h4 id="profileAddressFormTitle">Add New Address</h4>
             </div>
-            <input type="hidden" id="editAddressId" value="">
+            <input type="hidden" id="profileEditAddressId" value="">
             <div class="profile-form" style="margin-top:14px;">
               <div class="form-row">
-                <div class="form-group"><label>Label</label><select id="addrLabel"><option value="Home">Home</option><option value="Work">Work</option><option value="Other">Other</option></select></div>
-                <div class="form-group"><label>Full Name *</label><input type="text" id="addrName" placeholder="John Doe"></div>
+                <div class="form-group"><label>Label</label><select id="profAddrLabel"><option value="Home">Home</option><option value="Work">Work</option><option value="Other">Other</option></select></div>
+                <div class="form-group"><label>Full Name *</label><input type="text" id="profAddrName" placeholder="John Doe"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label>Phone *</label><input type="tel" id="addrPhone" placeholder="Phone number"></div>
-                <div class="form-group"><label>Address *</label><input type="text" id="addrAddress" placeholder="Street, area"></div>
+                <div class="form-group"><label>Phone *</label><input type="tel" id="profAddrPhone" placeholder="Phone number"></div>
+                <div class="form-group"><label>Address *</label><input type="text" id="profAddrAddress" placeholder="Street, area"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label>City</label><input type="text" id="addrCity" placeholder="City"></div>
-                <div class="form-group"><label>State</label><input type="text" id="addrState" placeholder="State"></div>
+                <div class="form-group"><label>City</label><input type="text" id="profAddrCity" placeholder="City"></div>
+                <div class="form-group"><label>State</label><input type="text" id="profAddrState" placeholder="State"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label>Zip Code</label><input type="text" id="addrZip" placeholder="Zip code"></div>
-                <div class="form-group"><label>Country</label><input type="text" id="addrCountry" value="Nepal"></div>
+                <div class="form-group"><label>Zip Code</label><input type="text" id="profAddrZip" placeholder="Zip code"></div>
+                <div class="form-group"><label>Country</label><input type="text" id="profAddrCountry" value="Nepal"></div>
               </div>
-              <div class="form-group"><label><input type="checkbox" id="addrDefault" style="width:auto;accent-color:#111111;"> Set as default address</label></div>
+              <div class="form-group"><label><input type="checkbox" id="profAddrDefault" style="width:auto;accent-color:#111111;"> Set as default address</label></div>
               <div style="display:flex;gap:10px;">
                 <button class="btn btn-primary btn-sm" onclick="handleSaveAddress()">Save Address</button>
                 <button class="btn btn-sm" style="background:#E5E5E5;color:#333;" onclick="hideAddressForm()">Cancel</button>
@@ -2428,7 +2428,15 @@
 <script>
 const SUPABASE_URL = 'https://srlejludttajosnrfkca.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_AHMbtLciU-EznD3ASu0YSQ_sv2PhRoZ';
-const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+const SESSION_ID = (function() {
+  var key = 'aryal_session_id';
+  var id = localStorage.getItem(key);
+  if (!id) {
+    id = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem(key, id);
+  }
+  return id;
+})();
 
 async function supaFetch(table, params) {
   let url = SUPABASE_URL + '/rest/v1/' + table + '?select=*';
@@ -4858,7 +4866,7 @@ async function handleChangePassword() {
 function handleResendVerification() { resendVerification(); }
 
 async function loadAddressesPanel() {
-  const container = document.getElementById('addressesList');
+  const container = document.getElementById('profileAddressesList');
   try {
     const addresses = await fetchAddresses();
     if (!addresses || !addresses.length) {
@@ -4873,7 +4881,7 @@ async function loadAddressesPanel() {
       '<p>' + (a.city || '') + (a.state ? ', ' + a.state : '') + (a.zip_code ? ' - ' + a.zip_code : '') + '</p>' +
       '<p>' + (a.phone || '') + '</p>' +
       '<div class="addr-actions">' +
-      '<button onclick="editAddress(\'' + a.id + '\')">Edit</button>' +
+      '<button onclick="editProfileAddress(\'' + a.id + '\')">Edit</button>' +
       '<button class="danger" onclick="handleDeleteAddress(\'' + a.id + '\')">Delete</button>' +
       '</div></div>'
     ).join('');
@@ -4882,40 +4890,70 @@ async function loadAddressesPanel() {
   }
 }
 
-function showAddressForm() { document.getElementById('addressForm').style.display = 'block'; }
+function showAddressForm() {
+  document.getElementById('profileAddressFormTitle').textContent = 'Add New Address';
+  document.getElementById('profileEditAddressId').value = '';
+  document.getElementById('profAddrLabel').value = 'Home';
+  document.getElementById('profAddrName').value = '';
+  document.getElementById('profAddrPhone').value = '';
+  document.getElementById('profAddrAddress').value = '';
+  document.getElementById('profAddrCity').value = '';
+  document.getElementById('profAddrState').value = '';
+  document.getElementById('profAddrZip').value = '';
+  document.getElementById('profAddrCountry').value = 'Nepal';
+  document.getElementById('profAddrDefault').checked = false;
+  document.getElementById('profileAddressForm').style.display = 'block';
+}
 
 function hideAddressForm() {
-  document.getElementById('addressForm').style.display = 'none';
-  document.getElementById('editAddressId').value = '';
-  document.getElementById('addrName').value = '';
-  document.getElementById('addrPhone').value = '';
-  document.getElementById('addrAddress').value = '';
-  document.getElementById('addrCity').value = '';
-  document.getElementById('addrState').value = '';
-  document.getElementById('addrZip').value = '';
-  document.getElementById('addrCountry').value = 'Nepal';
-  document.getElementById('addrDefault').checked = false;
+  document.getElementById('profileAddressForm').style.display = 'none';
+  document.getElementById('profileEditAddressId').value = '';
+}
+
+async function editProfileAddress(id) {
+  const addresses = await fetchAddresses();
+  const a = (addresses || []).find(x => x.id == id);
+  if (!a) return;
+  document.getElementById('profileAddressFormTitle').textContent = 'Edit Address';
+  document.getElementById('profileEditAddressId').value = a.id;
+  document.getElementById('profAddrLabel').value = a.label || 'Home';
+  document.getElementById('profAddrName').value = a.full_name || '';
+  document.getElementById('profAddrPhone').value = a.phone || '';
+  document.getElementById('profAddrAddress').value = a.address || '';
+  document.getElementById('profAddrCity').value = a.city || '';
+  document.getElementById('profAddrState').value = a.state || '';
+  document.getElementById('profAddrZip').value = a.zip_code || '';
+  document.getElementById('profAddrCountry').value = a.country || 'Nepal';
+  document.getElementById('profAddrDefault').checked = !!a.is_default;
+  document.getElementById('profileAddressForm').style.display = 'block';
 }
 
 async function handleSaveAddress() {
   const data = {
-    label: document.getElementById('addrLabel').value,
-    full_name: document.getElementById('addrName').value.trim(),
-    phone: document.getElementById('addrPhone').value.trim(),
-    address: document.getElementById('addrAddress').value.trim(),
-    city: document.getElementById('addrCity').value.trim(),
-    state: document.getElementById('addrState').value.trim(),
-    zip_code: document.getElementById('addrZip').value.trim(),
-    country: document.getElementById('addrCountry').value.trim(),
-    is_default: document.getElementById('addrDefault').checked
+    label: document.getElementById('profAddrLabel').value,
+    full_name: document.getElementById('profAddrName').value.trim(),
+    phone: document.getElementById('profAddrPhone').value.trim(),
+    address: document.getElementById('profAddrAddress').value.trim(),
+    city: document.getElementById('profAddrCity').value.trim(),
+    state: document.getElementById('profAddrState').value.trim(),
+    zip_code: document.getElementById('profAddrZip').value.trim(),
+    country: document.getElementById('profAddrCountry').value.trim(),
+    is_default: document.getElementById('profAddrDefault').checked
   };
   if (!data.full_name || !data.phone || !data.address) { toast('Name, phone and address are required', 'error'); return; }
-  const editId = document.getElementById('editAddressId').value;
+  const editId = document.getElementById('profileEditAddressId').value;
   if (editId) {
     const res = await authFetch(USERS_API + '/addresses/' + editId, { method: 'PUT', body: JSON.stringify(data) });
-    if (res && res.ok) { toast('Address updated', 'success'); }
+    if (!res || !res.ok) {
+      let err = {};
+      try { err = await res.json(); } catch {}
+      toast(err.error || 'Failed to update address', 'error');
+      return;
+    }
+    toast('Address updated', 'success');
   } else {
-    await saveAddress(data);
+    const saved = await saveAddress(data);
+    if (!saved) return;
   }
   hideAddressForm();
   loadAddressesPanel();
@@ -5072,7 +5110,7 @@ function openAddresses() {
   document.getElementById('userDropdown').classList.remove('show');
   document.getElementById('addressesModal').classList.add('open');
   document.body.style.overflow = 'hidden';
-  loadAddresses();
+  loadGuestAddresses();
 }
 
 function closeAddresses() {
@@ -5093,7 +5131,7 @@ function openAccountDash() {
   document.body.style.overflow = 'hidden';
   switchDashTab('orders');
   loadOrderHistory();
-  loadAddresses();
+  loadGuestAddresses();
   loadDashProfile();
 }
 function closeAccountDash() {
@@ -5150,15 +5188,15 @@ async function loadDashAddresses() {
         (a.city ? '<p>' + a.city + (a.state ? ', ' + a.state : '') + (a.zip_code ? ' - ' + a.zip_code : '') + '</p>' : '') +
         '<p>' + (a.phone || '') + '</p>' +
         '<div class="address-actions">' +
-        '<button class="btn-use" onclick="useAddress(\'' + a.id + '\')">Use</button>' +
-        '<button class="btn-edit" onclick="editAddress(\'' + a.id + '\');openAddresses()">Edit</button>' +
-        '<button class="btn-delete" onclick="deleteAddress(\'' + a.id + '\')">Delete</button>' +
+        '<button class="btn-use" onclick="useGuestAddress(\'' + a.id + '\')">Use</button>' +
+        '<button class="btn-edit" onclick="editGuestAddress(\'' + a.id + '\');openAddresses()">Edit</button>' +
+        '<button class="btn-delete" onclick="deleteGuestAddress(\'' + a.id + '\')">Delete</button>' +
         '</div></div>';
     }).join('') + '</div>';
   } catch { document.getElementById('dashAddressesList').innerHTML = '<p style="color:#b23a2e;">Error loading addresses</p>'; }
 }
 
-async function loadAddresses() {
+async function loadGuestAddresses() {
   try {
     const res = await fetch('/api/addresses', { headers: { 'x-session-id': SESSION_ID } });
     const data = await res.json();
@@ -5176,9 +5214,9 @@ async function loadAddresses() {
       (a.city ? '<p>' + a.city + (a.state ? ', ' + a.state : '') + (a.zip_code ? ' - ' + a.zip_code : '') + '</p>' : '') +
       '<p>' + (a.phone || '') + '</p>' +
       '<div class="address-actions">' +
-      '<button class="btn-use" onclick="useAddress(\'' + a.id + '\')">Use</button>' +
-      '<button class="btn-edit" onclick="editAddress(\'' + a.id + '\')">Edit</button>' +
-      '<button class="btn-delete" onclick="deleteAddress(\'' + a.id + '\')">Delete</button>' +
+      '<button class="btn-use" onclick="useGuestAddress(\'' + a.id + '\')">Use</button>' +
+      '<button class="btn-edit" onclick="editGuestAddress(\'' + a.id + '\')">Edit</button>' +
+      '<button class="btn-delete" onclick="deleteGuestAddress(\'' + a.id + '\')">Delete</button>' +
       '</div></div>'
     ).join('') + '</div>';
   } catch { document.getElementById('addressesList').innerHTML = '<p style="color:#b23a2e;">Error</p>'; }
@@ -5202,8 +5240,7 @@ function cancelAddressForm() {
   document.getElementById('addressForm').style.display = 'none';
 }
 
-function editAddress(id) {
-  const card = document.querySelector('.address-card[data-id="' + id + '"]');
+function editGuestAddress(id) {
   fetch('/api/addresses', { headers: { 'x-session-id': SESSION_ID } })
     .then(r => r.json())
     .then(data => {
@@ -5223,7 +5260,7 @@ function editAddress(id) {
     });
 }
 
-async function saveAddress() {
+async function saveGuestAddress() {
   const editId = document.getElementById('editAddressId').value;
   const payload = {
     label: document.getElementById('addrLabel').value,
@@ -5242,23 +5279,27 @@ async function saveAddress() {
   try {
     const url = editId ? '/api/addresses/' + editId : '/api/addresses';
     const method = editId ? 'PUT' : 'POST';
-    await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'x-session-id': SESSION_ID }, body: JSON.stringify(payload) });
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'x-session-id': SESSION_ID }, body: JSON.stringify(payload) });
+    let result = {};
+    try { result = await res.json(); } catch {}
+    if (!res.ok) { toast(result.error || 'Failed to save address', 'error'); return; }
     toast(editId ? 'Address updated!' : 'Address added!', 'success');
     cancelAddressForm();
-    loadAddresses();
+    loadGuestAddresses();
   } catch { toast('Failed to save address', 'error'); }
 }
 
-async function deleteAddress(id) {
+async function deleteGuestAddress(id) {
   if (!confirm('Delete this address?')) return;
   try {
-    await fetch('/api/addresses/' + id, { method: 'DELETE', headers: { 'x-session-id': SESSION_ID } });
+    const res = await fetch('/api/addresses/' + id, { method: 'DELETE', headers: { 'x-session-id': SESSION_ID } });
+    if (!res.ok) { toast('Failed to delete address', 'error'); return; }
     toast('Address deleted', 'info');
-    loadAddresses();
+    loadGuestAddresses();
   } catch { toast('Failed to delete', 'error'); }
 }
 
-function useAddress(id) {
+function useGuestAddress(id) {
   fetch('/api/addresses', { headers: { 'x-session-id': SESSION_ID } })
     .then(r => r.json())
     .then(data => {
@@ -5803,7 +5844,7 @@ function initCarousel() {
   await fetches;
 
   // Initialize Google Sign-In buttons
-  var _googleInitialized = false;
+  window._googleInitialized = false;
   var _googlePopupTimer = null;
   var _googlePopup = null;
   function initGoogleBtn() {
@@ -5937,7 +5978,7 @@ function initCarousel() {
   waitAndInitGoogle();
 
   // Bottom nav active state tracking
-  function closeMobileMenu() { document.querySelector('.hamburger')?.classList.remove('active'); document.querySelector('nav ul')?.classList.remove('show'); }
+  window.closeMobileMenu = function() { document.querySelector('.hamburger')?.classList.remove('active'); document.querySelector('nav ul')?.classList.remove('show'); };
   document.querySelectorAll('.bottom-nav-item').forEach(function(item) {
     item.addEventListener('click', function() {
       document.querySelectorAll('.bottom-nav-item').forEach(function(n) { n.classList.remove('active'); });
