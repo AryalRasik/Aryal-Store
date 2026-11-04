@@ -11,6 +11,13 @@ const { generateCsrfToken } = require('../utils/csrf');
 
 const router = express.Router();
 
+function parseCoordinate(value, min, max) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < min || number > max) return null;
+  return number;
+}
+
 // GET /api/auth/csrf-token
 router.get('/csrf-token', (req, res) => {
   const sessionId = req.headers['x-session-id'] || req.ip;
@@ -464,7 +471,7 @@ router.get('/addresses', authMiddleware, async (req, res) => {
 router.post('/addresses', authMiddleware, async (req, res) => {
   try {
     const sanitized = sanitizeObject(req.body);
-    const { label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, zip_code, country, is_default } = sanitized;
+    const { label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default } = sanitized;
 
     if (!full_name || !phone || !address) {
       return res.status(400).json({ error: 'Full name, phone, and address are required' });
@@ -488,6 +495,10 @@ router.post('/addresses', authMiddleware, async (req, res) => {
       ward: ward || '',
       tole: tole || '',
       landmark: landmark || '',
+      instructions: instructions || '',
+      latitude: parseCoordinate(latitude, -90, 90),
+      longitude: parseCoordinate(longitude, -180, 180),
+      location_accuracy: parseCoordinate(location_accuracy, 0, 1000000),
       zip_code: zip_code || '',
       country: country || 'Nepal',
       is_default: !!is_default
@@ -504,14 +515,18 @@ router.post('/addresses', authMiddleware, async (req, res) => {
 router.put('/addresses/:id', authMiddleware, async (req, res) => {
   try {
     const sanitized = sanitizeObject(req.body);
-    const { label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, zip_code, country, is_default } = sanitized;
+    const { label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default } = sanitized;
 
     if (is_default) {
       await (await from('user_addresses')).update({ is_default: false }).eq('user_id', req.user.id);
     }
 
     const { error } = await (await from('user_addresses')).update({
-      label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, zip_code, country,
+      label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, instructions,
+      latitude: parseCoordinate(latitude, -90, 90),
+      longitude: parseCoordinate(longitude, -180, 180),
+      location_accuracy: parseCoordinate(location_accuracy, 0, 1000000),
+      zip_code, country,
       is_default: !!is_default,
       updated_at: new Date().toISOString()
     }).eq('id', req.params.id).eq('user_id', req.user.id);

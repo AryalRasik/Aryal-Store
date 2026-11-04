@@ -875,6 +875,72 @@ app.put('/api/contact', adminMiddleware, async (req, res) => {
   }
 });
 
+// ========== REVERSE GEOCODING ==========
+const geocodeCache = new Map();
+const GEOCODE_CACHE_TTL = 24 * 60 * 60 * 1000;
+let geocodeLastRequest = 0;
+
+app.get('/api/geocode/reverse', async (req, res) => {
+  try {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({ error: 'Valid lat and lng are required' });
+    }
+
+    const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+    const cached = geocodeCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return res.json(cached.data);
+
+    const wait = Math.max(0, 1100 - (Date.now() - geocodeLastRequest));
+    if (wait) await new Promise(resolve => setTimeout(resolve, wait));
+    geocodeLastRequest = Date.now();
+
+    const { data } = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+      params: { lat, lon: lng, format: 'jsonv2', zoom: 18, addressdetails: 1, 'accept-language': 'en' },
+      headers: {
+        'User-Agent': 'AryalStore/1.0',
+        'Accept': 'application/json'
+      },
+      timeout: 8000
+    });
+
+    if (!data || data.error) {
+      return res.status(404).json({ error: 'No address found for this location' });
+    }
+
+    const a = data.address || {};
+    const payload = {
+      success: true,
+      display_name: data.display_name || '',
+      latitude: lat,
+      longitude: lng,
+      address: {
+        house_number: a.house_number || '',
+        road: a.road || a.pedestrian || a.footway || '',
+        neighbourhood: a.neighbourhood || a.suburb || a.hamlet || '',
+        city: a.city || a.town || a.village || a.municipality || '',
+        municipality: a.municipality || a.city || a.town || a.village || '',
+        county: a.county || '',
+        district: a.state_district || a.county || '',
+        state: a.state || a.province || '',
+        postcode: a.postcode || '',
+        country: a.country || ''
+      }
+    };
+
+    geocodeCache.set(key, { data: payload, expiresAt: Date.now() + GEOCODE_CACHE_TTL });
+    if (geocodeCache.size > 300) {
+      const oldest = geocodeCache.keys().next().value;
+      geocodeCache.delete(oldest);
+    }
+    res.json(payload);
+  } catch (err) {
+    const status = err.response && err.response.status === 429 ? 429 : 502;
+    res.status(status).json({ error: 'Could not look up this location. You can still enter your address manually.' });
+  }
+});
+
 // ========== MESSAGES ==========
 app.post('/api/messages', async (req, res) => {
   try {
@@ -1067,6 +1133,10 @@ app.post('/api/orders', async (req, res) => {
       customer_city: body.customer_city || body.customer_district || '',
       customer_state: body.customer_state || body.customer_province || '',
       customer_landmark: body.customer_landmark || '',
+      customer_latitude: body.customer_latitude,
+      customer_longitude: body.customer_longitude,
+      customer_location_accuracy: body.customer_location_accuracy,
+      delivery_instructions: body.delivery_instructions || body.notes || '',
       notes: body.notes || '',
       items: body.items,
       shipping_method: body.shipping_method,
@@ -1261,6 +1331,13 @@ async function recordCustomer(order) {
   } catch (e) {}
 }
 
+function parseCoordinate(value, min, max) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < min || number > max) return null;
+  return number;
+}
+
 async function createOrderFromRequest(input) {
   const productIds = Array.from(new Set((input.items || []).map(function (i) {
     return String((i && i.product_id) || '').trim();
@@ -1293,6 +1370,10 @@ async function createOrderFromRequest(input) {
 
   const totals = payment.computeOrderTotals(orderItems, { id: requestedDelivery.method, cost: requestedDelivery.fee }, freeShippingThreshold, coupon);
   const paymentMethodKey = payment.normalizePaymentMethod(input.payment_method) || 'online';
+  const customerLatitude = parseCoordinate(input.customer_latitude, -90, 90);
+  const customerLongitude = parseCoordinate(input.customer_longitude, -180, 180);
+  const customerLocationAccuracy = parseCoordinate(input.customer_location_accuracy, 0, 1000000);
+  const deliveryInstructions = String(input.delivery_instructions || '').trim().slice(0, 1000);
 
   const orderPayload = {
     order_code: orderWorkflow.generateOrderCode(),
@@ -1304,6 +1385,10 @@ async function createOrderFromRequest(input) {
     customer_city: String(input.customer_city || '').trim(),
     customer_state: String(input.customer_state || '').trim(),
     customer_landmark: String(input.customer_landmark || '').trim(),
+    customer_latitude: customerLatitude,
+    customer_longitude: customerLongitude,
+    customer_location_accuracy: customerLocationAccuracy,
+    delivery_instructions: deliveryInstructions,
     subtotal: payment.toNumber(totals.subtotal) || 0,
     discount: payment.toNumber(totals.discount) || 0,
     coupon_code: coupon ? coupon.code : '',
@@ -2600,7 +2685,7 @@ app.get('/api/addresses', async (req, res) => {
 app.post('/api/addresses', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
-    const { label, full_name, phone, address, city, state, zip_code, country, is_default } = req.body;
+    const { label, full_name, phone, address, city, state, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default } = req.body;
     if (!full_name || !phone || !address) return res.status(400).json({ error: 'Name, phone and address required' });
     const isDefault = is_default ? 1 : 0;
     if (isDefault) {
@@ -2608,7 +2693,11 @@ app.post('/api/addresses', async (req, res) => {
     }
     const { error } = await supabase.from('saved_addresses').insert({
       session_id: sessionId, label: label || 'Home', full_name, phone, address,
-      city: city || '', state: state || '', zip_code: zip_code || '',
+      city: city || '', state: state || '', instructions: instructions || '',
+      latitude: parseCoordinate(latitude, -90, 90),
+      longitude: parseCoordinate(longitude, -180, 180),
+      location_accuracy: parseCoordinate(location_accuracy, 0, 1000000),
+      zip_code: zip_code || '',
       country: country || 'Nepal', is_default: isDefault
     });
     if (error) throw error;
@@ -2621,13 +2710,17 @@ app.post('/api/addresses', async (req, res) => {
 app.put('/api/addresses/:id', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
-    const { label, full_name, phone, address, city, state, zip_code, country, is_default } = req.body;
+    const { label, full_name, phone, address, city, state, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default } = req.body;
     const isDefault = is_default ? 1 : 0;
     if (isDefault) {
       await supabase.from('saved_addresses').update({ is_default: 0 }).eq('session_id', sessionId);
     }
     const { error } = await supabase.from('saved_addresses').update({
-      label, full_name, phone, address, city, state, zip_code, country, is_default: isDefault
+      label, full_name, phone, address, city, state, instructions: instructions || '',
+      latitude: parseCoordinate(latitude, -90, 90),
+      longitude: parseCoordinate(longitude, -180, 180),
+      location_accuracy: parseCoordinate(location_accuracy, 0, 1000000),
+      zip_code, country, is_default: isDefault
     }).eq('id', req.params.id).eq('session_id', sessionId);
     if (error) throw error;
     res.json({ success: true });
@@ -3011,6 +3104,10 @@ app.post('/api/orders/:id/reorder', async (req, res) => {
       customer_city: order.customer_city,
       customer_state: order.customer_state,
       customer_landmark: order.customer_landmark,
+      customer_latitude: order.customer_latitude,
+      customer_longitude: order.customer_longitude,
+      customer_location_accuracy: order.customer_location_accuracy,
+      delivery_instructions: order.delivery_instructions || '',
       notes: 'Reorder from order ' + (order.order_code || order.id),
       items: items.map(function (i) {
         return { product_id: i.product_id, quantity: i.quantity, size: i.size, color: i.color, image_url: i.image_url || '' };

@@ -28,6 +28,10 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_token   TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone   TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_address TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_landmark TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_latitude DOUBLE PRECISION;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_longitude DOUBLE PRECISION;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_location_accuracy DOUBLE PRECISION;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_instructions TEXT DEFAULT '';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal         NUMERIC DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount         NUMERIC DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code      TEXT DEFAULT '';
@@ -150,6 +154,10 @@ CREATE TABLE IF NOT EXISTS saved_addresses (
   address    TEXT DEFAULT '',
   city       TEXT DEFAULT '',
   state      TEXT DEFAULT '',
+  instructions TEXT DEFAULT '',
+  latitude   DOUBLE PRECISION,
+  longitude  DOUBLE PRECISION,
+  location_accuracy DOUBLE PRECISION,
   zip_code   TEXT DEFAULT '',
   country    TEXT DEFAULT 'Nepal',
   is_default INTEGER NOT NULL DEFAULT 0,

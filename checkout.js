@@ -23,6 +23,7 @@
     discount: 0,
     address: null,
     addresses: [],
+    location: { latitude: null, longitude: null, accuracy: null },
     orderId: null,
     orderCode: '',
     trackingToken: '',
@@ -102,11 +103,79 @@
 
   function $(id) { return document.getElementById(id); }
 
+  function setOrderLocation(latitude, longitude, accuracy) {
+    const lat = latitude === null || latitude === undefined || latitude === '' ? null : Number(latitude);
+    const lng = longitude === null || longitude === undefined || longitude === '' ? null : Number(longitude);
+    const acc = accuracy === null || accuracy === undefined || accuracy === '' ? null : Number(accuracy);
+    const valid = Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+    state.location = { latitude: valid ? lat : null, longitude: valid ? lng : null, accuracy: Number.isFinite(acc) ? acc : null };
+    if ($('coLatitude')) $('coLatitude').value = valid ? lat : '';
+    if ($('coLongitude')) $('coLongitude').value = valid ? lng : '';
+    if ($('coLocationAccuracy')) $('coLocationAccuracy').value = Number.isFinite(acc) ? acc : '';
+    const link = $('coLocationMap');
+    if (link) {
+      if (valid) {
+        link.href = window.AryalLocation ? AryalLocation.mapUrl(lat, lng) : `https://www.google.com/maps?q=${lat},${lng}`;
+        link.style.display = 'inline';
+      } else {
+        link.style.display = 'none';
+        link.removeAttribute('href');
+      }
+    }
+  }
+
+  function getOrderLocation() {
+    return {
+      latitude: $('coLatitude') ? $('coLatitude').value : '',
+      longitude: $('coLongitude') ? $('coLongitude').value : '',
+      accuracy: $('coLocationAccuracy') ? $('coLocationAccuracy').value : ''
+    };
+  }
+
+  function applyAddressLocation(addr) {
+    if (!addr) return;
+    if (addr.latitude !== null && addr.latitude !== undefined && addr.longitude !== null && addr.longitude !== undefined) {
+      setOrderLocation(addr.latitude, addr.longitude, addr.location_accuracy);
+    } else {
+      setOrderLocation(null, null, null);
+    }
+    const instructionEl = $('coDeliveryInstructions');
+    if (instructionEl && !instructionEl.value.trim() && addr.instructions) instructionEl.value = addr.instructions;
+  }
+
+  function applyGeoAddress(data) {
+    const form = $('coAddressForm');
+    if (!form || form.classList.contains('co-hidden') || !window.AryalLocation) return;
+    const match = AryalLocation.matchNepalLocation(data.address || {});
+    if (match.province) AryalLocation.fillSelect('addrProvince', match.province);
+    if (match.district) AryalLocation.fillSelect('addrDistrict', match.district);
+    if (match.municipality) AryalLocation.fillSelect('addrMunicipality', match.municipality);
+    if (match.street) AryalLocation.fillInput('addrStreet', match.street);
+    if (match.tole && !$('addrLandmark').value) AryalLocation.fillInput('addrLandmark', match.tole);
+  }
+
+  function initLocationPicker() {
+    if (!window.AryalLocation) return;
+    AryalLocation.init({
+      button: 'coUseLocationBtn',
+      status: 'coLocationStatus',
+      mapLink: 'coLocationMap',
+      latInput: 'coLatitude',
+      lngInput: 'coLongitude',
+      accuracyInput: 'coLocationAccuracy',
+      onCoords: function (coords) {
+        state.location = { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy };
+      },
+      onAddress: applyGeoAddress
+    });
+  }
+
   // ==================== INIT ====================
   function init() {
     createToastContainer();
     createAuthModal();
     populateAddressSelects();
+    initLocationPicker();
     renderSteps();
     loadCart();
     loadPaymentConfig();
@@ -404,6 +473,7 @@
     if (state.addresses.length && !state.address) {
       state.address = state.addresses.find(a => a.is_default) || state.addresses[0];
     }
+    if (state.address) applyAddressLocation(state.address);
     renderAddresses();
   }
 
@@ -438,6 +508,7 @@
 
   function selectAddress(i) {
     state.address = state.addresses[i];
+    applyAddressLocation(state.address);
     document.querySelectorAll('.co-address-card').forEach((el, idx) => el.classList.toggle('selected', idx === i));
     document.querySelectorAll('.co-address-card input[type="radio"]').forEach((el, idx) => el.checked = idx === i);
   }
@@ -464,6 +535,7 @@
     $('addrLabel').value = data ? (data.label || 'Home') : 'Home';
     $('coAddressForm').dataset.editId = data ? data.id : '';
     $('coAddressForm').dataset.editIndex = data && data._index !== undefined ? data._index : '';
+    if (data) applyAddressLocation(data);
   }
   window._coShowAddressForm = function(data) { showAddressForm(data); };
 
@@ -488,11 +560,16 @@
     const address = [tole, ward ? 'Ward ' + ward : '', municipality, district].filter(Boolean).join(', ');
     const user = getCurrentUser();
     if (!user) { showToast('Please sign in first', 'error'); return; }
+    const location = getOrderLocation();
     const addrData = {
       full_name: fullName, phone, email,
       state: province, city: district,
       district, municipality, ward, tole, landmark,
-      address, zip_code: zip, label, country: 'Nepal'
+      instructions: $('coDeliveryInstructions') ? $('coDeliveryInstructions').value.trim() : '',
+      address, zip_code: zip, label, country: 'Nepal',
+      latitude: location.latitude || null,
+      longitude: location.longitude || null,
+      location_accuracy: location.accuracy || null
     };
     const editId = $('coAddressForm').dataset.editId;
     const token = getToken();
@@ -681,10 +758,20 @@
     if (!container) return;
     const addr = state.address;
     const displayShip = getShippingCost();
+    const location = getOrderLocation();
+    const instructions = $('coDeliveryInstructions') ? $('coDeliveryInstructions').value.trim() : '';
+    const mapLink = location.latitude && location.longitude
+      ? `<div style="margin-top:6px;"><a href="https://www.google.com/maps?q=${encodeURIComponent(location.latitude)},${encodeURIComponent(location.longitude)}" target="_blank" rel="noopener" style="font-size:0.82rem;color:var(--co-primary);text-decoration:underline;">Open pinned delivery location</a></div>`
+      : '';
     container.innerHTML = `
       <div class="co-card" style="margin-bottom:12px;">
         <div class="co-card-title">Shipping Address</div>
         ${addr ? `<p style="font-size:0.9rem;color:var(--co-text-secondary);">${addr.full_name}, ${addr.phone}${addr.email ? '<br>Email: ' + addr.email : ''}<br>${formatAddress(addr)}</p>` : '<p style="color:var(--co-error);">No address selected</p>'}
+        ${mapLink}
+      </div>
+      <div class="co-card" style="margin-bottom:12px;">
+        <div class="co-card-title">Delivery Instructions</div>
+        <p style="font-size:0.9rem;color:var(--co-text-secondary);${instructions ? '' : 'font-style:italic;'}">${instructions || 'None provided'}</p>
       </div>
       <div class="co-card" style="margin-bottom:12px;">
         <div class="co-card-title">Delivery Method</div>
@@ -739,6 +826,8 @@
       image_url: item.image || ''
     }));
 
+    const location = getOrderLocation();
+    const deliveryInstructions = $('coDeliveryInstructions') ? $('coDeliveryInstructions').value.trim() : '';
     const body = {
       customer_name: state.address.full_name || user?.name || 'Guest',
       customer_phone: state.address.phone || user?.phone || '',
@@ -750,9 +839,13 @@
       customer_ward: state.address.ward || '',
       customer_tole: state.address.tole || '',
       customer_landmark: state.address.landmark || '',
+      customer_latitude: location.latitude,
+      customer_longitude: location.longitude,
+      customer_location_accuracy: location.accuracy,
+      delivery_instructions: deliveryInstructions,
       payment_method: 'online',
       shipping_method: state.shipping.id,
-      notes: '',
+      notes: deliveryInstructions,
       items,
       coupon_code: state.coupon || '',
       idempotency_key: state.idempotencyKey

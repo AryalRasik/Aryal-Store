@@ -56,6 +56,10 @@ function migrate() {
       ward TEXT DEFAULT '',
       tole TEXT DEFAULT '',
       landmark TEXT DEFAULT '',
+      instructions TEXT DEFAULT '',
+      latitude REAL,
+      longitude REAL,
+      location_accuracy REAL,
       zip_code TEXT DEFAULT '',
       country TEXT DEFAULT 'Nepal',
       is_default INTEGER DEFAULT 0,
@@ -120,7 +124,11 @@ function migrate() {
     { name: 'municipality', def: "TEXT DEFAULT ''" },
     { name: 'ward', def: "TEXT DEFAULT ''" },
     { name: 'tole', def: "TEXT DEFAULT ''" },
-    { name: 'landmark', def: "TEXT DEFAULT ''" }
+    { name: 'landmark', def: "TEXT DEFAULT ''" },
+    { name: 'instructions', def: "TEXT DEFAULT ''" },
+    { name: 'latitude', def: 'REAL' },
+    { name: 'longitude', def: 'REAL' },
+    { name: 'location_accuracy', def: 'REAL' }
   ];
   for (const col of addressAdds) {
     if (!addressCols.includes(col.name)) {
@@ -151,6 +159,10 @@ function migrateOrderTables() {
       customer_city TEXT DEFAULT '',
       customer_state TEXT DEFAULT '',
       customer_landmark TEXT DEFAULT '',
+      customer_latitude REAL,
+      customer_longitude REAL,
+      customer_location_accuracy REAL,
+      delivery_instructions TEXT DEFAULT '',
       subtotal REAL DEFAULT 0,
       discount REAL DEFAULT 0,
       coupon_code TEXT DEFAULT '',
@@ -246,6 +258,10 @@ function migrateOrderTables() {
     { name: 'customer_city', def: "TEXT DEFAULT ''" },
     { name: 'customer_state', def: "TEXT DEFAULT ''" },
     { name: 'customer_landmark', def: "TEXT DEFAULT ''" },
+    { name: 'customer_latitude', def: 'REAL' },
+    { name: 'customer_longitude', def: 'REAL' },
+    { name: 'customer_location_accuracy', def: 'REAL' },
+    { name: 'delivery_instructions', def: "TEXT DEFAULT ''" },
     { name: 'subtotal', def: 'REAL DEFAULT 0' },
     { name: 'discount', def: 'REAL DEFAULT 0' },
     { name: 'coupon_code', def: "TEXT DEFAULT ''" },

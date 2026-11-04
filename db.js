@@ -197,6 +197,10 @@ async function migrateDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_verified_at TIMESTAMPTZ;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_note TEXT DEFAULT '';
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS idempotency_key TEXT DEFAULT '';
+    ALTER TABLE IF EXISTS orders ADD COLUMN IF NOT EXISTS customer_latitude DOUBLE PRECISION;
+    ALTER TABLE IF EXISTS orders ADD COLUMN IF NOT EXISTS customer_longitude DOUBLE PRECISION;
+    ALTER TABLE IF EXISTS orders ADD COLUMN IF NOT EXISTS customer_location_accuracy DOUBLE PRECISION;
+    ALTER TABLE IF EXISTS orders ADD COLUMN IF NOT EXISTS delivery_instructions TEXT DEFAULT '';
     CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key ON orders(idempotency_key) WHERE idempotency_key <> '';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS "desc" TEXT;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS image TEXT;
@@ -310,6 +314,15 @@ async function migrateDb() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_user_addresses_user ON user_addresses(user_id);
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS district TEXT DEFAULT '';
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS municipality TEXT DEFAULT '';
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS ward TEXT DEFAULT '';
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS tole TEXT DEFAULT '';
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS landmark TEXT DEFAULT '';
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS instructions TEXT DEFAULT '';
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+    ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS location_accuracy DOUBLE PRECISION;
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       user_id TEXT NOT NULL DEFAULT '',

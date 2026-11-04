@@ -125,6 +125,58 @@
       .btn-sm { padding: 4px 10px; font-size: 0.7rem; }
       .form-group label { font-size: 0.78rem; }
     }
+
+    /* Ivory / teal / gold palette */
+    :root {
+      --adm-ivory: #F7F1E3;
+      --adm-ivory-deep: #EFE6D2;
+      --adm-surface: #FFFCF5;
+      --adm-teal: #135E59;
+      --adm-teal-deep: #0C4642;
+      --adm-teal-dark: #07332F;
+      --adm-gold: #C7A04A;
+      --adm-gold-deep: #A98434;
+      --adm-ink: #133B38;
+      --adm-text-2: #4B6661;
+      --adm-line: #DED2BC;
+    }
+    body { background: var(--adm-ivory); color: var(--adm-ink); }
+    .login-page { background: linear-gradient(135deg, var(--adm-teal-deep), var(--adm-teal-dark)); }
+    .login-box { background: var(--adm-surface); box-shadow: 0 10px 40px rgba(7, 51, 47, 0.22); }
+    .login-box h2 { color: var(--adm-teal-deep); }
+    .login-box h2 span { color: var(--adm-gold-deep); }
+    .login-box p { color: var(--adm-text-2); }
+    .login-box input { background: var(--adm-surface); border-color: var(--adm-line); color: var(--adm-ink); }
+    .login-box input:focus { border-color: var(--adm-gold); box-shadow: 0 0 0 3px rgba(199, 160, 74, 0.18); }
+    .dash-header { background: var(--adm-teal-deep); }
+    .dash-header h2 span { color: var(--adm-gold); }
+    .dash-header .admin-info span { color: #CFE0DA; }
+    .dash-header .logout-btn { border-color: var(--adm-gold); color: var(--adm-gold); }
+    .dash-header .logout-btn:hover { background: var(--adm-gold); color: var(--adm-teal-dark); }
+    .dash-content { background: var(--adm-ivory); }
+    .dash-sidebar { background: var(--adm-surface); border-right-color: var(--adm-line); }
+    .dash-sidebar .nav-item { color: var(--adm-text-2); }
+    .dash-sidebar .nav-item:hover { background: var(--adm-ivory-deep); color: var(--adm-teal); }
+    .dash-sidebar .nav-item.active { background: var(--adm-ivory-deep); color: var(--adm-teal); border-left-color: var(--adm-gold); }
+    .tab-content h3 { color: var(--adm-ink); }
+    .card { background: var(--adm-surface); box-shadow: 0 2px 8px rgba(19, 59, 56, 0.08); }
+    .form-group label { color: var(--adm-text-2); }
+    .form-group input, .form-group textarea, .form-group select { background: var(--adm-surface); border-color: var(--adm-line); color: var(--adm-ink); }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--adm-gold); }
+    .btn-primary { background: var(--adm-teal); color: #FFF9ED; }
+    .btn-primary:hover { background: var(--adm-teal-deep); }
+    .list-item { background: var(--adm-surface); border-color: var(--adm-line); }
+    .list-item .info p { color: var(--adm-text-2); }
+    .stat-card { background: var(--adm-surface); box-shadow: 0 2px 8px rgba(19, 59, 56, 0.08); }
+    .stat-card .num { color: var(--adm-teal); }
+    .stat-card .label { color: var(--adm-text-2); }
+    th { background: var(--adm-ivory-deep); color: var(--adm-ink); }
+    th, td { border-bottom-color: var(--adm-line); }
+    .filter-btn { border-color: var(--adm-line); color: var(--adm-text-2); }
+    .filter-btn.active, .filter-btn:hover { border-color: var(--adm-teal); background: var(--adm-teal); color: #FFF9ED; }
+    .tag-box { background: var(--adm-surface); border-color: var(--adm-line); }
+    .tag-box:focus-within { border-color: var(--adm-gold); }
+    .preview-img { border-color: var(--adm-line); }
   </style>
 </head>
 <body>
@@ -1541,6 +1593,10 @@ function renderFilteredOrders() {
     const wa = (o.customer_phone && orderWorkflowWaText)
       ? '<a class="btn btn-sm" style="background:#25d366;color:#fff;" target="_blank" rel="noopener" href="' + orderWorkflowWaText(o) + '"><i class="fab fa-whatsapp"></i></a>'
       : '';
+    const mapUrl = orderMapUrl(o);
+    const mapBtn = mapUrl
+      ? '<a class="btn btn-sm" style="background:#e8f0fe;color:#1a73e8;" target="_blank" rel="noopener" href="' + mapUrl + '"><i class="fas fa-map-marker-alt"></i> Map</a>'
+      : '';
 
     return '<div class="list-item" style="flex-direction:column;align-items:stretch;">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">' +
@@ -1555,7 +1611,7 @@ function renderFilteredOrders() {
       '</div>' +
       '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;">' +
         '<button class="btn btn-sm" style="background:#eee;color:#444;" onclick="viewOrder(\'' + o.id + '\')"><i class="fas fa-eye"></i> Details</button>' +
-        flowActions + payActions + wa +
+        flowActions + payActions + wa + mapBtn +
         statusButtons +
         '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\'' + o.id + '\')"><i class="fas fa-trash"></i></button>' +
       '</div></div>';
@@ -1659,6 +1715,14 @@ function openOrderModal(html) {
 }
 function closeOrderModal() { const m = document.getElementById('orderModal'); if (m) m.remove(); }
 
+function orderMapUrl(order) {
+  if (!order) return '';
+  const lat = Number(order.customer_latitude);
+  const lng = Number(order.customer_longitude);
+  if (!isFinite(lat) || !isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return '';
+  return 'https://www.google.com/maps?q=' + encodeURIComponent(lat) + ',' + encodeURIComponent(lng);
+}
+
 async function viewOrder(id) {
   try {
     const o = await api('/orders/' + id);
@@ -1675,6 +1739,11 @@ async function viewOrder(id) {
       '<tr><td class="k">' + escape(String(t.created_at || '').substring(0, 16).replace('T', ' ')) + '</td><td>' + escape(t.note || t.status || '') + '</td></tr>').join('');
     const refunds = (o.refunds || []).map(r =>
       '<tr><td class="k">' + escape(String(r.created_at || '').substring(0, 10)) + '</td><td>Rs. ' + escape(r.amount) + ' ' + escape(r.method || '') + '</td><td>' + escape(r.status || '') + '</td></tr>').join('');
+    const mapUrl = orderMapUrl(o);
+    const accuracy = Number(o.customer_location_accuracy);
+    const mapRow = mapUrl
+      ? '<tr><th>Delivery map</th><td><a href="' + mapUrl + '" target="_blank" rel="noopener" style="color:#1a73e8;text-decoration:underline;">Open exact GPS pin</a>' + (isFinite(accuracy) && accuracy > 0 ? ' <span class="k">(&plusmn;' + Math.round(accuracy) + ' m)</span>' : '') + '</td></tr>'
+      : '';
 
     const html =
       '<h3>Order ' + escape(o.order_code || o.id) + '</h3>' +
@@ -1682,6 +1751,9 @@ async function viewOrder(id) {
         '<span class="status-badge" style="background:' + pay.color + ';">Pay: ' + escape(pay.label) + '</span></div>' +
       '<table><tr><th>Customer</th><td>' + escape(o.customer_name || '') + ' &middot; ' + escape(o.customer_phone || '') + '</td></tr>' +
         '<tr><th>Address</th><td>' + escape([o.customer_address, o.customer_city, o.customer_state].filter(Boolean).join(', ')) + '</td></tr>' +
+        mapRow +
+        (o.customer_landmark ? '<tr><th>Landmark</th><td>' + escape(o.customer_landmark) + '</td></tr>' : '') +
+        (o.delivery_instructions ? '<tr><th>Delivery instructions</th><td>' + escape(o.delivery_instructions) + '</td></tr>' : '') +
         '<tr><th>Payment</th><td>' + escape(o.payment_method || '') + (o.payment_reference ? ' &middot; ref ' + escape(o.payment_reference) : '') + '</td></tr>' +
         '<tr><th>Total</th><td><strong>Rs. ' + escape(o.total_amount != null ? o.total_amount : o.total) + '</strong></td></tr>' +
         (o.cancel_reason ? '<tr><th>Cancel reason</th><td>' + escape(o.cancel_reason) + '</td></tr>' : '') +

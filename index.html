@@ -1932,10 +1932,16 @@
       <h4>Shipping Information</h4>
       <div style="margin-bottom:12px;"><button class="btn btn-sm" style="background:#E5E5E5;color:#555;font-size:0.75rem;" onclick="cmLoadSavedAddresses()"><i class="fas fa-map-marker-alt"></i> Use Saved Address</button></div>
       <div id="cmSavedAddressList" style="display:none;margin-bottom:10px;"></div>
+      <div style="margin-bottom:12px;padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
+        <button type="button" class="btn btn-sm" style="background:#111111;color:#fff;font-size:0.72rem;" id="cmUseLocationBtn"><i class="fas fa-crosshairs"></i> Use My Current Location</button>
+        <a id="cmLocationMap" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;font-size:0.72rem;color:#111111;text-decoration:underline;">View map</a>
+        <div id="cmLocationStatus" style="font-size:0.7rem;color:#666666;margin-top:6px;"></div>
+        <input type="hidden" id="cmLatitude"><input type="hidden" id="cmLongitude"><input type="hidden" id="cmLocationAccuracy">
+      </div>
       <div class="form-group"><label>Full Name *</label><input type="text" id="cmName" placeholder="Your full name"></div>
       <div class="form-row"><div class="form-group"><label>Phone *</label><input type="text" id="cmPhone" placeholder="Phone number"></div><div class="form-group"><label>Email</label><input type="email" id="cmEmail" placeholder="your@email.com"></div></div>
       <div class="form-group"><label>Delivery Address *</label><textarea id="cmAddress" placeholder="Full delivery address" rows="2"></textarea></div>
-      <div class="form-group"><label>Order Notes</label><textarea id="cmNotes" placeholder="Special instructions..." rows="2"></textarea></div>
+      <div class="form-group"><label>Delivery Instructions</label><textarea id="cmNotes" placeholder="Call before delivery, leave at the gate, nearby landmark..." rows="2"></textarea><div style="font-size:0.68rem;color:#888;margin-top:3px;">Important: include ward, tole and a nearby landmark.</div></div>
       <div class="cm-actions"><button class="btn btn-outline" onclick="cmPrevStep()"><i class="fas fa-arrow-left"></i> Back</button><button class="btn btn-primary" onclick="cmNextStep()">Continue <i class="fas fa-arrow-right"></i></button></div>
     </div>
     <!-- Step 3: Payment -->
@@ -2026,6 +2032,12 @@
       <div class="checkout-summary" id="checkoutSummary"></div>
       <div style="margin-bottom:8px;"><button class="btn btn-sm" style="background:#E5E5E5;color:#555;font-size:0.7rem;" onclick="loadCheckoutSavedAddresses()"><i class="fas fa-map-marker-alt"></i> Use Saved Address</button></div>
       <div id="ordSavedAddressList" style="display:none;margin-bottom:8px;"></div>
+      <div style="margin-bottom:10px;padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
+        <button type="button" class="btn btn-sm" style="background:#111111;color:#fff;font-size:0.72rem;" id="ordUseLocationBtn"><i class="fas fa-crosshairs"></i> Use My Current Location</button>
+        <a id="ordLocationMap" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;font-size:0.72rem;color:#111111;text-decoration:underline;">View map</a>
+        <div id="ordLocationStatus" style="font-size:0.7rem;color:#666666;margin-top:6px;"></div>
+        <input type="hidden" id="ordLatitude"><input type="hidden" id="ordLongitude"><input type="hidden" id="ordLocationAccuracy">
+      </div>
       <div class="form-group"><label>Full Name *</label><input type="text" id="ordName" placeholder="Your full name"></div>
       <div class="form-group"><label>Phone *</label><input type="text" id="ordPhone" placeholder="e.g. 9867135403"></div>
       <div class="form-group"><label>Email</label><input type="email" id="ordEmail" placeholder="your@email.com"></div>
@@ -2064,7 +2076,7 @@
         </div>
         <div class="cm-pay-note">Cash on Delivery is no longer available. The shop QR code with your exact amount appears after you place the order.</div>
       </div>
-      <div class="form-group"><label>Order Notes</label><textarea id="ordNotes" placeholder="Special instructions..." style="min-height:45px;"></textarea></div>
+      <div class="form-group"><label>Delivery Instructions</label><textarea id="ordNotes" placeholder="Call before delivery, leave at the gate, nearby landmark..." style="min-height:45px;"></textarea><div style="font-size:0.68rem;color:#888;margin-top:3px;">Important: include ward, tole and a nearby landmark.</div></div>
       <div class="checkout-error" id="checkoutError"></div>
       <button class="btn btn-primary" id="placeOrderBtn" onclick="placeOrder()" style="display:none;margin-top:4px;">Place Order</button>
       <button class="btn btn-back" id="backToCartBtn" onclick="showCartView()" style="display:none;"><i class="fas fa-arrow-left"></i> Back</button>
@@ -2257,6 +2269,13 @@
             <div class="addr-field"><label><i class="fas fa-map"></i> State</label><input type="text" id="addrState" placeholder="Bagmati"></div>
             <div class="addr-field"><label><i class="fas fa-mailbox"></i> Zip Code</label><input type="text" id="addrZip" placeholder="44600"></div>
           </div>
+          <div class="addr-field addr-field-full" style="padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
+            <button type="button" class="btn btn-sm" style="background:#111111;color:#fff;font-size:0.72rem;" id="addrUseLocationBtn"><i class="fas fa-crosshairs"></i> Use My Current Location</button>
+            <a id="addrLocationMap" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;font-size:0.72rem;color:#111111;text-decoration:underline;">View map</a>
+            <div id="addrLocationStatus" style="font-size:0.7rem;color:#666666;margin-top:6px;"></div>
+            <input type="hidden" id="addrLatitude"><input type="hidden" id="addrLongitude"><input type="hidden" id="addrLocationAccuracy">
+          </div>
+          <div class="addr-field addr-field-full"><label><i class="fas fa-comment-dots"></i> Delivery Instructions</label><textarea id="addrInstructions" placeholder="Call before delivery, leave at the gate..." rows="2"></textarea></div>
           <div class="addr-field addr-field-full"><label class="addr-checkbox"><input type="checkbox" id="addrDefault"><span class="addr-checkmark"></span> Set as default address</label></div>
         </div>
         <div class="addr-form-footer">
@@ -2380,6 +2399,13 @@
                 <div class="form-group"><label>Zip Code</label><input type="text" id="profAddrZip" placeholder="Zip code"></div>
                 <div class="form-group"><label>Country</label><input type="text" id="profAddrCountry" value="Nepal"></div>
               </div>
+              <div class="form-group" style="padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
+                <button type="button" class="btn btn-sm" style="background:#111111;color:#fff;font-size:0.72rem;" id="profAddrUseLocationBtn"><i class="fas fa-crosshairs"></i> Use My Current Location</button>
+                <a id="profAddrLocationMap" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;font-size:0.72rem;color:#111111;text-decoration:underline;">View map</a>
+                <div id="profAddrLocationStatus" style="font-size:0.7rem;color:#666666;margin-top:6px;"></div>
+                <input type="hidden" id="profAddrLatitude"><input type="hidden" id="profAddrLongitude"><input type="hidden" id="profAddrLocationAccuracy">
+              </div>
+              <div class="form-group"><label>Delivery Instructions</label><textarea id="profAddrInstructions" placeholder="Call before delivery, leave at the gate..." rows="2"></textarea></div>
               <div class="form-group"><label><input type="checkbox" id="profAddrDefault" style="width:auto;accent-color:#111111;"> Set as default address</label></div>
               <div style="display:flex;gap:10px;">
                 <button class="btn btn-primary btn-sm" onclick="handleSaveAddress()">Save Address</button>
@@ -2473,6 +2499,8 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
+<script src="nepal-locations.js"></script>
+<script src="location-address.js"></script>
 <script src="auth.js"></script>
 <script src="auth-session.js"></script>
 <script>
@@ -2894,6 +2922,8 @@ function prefillCheckoutForm() {
         document.getElementById('ordName').value = def.full_name || user.name || '';
         document.getElementById('ordPhone').value = def.phone || user.phone || '';
         document.getElementById('ordAddress').value = def.address + (def.city ? ', ' + def.city : '') + (def.state ? ', ' + def.state : '');
+        if (def.instructions && !document.getElementById('ordNotes').value.trim()) document.getElementById('ordNotes').value = def.instructions;
+        setPickedLocation('ord', def.latitude, def.longitude, def.location_accuracy);
       }
     }).catch(function() {});
 }
@@ -2906,6 +2936,8 @@ function ordFillAddress(a) {
   if (a.state) addr += ', ' + a.state;
   if (a.zip_code) addr += ' - ' + a.zip_code;
   document.getElementById('ordAddress').value = addr;
+  if (a.instructions && !document.getElementById('ordNotes').value.trim()) document.getElementById('ordNotes').value = a.instructions;
+  setPickedLocation('ord', a.latitude, a.longitude, a.location_accuracy);
   document.getElementById('ordSavedAddressList').style.display = 'none';
   toast('Address loaded!', 'success');
 }
@@ -2952,6 +2984,7 @@ async function placeOrder() {
   const email = document.getElementById('ordEmail').value.trim();
   const address = document.getElementById('ordAddress').value.trim();
   const notes = document.getElementById('ordNotes').value.trim();
+  const location = getPickedLocation('ord');
   const errEl = document.getElementById('checkoutError');
   errEl.style.display = 'none';
 
@@ -2978,6 +3011,10 @@ async function placeOrder() {
       customer_phone: phone,
       customer_email: email,
       customer_address: address,
+      customer_latitude: location.latitude,
+      customer_longitude: location.longitude,
+      customer_location_accuracy: location.location_accuracy,
+      delivery_instructions: notes,
       notes: notes,
       shipping_method: shippingOption ? shippingOption.dataset.value : 'standard'
     });
@@ -3030,6 +3067,10 @@ async function submitOnlineOrder(fields) {
     customer_phone: fields.customer_phone,
     customer_email: fields.customer_email || '',
     customer_address: fields.customer_address,
+    customer_latitude: fields.customer_latitude || null,
+    customer_longitude: fields.customer_longitude || null,
+    customer_location_accuracy: fields.customer_location_accuracy || null,
+    delivery_instructions: fields.delivery_instructions || fields.notes || '',
     payment_method: 'online',
     shipping_method: fields.shipping_method || 'standard',
     notes: fields.notes || '',
@@ -4847,8 +4888,10 @@ function showAddressForm() {
   document.getElementById('profAddrCity').value = '';
   document.getElementById('profAddrState').value = '';
   document.getElementById('profAddrZip').value = '';
+  document.getElementById('profAddrInstructions').value = '';
   document.getElementById('profAddrCountry').value = 'Nepal';
   document.getElementById('profAddrDefault').checked = false;
+  setPickedLocation('profAddr', null, null, null);
   document.getElementById('profileAddressForm').style.display = 'block';
 }
 
@@ -4870,8 +4913,10 @@ async function editProfileAddress(id) {
   document.getElementById('profAddrCity').value = a.city || '';
   document.getElementById('profAddrState').value = a.state || '';
   document.getElementById('profAddrZip').value = a.zip_code || '';
+  document.getElementById('profAddrInstructions').value = a.instructions || '';
   document.getElementById('profAddrCountry').value = a.country || 'Nepal';
   document.getElementById('profAddrDefault').checked = !!a.is_default;
+  setPickedLocation('profAddr', a.latitude, a.longitude, a.location_accuracy);
   document.getElementById('profileAddressForm').style.display = 'block';
 }
 
@@ -4883,6 +4928,8 @@ async function handleSaveAddress() {
     address: document.getElementById('profAddrAddress').value.trim(),
     city: document.getElementById('profAddrCity').value.trim(),
     state: document.getElementById('profAddrState').value.trim(),
+    instructions: document.getElementById('profAddrInstructions').value.trim(),
+    ...locationPayload('profAddr'),
     zip_code: document.getElementById('profAddrZip').value.trim(),
     country: document.getElementById('profAddrCountry').value.trim(),
     is_default: document.getElementById('profAddrDefault').checked
@@ -5179,7 +5226,9 @@ function showAddAddressForm() {
   document.getElementById('addrAddress').value = '';
   document.getElementById('addrState').value = '';
   document.getElementById('addrZip').value = '';
+  document.getElementById('addrInstructions').value = '';
   document.getElementById('addrDefault').checked = false;
+  setPickedLocation('addr', null, null, null);
   document.getElementById('addressForm').style.display = 'block';
 }
 
@@ -5202,7 +5251,9 @@ function editGuestAddress(id) {
       document.getElementById('addrAddress').value = a.address || '';
       document.getElementById('addrState').value = a.state || '';
       document.getElementById('addrZip').value = a.zip_code || '';
+      document.getElementById('addrInstructions').value = a.instructions || '';
       document.getElementById('addrDefault').checked = !!a.is_default;
+      setPickedLocation('addr', a.latitude, a.longitude, a.location_accuracy);
       document.getElementById('addressForm').style.display = 'block';
     });
 }
@@ -5216,6 +5267,8 @@ async function saveGuestAddress() {
     address: document.getElementById('addrAddress').value.trim(),
     city: document.getElementById('addrCity').value.trim(),
     state: document.getElementById('addrState').value.trim(),
+    instructions: document.getElementById('addrInstructions').value.trim(),
+    ...locationPayload('addr'),
     zip_code: document.getElementById('addrZip').value.trim(),
     is_default: document.getElementById('addrDefault').checked
   };
@@ -5255,6 +5308,8 @@ function useGuestAddress(id) {
       document.getElementById('ordName').value = a.full_name || '';
       document.getElementById('ordPhone').value = a.phone || '';
       document.getElementById('ordAddress').value = a.address + (a.city ? ', ' + a.city : '') + (a.state ? ', ' + a.state : '');
+      if (a.instructions && !document.getElementById('ordNotes').value.trim()) document.getElementById('ordNotes').value = a.instructions;
+      setPickedLocation('ord', a.latitude, a.longitude, a.location_accuracy);
       closeAddresses();
       openCart();
       showCheckout();
@@ -6130,6 +6185,8 @@ function initCarousel() {
     if (a.state) addr += ', ' + a.state;
     if (a.zip_code) addr += ' - ' + a.zip_code;
     document.getElementById('cmAddress').value = addr;
+    if (a.instructions && !document.getElementById('cmNotes').value.trim()) document.getElementById('cmNotes').value = a.instructions;
+    setPickedLocation('cm', a.latitude, a.longitude, a.location_accuracy);
     document.getElementById('cmSavedAddressList').style.display = 'none';
     toast('Address loaded!', 'success');
   }
@@ -6179,6 +6236,7 @@ function initCarousel() {
     var email = document.getElementById('cmEmail').value.trim();
     var address = document.getElementById('cmAddress').value.trim();
     var notes = document.getElementById('cmNotes').value.trim();
+    var location = getPickedLocation('cm');
     if (!name || !phone || !address) { toast('Please fill in all required fields', 'error'); return; }
     var paymentEl = document.querySelector('.cm-payment-option.selected');
     if (!paymentEl || paymentEl.dataset.value !== 'online') { toast('Please select Online Payment to continue', 'error'); cmShowStep(3); return; }
@@ -6188,7 +6246,9 @@ function initCarousel() {
     try {
       var result = await submitOnlineOrder({
         customer_name: name, customer_phone: phone, customer_email: email,
-        customer_address: address, notes: notes,
+        customer_address: address, notes: notes, delivery_instructions: notes,
+        customer_latitude: location.latitude, customer_longitude: location.longitude,
+        customer_location_accuracy: location.location_accuracy,
         shipping_method: shippingEl ? shippingEl.dataset.value : 'standard'
       });
       cart = []; couponDiscount = 0; appliedCoupon = null;
@@ -6233,6 +6293,94 @@ function initCarousel() {
     if (container) container.querySelector('.skel-product-grid')?.remove();
   };
 })();
+
+// ==================== LOCATION PICKERS ====================
+function setPickedLocation(prefix, latitude, longitude, accuracy) {
+  var lat = latitude === null || latitude === undefined || latitude === '' ? '' : Number(latitude);
+  var lng = longitude === null || longitude === undefined || longitude === '' ? '' : Number(longitude);
+  var acc = accuracy === null || accuracy === undefined || accuracy === '' ? '' : Number(accuracy);
+  var valid = lat !== '' && lng !== '' && isFinite(lat) && isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  var latEl = document.getElementById(prefix + 'Latitude');
+  var lngEl = document.getElementById(prefix + 'Longitude');
+  var accEl = document.getElementById(prefix + 'LocationAccuracy');
+  var mapEl = document.getElementById(prefix + 'LocationMap');
+  if (latEl) latEl.value = valid ? lat : '';
+  if (lngEl) lngEl.value = valid ? lng : '';
+  if (accEl) accEl.value = valid && acc !== '' && isFinite(acc) ? acc : '';
+  if (mapEl) {
+    if (valid) {
+      mapEl.href = window.AryalLocation ? AryalLocation.mapUrl(lat, lng) : 'https://www.google.com/maps?q=' + lat + ',' + lng;
+      mapEl.style.display = 'inline';
+    } else {
+      mapEl.style.display = 'none';
+      mapEl.removeAttribute('href');
+    }
+  }
+}
+
+function getPickedLocation(prefix) {
+  var latEl = document.getElementById(prefix + 'Latitude');
+  var lngEl = document.getElementById(prefix + 'Longitude');
+  var accEl = document.getElementById(prefix + 'LocationAccuracy');
+  return {
+    latitude: latEl ? latEl.value : '',
+    longitude: lngEl ? lngEl.value : '',
+    location_accuracy: accEl ? accEl.value : ''
+  };
+}
+
+function locationPayload(prefix) {
+  var loc = getPickedLocation(prefix);
+  return {
+    latitude: loc.latitude || null,
+    longitude: loc.longitude || null,
+    location_accuracy: loc.location_accuracy || null
+  };
+}
+
+function fillFreeAddressFromGeocode(prefix, data) {
+  if (!window.AryalLocation) return;
+  var a = data.address || {};
+  var display = AryalLocation.formatDisplayAddress(a) || data.display_name || '';
+  if (prefix === 'cm') {
+    var cm = document.getElementById('cmAddress');
+    if (cm && !cm.value.trim()) cm.value = display;
+  } else if (prefix === 'ord') {
+    var ord = document.getElementById('ordAddress');
+    if (ord && !ord.value.trim()) ord.value = display;
+  } else if (prefix === 'addr') {
+    AryalLocation.fillInput('addrAddress', a.house_number ? (a.house_number + ' ' + (a.road || '')) : (a.road || a.neighbourhood || display));
+    AryalLocation.fillInput('addrCity', a.city || a.municipality || a.town || a.village || '');
+    AryalLocation.fillInput('addrState', a.state || '');
+    AryalLocation.fillInput('addrZip', a.postcode || '');
+  } else if (prefix === 'profAddr') {
+    AryalLocation.fillInput('profAddrAddress', a.house_number ? (a.house_number + ' ' + (a.road || '')) : (a.road || a.neighbourhood || display));
+    AryalLocation.fillInput('profAddrCity', a.city || a.municipality || a.town || a.village || '');
+    AryalLocation.fillInput('profAddrState', a.state || '');
+    AryalLocation.fillInput('profAddrZip', a.postcode || '');
+  }
+}
+
+function initAddressLocations() {
+  if (!window.AryalLocation) return;
+  ['cm', 'ord', 'addr', 'profAddr'].forEach(function(prefix) {
+    AryalLocation.init({
+      button: prefix + 'UseLocationBtn',
+      status: prefix + 'LocationStatus',
+      mapLink: prefix + 'LocationMap',
+      latInput: prefix + 'Latitude',
+      lngInput: prefix + 'Longitude',
+      accuracyInput: prefix + 'LocationAccuracy',
+      onAddress: function(data) { fillFreeAddressFromGeocode(prefix, data); }
+    });
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAddressLocations);
+} else {
+  initAddressLocations();
+}
 </script>
 <script src="theme.js" defer></script>
 </body>

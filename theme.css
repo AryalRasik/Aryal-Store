@@ -1,8 +1,8 @@
-/* ==========================================================================
-   ARYAL STORE — BLUSH EDITORIAL THEME LAYER
+﻿/* ==========================================================================
+   ARYAL STORE - IVORY / TEAL / GOLD THEME LAYER
    Loaded AFTER every page stylesheet so it can refine tokens & components.
-   Palette: #FFFFFF (white) · #111111 (soft-black) · #E8B4B8 (blush) ·
-            #F7F5F4 (soft surface) · #EAE6E5 (border) · #666666 (secondary)
+   Palette: #F7F1E3 (ivory, dominant) / #135E59 (teal, structure) / #C7A04A (gold, accent)
+            #FFFCF5 (surface) / #DED2BC (border) / #133B38 (ink)
    Sections:
      1. design tokens (storefront + checkout/auth retint, light & dark)
      2. global typography
@@ -15,57 +15,68 @@
    1. DESIGN TOKENS
    ------------------------------------------------------------------ */
 :root {
-  /* Storefront blush palette */
-  --lux-bg: #FFFFFF;
-  --lux-bg-2: #F7F5F4;
-  --lux-surface: #FFFFFF;
-  --lux-text: #111111;
-  --lux-text-2: #666666;
-  --lux-border: #EAE6E5;
+  /* Brand palette: 65% ivory, 25% teal, 10% gold */
+  --lux-ivory: #F7F1E3;
+  --lux-ivory-deep: #EFE6D2;
+  --lux-ivory-light: #FFFCF5;
+  --lux-teal: #135E59;
+  --lux-teal-deep: #0C4642;
+  --lux-teal-dark: #07332F;
+  --lux-gold: #C7A04A;
+  --lux-gold-deep: #A98434;
+  --lux-gold-dark: #856526;
 
-  --lux-ink: #111111;
-  --lux-ink-2: #333333;
-  --lux-muted: #666666;
-  --lux-soft: #F7F5F4;
-  --lux-line: #EAE6E5;
+  /* Storefront: ivory surfaces, teal structure, gold accents */
+  --lux-bg: #F7F1E3;
+  --lux-bg-2: #EFE6D2;
+  --lux-surface: #FFFCF5;
+  --lux-text: #133B38;
+  --lux-text-2: #4B6661;
+  --lux-border: #DED2BC;
 
-  --lux-blush: #E8B4B8;
-  --lux-blush-deep: #D9A0A6;
-  --lux-blush-soft: rgba(232, 180, 184, 0.16);
-  --lux-blush-ring: rgba(232, 180, 184, 0.38);
+  --lux-ink: #0E4F4A;
+  --lux-ink-2: #135E59;
+  --lux-muted: #6C7F7A;
+  --lux-soft: #F1E8D6;
+  --lux-line: #DED2BC;
 
-  --lux-dark: #111111;
-  --lux-dark-2: #1A1A1A;
-  --lux-on-dark: #FFFFFF;
-  --lux-on-dark-2: #C9C9C9;
+  --lux-blush: #C7A04A;
+  --lux-blush-deep: #A98434;
+  --lux-blush-soft: rgba(199, 160, 74, 0.16);
+  --lux-blush-ring: rgba(199, 160, 74, 0.38);
 
-  /* ---- Product listing: ivory / white / champagne gold ---- */
-  --pl-ivory: #F7F2E9;
-  --pl-ivory-deep: #EFE7D9;
-  --pl-surface: #FFFFFF;
-  --pl-surface-2: #FBF8F2;
-  --pl-gold: #B69A69;
-  --pl-gold-strong: #9A7D4F;
-  --pl-gold-dark: #7A6238;
-  --pl-gold-tint: rgba(182, 154, 105, 0.14);
-  --pl-gold-ring: rgba(182, 154, 105, 0.35);
-  --pl-cta-bg: #7A6238;
-  --pl-cta-bg-hover: #6A5430;
-  --pl-cta-fg: #FFFFFF;
-  --pl-star: #C9A227;
-  --pl-ink: #29251F;
-  --pl-ink-2: #4A443A;
-  --pl-muted: #71685D;
-  --pl-line: #E6DED2;
-  --pl-line-soft: #EFE8DC;
+  --lux-dark: #0C4642;
+  --lux-dark-2: #083B37;
+  --lux-on-dark: #FFF9ED;
+  --lux-on-dark-2: #CFE0DA;
+
+  /* ---- Product listing: ivory, teal, gold ---- */
+  --pl-ivory: #F7F1E3;
+  --pl-ivory-deep: #EFE6D2;
+  --pl-surface: #FFFCF5;
+  --pl-surface-2: #FBF6EB;
+  --pl-gold: #C7A04A;
+  --pl-gold-strong: #A98434;
+  --pl-gold-dark: #856526;
+  --pl-gold-tint: rgba(199, 160, 74, 0.14);
+  --pl-gold-ring: rgba(199, 160, 74, 0.35);
+  --pl-cta-bg: #135E59;
+  --pl-cta-bg-hover: #0C4642;
+  --pl-cta-fg: #FFF9ED;
+  --pl-star: #C7A04A;
+  --pl-ink: #133B38;
+  --pl-ink-2: #33534F;
+  --pl-muted: #6C7F7A;
+  --pl-line: #DED2BC;
+  --pl-line-soft: #EBE2D1;
   --pl-danger: #B23A2E;
   --pl-success: #2F7D4F;
-  --pl-shadow: 0 1px 2px rgba(41, 37, 31, 0.05);
-  --pl-shadow-hover: 0 8px 22px rgba(41, 37, 31, 0.10);
+  --pl-shadow: 0 1px 2px rgba(19, 59, 56, 0.05);
+  --pl-shadow-hover: 0 8px 22px rgba(19, 59, 56, 0.10);
 
-  --lux-btn-bg: #E8B4B8;
-  --lux-btn-fg: #111111;
-  --lux-btn-bg-hover: #D9A0A6;
+  --lux-btn-bg: #135E59;
+  --lux-btn-fg: #FFF9ED;
+  --lux-btn-bg-hover: #0C4642;
 
   --lux-success: #2F7D4F;
   --lux-error: #B23A2E;
@@ -74,9 +85,9 @@
   --lux-radius: 8px;
   --lux-radius-lg: 10px;
 
-  --lux-shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.04);
-  --lux-shadow: 0 6px 24px rgba(17, 17, 17, 0.06);
-  --lux-shadow-lg: 0 16px 40px rgba(17, 17, 17, 0.10);
+  --lux-shadow-sm: 0 1px 2px rgba(19, 59, 56, 0.04);
+  --lux-shadow: 0 6px 24px rgba(19, 59, 56, 0.06);
+  --lux-shadow-lg: 0 16px 40px rgba(19, 59, 56, 0.10);
 
   --lux-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --lux-header-h: 56px;
@@ -87,122 +98,122 @@
   --font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* ---- Checkout token retint (light) ---- */
-  --co-primary: #111111;
-  --co-primary-dark: #333333;
-  --co-primary-light: rgba(232, 180, 184, 0.16);
-  --co-bg: #FFFFFF;
-  --co-surface: #FFFFFF;
-  --co-text: #111111;
-  --co-text-secondary: #666666;
-  --co-text-muted: #999999;
-  --co-border: #EAE6E5;
-  --co-border-light: #F0EEED;
+  --co-primary: #135E59;
+  --co-primary-dark: #0C4642;
+  --co-primary-light: rgba(19, 94, 89, 0.10);
+  --co-bg: #F7F1E3;
+  --co-surface: #FFFCF5;
+  --co-text: #133B38;
+  --co-text-secondary: #4B6661;
+  --co-text-muted: #7C8C87;
+  --co-border: #DED2BC;
+  --co-border-light: #EBE2D1;
   --co-success: #2F7D4F;
   --co-error: #B23A2E;
-  --co-warning: #111111;
-  --co-step-done: #E8B4B8;
-  --co-step-active: #111111;
-  --co-step-pending: #EAE6E5;
+  --co-warning: #A98434;
+  --co-step-done: #C7A04A;
+  --co-step-active: #135E59;
+  --co-step-pending: #DED2BC;
   --co-radius: 8px;
   --co-radius-sm: 6px;
   --co-radius-lg: 10px;
-  --co-shadow: 0 1px 2px rgba(17, 17, 17, 0.04);
-  --co-shadow-lg: 0 6px 24px rgba(17, 17, 17, 0.06);
-  --co-shadow-xl: 0 16px 40px rgba(17, 17, 17, 0.10);
+  --co-shadow: 0 1px 2px rgba(19, 59, 56, 0.04);
+  --co-shadow-lg: 0 6px 24px rgba(19, 59, 56, 0.06);
+  --co-shadow-xl: 0 16px 40px rgba(19, 59, 56, 0.10);
 
   /* ---- Auth token retint (light) ---- */
-  --auth-primary: #111111;
-  --auth-primary-dark: #333333;
-  --auth-primary-light: rgba(232, 180, 184, 0.16);
-  --auth-bg: #FFFFFF;
-  --auth-bg-alt: #F7F5F4;
-  --auth-surface: #FFFFFF;
-  --auth-text: #111111;
-  --auth-text-secondary: #666666;
-  --auth-text-muted: #999999;
-  --auth-border: #EAE6E5;
-  --auth-border-focus: #E8B4B8;
-  --auth-input-bg: #FFFFFF;
-  --auth-gradient-start: #111111;
-  --auth-gradient-end: #2A1E20;
+  --auth-primary: #135E59;
+  --auth-primary-dark: #0C4642;
+  --auth-primary-light: rgba(19, 94, 89, 0.10);
+  --auth-bg: #F7F1E3;
+  --auth-bg-alt: #EFE6D2;
+  --auth-surface: #FFFCF5;
+  --auth-text: #133B38;
+  --auth-text-secondary: #4B6661;
+  --auth-text-muted: #7C8C87;
+  --auth-border: #DED2BC;
+  --auth-border-focus: #C7A04A;
+  --auth-input-bg: #FFFCF5;
+  --auth-gradient-start: #0C4642;
+  --auth-gradient-end: #07332F;
   --auth-radius: 8px;
   --auth-radius-sm: 6px;
   --auth-radius-lg: 10px;
-  --auth-shadow: 0 6px 24px rgba(17, 17, 17, 0.06);
-  --auth-shadow-lg: 0 16px 40px rgba(17, 17, 17, 0.10);
+  --auth-shadow: 0 6px 24px rgba(19, 59, 56, 0.06);
+  --auth-shadow-lg: 0 16px 40px rgba(19, 59, 56, 0.10);
 }
 
-/* Dark theme: inverted palette with blush accents */
+/* Dark theme: deep-teal surfaces with ivory text and gold accents */
 [data-theme="dark"] {
-  --lux-bg: #0F0F0F;
-  --lux-bg-2: #161616;
-  --lux-surface: #171717;
-  --lux-text: #F5F5F5;
-  --lux-text-2: #A8A8A8;
-  --lux-border: #2A2A2A;
+  --lux-bg: #0A2F2C;
+  --lux-bg-2: #0E3A36;
+  --lux-surface: #123F3B;
+  --lux-text: #F7F1E3;
+  --lux-text-2: #C8D9D3;
+  --lux-border: #23534E;
 
-  --lux-ink: #F5F5F5;
-  --lux-ink-2: #E0E0E0;
-  --lux-muted: #A8A8A8;
-  --lux-soft: #161616;
-  --lux-line: #2A2A2A;
+  --lux-ink: #FFF9ED;
+  --lux-ink-2: #E8E0CF;
+  --lux-muted: #AFC4BE;
+  --lux-soft: #103B37;
+  --lux-line: #23534E;
 
-  --lux-dark: #111111;
-  --lux-dark-2: #1A1A1A;
+  --lux-dark: #07332F;
+  --lux-dark-2: #052824;
 
-  /* ---- Product listing (dark): keep the champagne accent, invert surfaces ---- */
-  --pl-ivory: #15130F;
-  --pl-ivory-deep: #100E0B;
-  --pl-surface: #201D18;
-  --pl-surface-2: #1B1813;
-  --pl-gold: #C9AB77;
-  --pl-gold-strong: #D8BE8E;
-  --pl-gold-dark: #E2CC9F;
-  --pl-gold-tint: rgba(201, 171, 119, 0.16);
-  --pl-gold-ring: rgba(201, 171, 119, 0.38);
-  --pl-cta-bg: #C9AB77;
-  --pl-cta-bg-hover: #D8BE8E;
-  --pl-cta-fg: #15130F;
+  /* ---- Product listing (dark): teal surfaces, ivory text, gold accents ---- */
+  --pl-ivory: #0E3A36;
+  --pl-ivory-deep: #0A2F2C;
+  --pl-surface: #123F3B;
+  --pl-surface-2: #103B37;
+  --pl-gold: #D4B25F;
+  --pl-gold-strong: #E2C77E;
+  --pl-gold-dark: #F0DCA3;
+  --pl-gold-tint: rgba(212, 178, 95, 0.16);
+  --pl-gold-ring: rgba(212, 178, 95, 0.38);
+  --pl-cta-bg: #C7A04A;
+  --pl-cta-bg-hover: #D4B25F;
+  --pl-cta-fg: #0A2F2C;
   --pl-star: #E0BE6A;
-  --pl-ink: #EFE9DF;
+  --pl-ink: #F7F1E3;
   --pl-ink-2: #DCD4C6;
-  --pl-muted: #B3A894;
-  --pl-line: #3A342B;
-  --pl-line-soft: #2A251E;
+  --pl-muted: #B3C7C1;
+  --pl-line: #2A5A55;
+  --pl-line-soft: #1D4A45;
   --pl-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   --pl-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.45);
 
-  --lux-btn-bg: #E8B4B8;
-  --lux-btn-fg: #111111;
-  --lux-btn-bg-hover: #F0C6C9;
+  --lux-btn-bg: #C7A04A;
+  --lux-btn-fg: #0A2F2C;
+  --lux-btn-bg-hover: #D4B25F;
 
   /* ---- Checkout retint (dark) ---- */
-  --co-primary: #F5F5F5;
-  --co-primary-dark: #FFFFFF;
-  --co-primary-light: rgba(232, 180, 184, 0.14);
-  --co-bg: #0F0F0F;
-  --co-surface: #171717;
-  --co-text: #F5F5F5;
-  --co-text-secondary: #A8A8A8;
-  --co-text-muted: #8A8A8A;
-  --co-border: #2A2A2A;
-  --co-border-light: #222222;
-  --co-step-active: #F5F5F5;
+  --co-primary: #C7A04A;
+  --co-primary-dark: #D4B25F;
+  --co-primary-light: rgba(199, 160, 74, 0.14);
+  --co-bg: #0A2F2C;
+  --co-surface: #123F3B;
+  --co-text: #F7F1E3;
+  --co-text-secondary: #C8D9D3;
+  --co-text-muted: #AFC4BE;
+  --co-border: #23534E;
+  --co-border-light: #1D4A45;
+  --co-step-active: #C7A04A;
 
   /* ---- Auth retint (dark) ---- */
-  --auth-primary: #F5F5F5;
-  --auth-primary-dark: #FFFFFF;
-  --auth-primary-light: rgba(232, 180, 184, 0.14);
-  --auth-bg: #0F0F0F;
-  --auth-bg-alt: #161616;
-  --auth-surface: #171717;
-  --auth-text: #F5F5F5;
-  --auth-text-secondary: #A8A8A8;
-  --auth-text-muted: #8A8A8A;
-  --auth-border: #2A2A2A;
-  --auth-input-bg: #161616;
-  --auth-gradient-start: #111111;
-  --auth-gradient-end: #2A1E20;
+  --auth-primary: #C7A04A;
+  --auth-primary-dark: #D4B25F;
+  --auth-primary-light: rgba(199, 160, 74, 0.14);
+  --auth-bg: #0A2F2C;
+  --auth-bg-alt: #0E3A36;
+  --auth-surface: #123F3B;
+  --auth-text: #F7F1E3;
+  --auth-text-secondary: #C8D9D3;
+  --auth-text-muted: #AFC4BE;
+  --auth-border: #23534E;
+  --auth-input-bg: #0E3A36;
+  --auth-gradient-start: #07332F;
+  --auth-gradient-end: #052824;
 }
 
 /* ------------------------------------------------------------------ *
@@ -350,7 +361,7 @@ h1, h2, .section-title,
 }
 .lux-store .btn-primary:hover {
   background: var(--lux-btn-bg-hover);
-  box-shadow: 0 8px 22px rgba(217, 160, 166, 0.45);
+  box-shadow: 0 8px 22px rgba(199, 160, 74, 0.45);
 }
 .lux-store .btn-secondary {
   background: var(--lux-surface);
@@ -516,7 +527,7 @@ h1, h2, .section-title,
   border-color: var(--lux-blush);
   background: var(--lux-blush);
   color: var(--lux-ink);
-  box-shadow: 0 3px 12px rgba(217, 160, 166, 0.35);
+  box-shadow: 0 3px 12px rgba(199, 160, 74, 0.35);
 }
 .lux-store .filter-btn:hover { border-color: var(--lux-blush-deep); color: var(--lux-ink); }
 .lux-store .filter-btn.active:hover { color: var(--lux-ink); }
@@ -666,7 +677,7 @@ h1, h2, .section-title,
   background: linear-gradient(to top, rgba(17, 17, 17, 0.68) 0%, rgba(17, 17, 17, 0.05) 55%);
 }
 .lux-store .cat-preview-card .cat-count { background: var(--lux-blush); color: var(--lux-ink); }
-.lux-store .cat-preview-card:hover { box-shadow: 0 14px 35px rgba(217, 160, 166, 0.35); }
+.lux-store .cat-preview-card:hover { box-shadow: 0 14px 35px rgba(199, 160, 74, 0.35); }
 
 /* --- Marquee (category strip) --- */
 .lux-store .brand-showcase {
@@ -683,19 +694,19 @@ h1, h2, .section-title,
   background: var(--lux-blush);
   color: var(--lux-ink);
   border-color: var(--lux-blush);
-  box-shadow: 0 4px 15px rgba(217, 160, 166, 0.35);
+  box-shadow: 0 4px 15px rgba(199, 160, 74, 0.35);
 }
 
 /* --- Flash sale: ink section, blush accents --- */
 .lux-store .flash-sale-section {
-  background: linear-gradient(135deg, #111111 0%, #1C1516 100%);
+  background: linear-gradient(135deg, var(--lux-teal-deep) 0%, var(--lux-teal-dark) 100%);
   color: var(--lux-on-dark);
 }
 .lux-store .flash-sale-header h2 { color: var(--lux-on-dark); }
 .lux-store .flash-sale-header h2 i { color: var(--lux-blush); }
 .lux-store .flash-countdown .unit {
-  background: rgba(232, 180, 184, 0.14);
-  border: 1px solid rgba(232, 180, 184, 0.35);
+  background: rgba(199, 160, 74, 0.14);
+  border: 1px solid rgba(199, 160, 74, 0.35);
 }
 .lux-store .flash-countdown .unit .num { color: var(--lux-blush); }
 .lux-store .flash-countdown .unit .label { color: var(--lux-on-dark-2); }
@@ -712,11 +723,11 @@ h1, h2, .section-title,
 .lux-store .hero-categories { background: transparent; }
 .lux-store .about { background: var(--lux-bg); border-bottom: 1px solid var(--lux-border); }
 .lux-store .about-badge { background: var(--lux-soft); border: 1px solid transparent; }
-.lux-store .about-badge:hover { background: var(--lux-surface); border-color: var(--lux-blush-ring); box-shadow: 0 4px 15px rgba(217, 160, 166, 0.22); }
+.lux-store .about-badge:hover { background: var(--lux-surface); border-color: var(--lux-blush-ring); box-shadow: 0 4px 15px rgba(199, 160, 74, 0.22); }
 .lux-store .about-badge .ab-icon {
   background: linear-gradient(135deg, var(--lux-blush), var(--lux-blush-deep));
   color: var(--lux-ink);
-  box-shadow: 0 4px 14px rgba(217, 160, 166, 0.35);
+  box-shadow: 0 4px 14px rgba(199, 160, 74, 0.35);
 }
 .lux-store .trust-card {
   background: var(--lux-surface);
@@ -728,7 +739,7 @@ h1, h2, .section-title,
   background: var(--lux-blush);
   color: var(--lux-ink);
   border-radius: var(--lux-radius-sm);
-  box-shadow: 0 4px 14px rgba(217, 160, 166, 0.3);
+  box-shadow: 0 4px 14px rgba(199, 160, 74, 0.3);
 }
 
 /* --- Testimonials --- */
@@ -740,7 +751,7 @@ h1, h2, .section-title,
 
 /* --- Newsletter --- */
 .lux-store .newsletter-section {
-  background: linear-gradient(135deg, #111111 0%, #1C1516 100%);
+  background: linear-gradient(135deg, var(--lux-teal-deep) 0%, var(--lux-teal-dark) 100%);
   color: var(--lux-on-dark);
 }
 .lux-store .newsletter-section p { color: var(--lux-on-dark-2); }
@@ -830,9 +841,9 @@ h1, h2, .section-title,
 .lux-store .search-box:focus-within { border-color: var(--lux-blush); box-shadow: 0 0 0 4px var(--lux-blush-ring); }
 
 /* --- Address form --- */
-.lux-store .addr-btn-primary { background: linear-gradient(135deg, var(--lux-blush), var(--lux-blush-deep)); color: var(--lux-ink); box-shadow: 0 4px 12px rgba(217, 160, 166, 0.4); }
+.lux-store .addr-btn-primary { background: linear-gradient(135deg, var(--lux-blush), var(--lux-blush-deep)); color: var(--lux-ink); box-shadow: 0 4px 12px rgba(199, 160, 74, 0.4); }
 .lux-store .addr-checkbox input:checked + .addr-checkmark { background: var(--lux-blush); border-color: var(--lux-blush); color: var(--lux-ink); }
-.lux-store .addr-form-header { background: linear-gradient(135deg, #111111, #1C1516); }
+.lux-store .addr-form-header { background: linear-gradient(135deg, var(--lux-teal), var(--lux-teal-dark)); }
 .lux-store .addr-form-header .addr-form-icon { color: var(--lux-blush); }
 .lux-store .addr-field input:focus, .lux-store .addr-field textarea:focus,
 .lux-store .addr-select-wrap select:focus {
@@ -841,7 +852,7 @@ h1, h2, .section-title,
 }
 
 /* --- Profile / account --- */
-.lux-store .profile-header { background: linear-gradient(135deg, #111111, #1C1516); }
+.lux-store .profile-header { background: linear-gradient(135deg, var(--lux-teal), var(--lux-teal-dark)); }
 .lux-store .profile-avatar { background: linear-gradient(135deg, var(--lux-blush), var(--lux-blush-deep)); color: var(--lux-ink); }
 .lux-store .profile-tab.active { color: var(--lux-ink); border-bottom-color: var(--lux-blush); }
 .lux-store .address-card:hover { border-color: var(--lux-blush); }
@@ -880,7 +891,7 @@ h1, h2, .section-title,
 .lux-store .scroll-top {
   background: var(--lux-blush);
   color: var(--lux-ink);
-  box-shadow: 0 4px 14px rgba(217, 160, 166, 0.45);
+  box-shadow: 0 4px 14px rgba(199, 160, 74, 0.45);
 }
 .lux-store .scroll-top:hover { background: var(--lux-blush-deep); }
 
@@ -948,3 +959,337 @@ h1, h2, .section-title,
     scroll-behavior: auto !important;
   }
 }
+
+/* ------------------------------------------------------------------ *
+   6. IVORY / TEAL / GOLD PALETTE REFINEMENT
+   Color-only overrides for the storefront's inline component styles.
+   65% ivory surfaces, 25% teal structure, 10% gold accents.
+   ------------------------------------------------------------------ */
+
+/* --- Header: teal structure, ivory content, gold detail --- */
+.lux-store header {
+  background: rgba(12, 70, 66, 0.97);
+  border-bottom-color: rgba(255, 249, 237, 0.14);
+}
+.lux-store header.lux-scrolled {
+  background: rgba(12, 70, 66, 0.99);
+  box-shadow: 0 10px 30px rgba(7, 51, 47, 0.22);
+}
+.lux-store header,
+.lux-store header .logo,
+.lux-store .nav-icons,
+.lux-store .hamburger { color: var(--lux-on-dark); }
+.lux-store .logo span { color: var(--lux-gold); }
+.lux-store header nav ul li a { color: var(--lux-on-dark-2); }
+.lux-store header nav ul li a:hover {
+  color: var(--lux-on-dark);
+  background: rgba(255, 249, 237, 0.10);
+}
+.lux-store .nav-icons > *:hover {
+  color: var(--lux-gold);
+  background: rgba(255, 249, 237, 0.10);
+}
+.lux-store .nav-icons .count-badge,
+.lux-store .bnav-badge {
+  background: var(--lux-gold);
+  color: var(--lux-teal-dark);
+}
+.lux-store .header-search .search-box {
+  background: var(--lux-ivory-light);
+  border-color: transparent;
+  box-shadow: 0 0 0 1px rgba(255, 249, 237, 0.18);
+}
+.lux-store .header-search .search-box:focus-within {
+  border-color: var(--lux-gold);
+  box-shadow: 0 0 0 3px var(--lux-blush-ring);
+}
+.lux-store .header-search .search-box select {
+  background: var(--lux-ivory-deep);
+  color: var(--lux-text-2);
+  border-right-color: var(--lux-line);
+}
+.lux-store .header-search .search-box input { color: var(--lux-text); }
+.lux-store .header-search .search-box button {
+  background: var(--lux-gold);
+  color: var(--lux-teal-dark);
+}
+.lux-store .header-search .search-box button:hover { background: var(--lux-gold-deep); }
+
+/* --- Announcement + category navigation --- */
+.lux-announce {
+  background: var(--lux-gold);
+  color: var(--lux-teal-dark);
+  border-bottom-color: rgba(7, 51, 47, 0.12);
+}
+.lux-announce-track .lux-dot { color: rgba(7, 51, 47, 0.35); }
+.lux-store .category-nav {
+  background: var(--lux-teal-deep);
+  border-bottom-color: rgba(255, 249, 237, 0.10);
+}
+.lux-store .category-nav-inner a,
+.lux-store .category-nav-inner .nav-more { color: var(--lux-on-dark-2); }
+.lux-store .category-nav-inner a:hover,
+.lux-store .category-nav-inner a.active {
+  color: var(--lux-on-dark);
+  border-bottom-color: var(--lux-gold);
+  background: rgba(255, 249, 237, 0.08);
+}
+.lux-store .category-nav-inner .nav-more { color: var(--lux-gold); }
+
+/* --- Hero and section surfaces --- */
+.lux-store .lux-hero-overlay {
+  background: linear-gradient(to right, rgba(247, 241, 227, 0.95) 0%, rgba(247, 241, 227, 0.80) 45%, rgba(247, 241, 227, 0.28) 100%);
+}
+.lux-store .product-showcase { background: var(--lux-bg); }
+.lux-store .product-showcase.bg-light { background: var(--lux-ivory-deep); }
+.lux-store .products-section { background: var(--lux-ivory); }
+.lux-store .about { background: var(--lux-surface); border-bottom-color: var(--lux-line); }
+.lux-store .testimonials { background: var(--lux-ivory-deep); }
+.lux-store .about-badge { background: var(--lux-ivory-deep); border-color: var(--lux-line); }
+.lux-store .about-badge:hover { background: var(--lux-surface); border-color: var(--lux-gold-ring); }
+.lux-store .about-badge .ab-icon {
+  background: linear-gradient(135deg, var(--lux-gold), var(--lux-gold-deep));
+  color: var(--lux-teal-dark);
+}
+.lux-store .trust-card { background: var(--lux-surface); border-color: var(--lux-line); }
+.lux-store .brand-showcase { background: var(--lux-ivory-deep); border-color: var(--lux-line); }
+.lux-store .brand-item { background: var(--lux-surface); border-color: var(--lux-line); color: var(--lux-text-2); }
+.lux-store .brand-item:hover { background: var(--lux-gold); border-color: var(--lux-gold); color: var(--lux-teal-dark); }
+
+/* --- Primary buttons: teal; gold stays an accent --- */
+.lux-store .btn-primary { background: var(--lux-btn-bg); color: var(--lux-btn-fg); }
+.lux-store .btn-primary:hover { background: var(--lux-btn-bg-hover); box-shadow: 0 8px 22px rgba(19, 94, 89, 0.32); }
+.lux-store .btn-secondary { background: var(--lux-surface); color: var(--lux-ink); border-color: var(--lux-teal); }
+.lux-store .btn-secondary:hover { background: var(--lux-teal); color: var(--lux-ivory-light); }
+.lux-store .btn-dark { background: var(--lux-teal-deep); color: var(--lux-on-dark); }
+.lux-store .btn-dark:hover { background: var(--lux-teal-dark); }
+.lux-store .btn-outline { color: var(--lux-teal); border-color: var(--lux-teal); }
+.lux-store .btn-outline:hover { background: var(--lux-teal); color: var(--lux-ivory-light); }
+.lux-store .filter-btn.active,
+.lux-store .products-section .filter-btn.active {
+  border-color: var(--lux-teal);
+  background: var(--lux-teal);
+  color: var(--lux-ivory-light);
+  box-shadow: 0 3px 12px rgba(19, 94, 89, 0.25);
+}
+.lux-store .filter-btn.active:hover,
+.lux-store .products-section .filter-btn.active:hover { color: var(--lux-ivory-light); }
+.lux-store .btn-outline-red { color: var(--lux-teal); border-color: var(--lux-teal); }
+.lux-store .btn-outline-red:hover { background: var(--lux-teal); color: var(--lux-ivory-light); }
+.lux-store .cm-actions .btn-primary,
+.lux-store .modal-info .btn-primary,
+.lux-store .flash-card .flash-body .btn-primary,
+.lux-store .order-history-card .oh-footer .oh-track-btn {
+  background: var(--lux-teal);
+  color: var(--lux-ivory-light);
+}
+.lux-store .cm-actions .btn-primary:hover,
+.lux-store .modal-info .btn-primary:hover,
+.lux-store .flash-card .flash-body .btn-primary:hover,
+.lux-store .order-history-card .oh-footer .oh-track-btn:hover { background: var(--lux-teal-deep); }
+.lux-store .addr-btn-primary {
+  background: linear-gradient(135deg, var(--lux-teal), var(--lux-teal-deep));
+  color: var(--lux-ivory-light);
+  box-shadow: 0 4px 12px rgba(19, 94, 89, 0.30);
+}
+.lux-store .address-card .address-actions .btn-use { background: var(--lux-teal); color: var(--lux-ivory-light); }
+.lux-store .address-card .address-actions .btn-use:hover { background: var(--lux-teal-deep); }
+.lux-store .cart-footer .coupon-row button { background: var(--lux-teal); color: var(--lux-ivory-light); }
+.lux-store .cart-close-btn:hover { background: var(--lux-teal); color: var(--lux-ivory-light); }
+.lux-store .cart-footer .btn-back { color: var(--lux-teal); border-color: var(--lux-teal); }
+.lux-store .cart-footer .btn-back:hover { background: var(--lux-teal); color: var(--lux-ivory-light); }
+
+/* --- Gold accents: badges, stars, highlights, small controls --- */
+.lux-store .badge-sale,
+.lux-store .badge-seller,
+.lux-store .badge-trending {
+  background: var(--lux-gold);
+  color: var(--lux-teal-dark);
+  border-color: transparent;
+}
+.lux-store .badge-new { background: var(--lux-teal); color: var(--lux-ivory-light); }
+.lux-store .cat-preview-card .cat-count { background: var(--lux-gold); color: var(--lux-teal-dark); }
+.lux-store .cat-preview-card:hover { box-shadow: 0 14px 35px rgba(199, 160, 74, 0.30); }
+.lux-store .trust-card .trust-icon { background: var(--lux-gold); color: var(--lux-teal-dark); }
+.lux-store .profile-avatar { background: linear-gradient(135deg, var(--lux-gold), var(--lux-gold-deep)); color: var(--lux-teal-dark); }
+.lux-store .search-hl,
+.lux-store .products-section .search-hl { background: var(--lux-gold-tint); color: var(--lux-gold-dark); }
+.lux-store .search-box:focus-within { border-color: var(--lux-gold); box-shadow: 0 0 0 4px var(--lux-blush-ring); }
+.lux-store .sort-select:focus,
+.lux-store .advanced-filters select:focus,
+.lux-store .advanced-filters input:focus,
+.lux-store .checkout-form .form-group input:focus,
+.lux-store .checkout-form .form-group textarea:focus,
+.lux-store .checkout-form .form-group select:focus,
+.lux-store .auth-form .auth-field input:focus,
+.lux-store .review-modal .form-group input:focus,
+.lux-store .review-modal .form-group textarea:focus,
+.lux-store .order-track-modal .track-form input:focus {
+  border-color: var(--lux-gold);
+  box-shadow: 0 0 0 4px var(--lux-blush-ring);
+}
+.lux-store .scroll-top { background: var(--lux-gold); color: var(--lux-teal-dark); }
+.lux-store .scroll-top:hover { background: var(--lux-gold-deep); }
+
+/* --- Footer + dark feature bands: teal --- */
+.lux-store footer { background: var(--lux-teal-dark); color: var(--lux-on-dark-2); }
+.lux-store .flash-sale-section,
+.lux-store .newsletter-section {
+  background: linear-gradient(135deg, var(--lux-teal-deep) 0%, var(--lux-teal-dark) 100%);
+  color: var(--lux-on-dark);
+}
+.lux-store .flash-sale-header h2,
+.lux-store .newsletter-section h3 { color: var(--lux-on-dark); }
+.lux-store .newsletter-section p { color: var(--lux-on-dark-2); }
+.lux-store .addr-form-header,
+.lux-store .profile-header {
+  background: linear-gradient(135deg, var(--lux-teal) 0%, var(--lux-teal-dark) 100%);
+}
+.lux-store footer .footer-col ul li a { color: var(--lux-on-dark-2); }
+.lux-store footer .footer-col ul li a:hover { color: var(--lux-gold); }
+.lux-store footer .social-links a { border-color: rgba(255, 249, 237, 0.30); color: var(--lux-on-dark-2); }
+.lux-store footer .social-links a:hover { background: var(--lux-gold); border-color: var(--lux-gold); color: var(--lux-teal-dark); }
+.lux-store footer .footer-bottom { border-top-color: rgba(255, 249, 237, 0.18); }
+.lux-store footer .footer-bottom span { color: var(--lux-gold); }
+.lux-store footer .newsletter-form button,
+.lux-store .newsletter-form button { background: var(--lux-gold); color: var(--lux-teal-dark); }
+.lux-store footer .newsletter-form button:hover,
+.lux-store .newsletter-form button:hover { background: var(--lux-gold-deep); }
+
+/* --- Cart drawer + checkout modal --- */
+.lux-store .cart-sidebar { background: var(--lux-surface); }
+.lux-store .cart-header,
+.lux-store .cart-footer { border-color: var(--lux-line); }
+.lux-store .cart-header h3,
+.lux-store .cart-header h3 span,
+.lux-store .cart-item-info .details .price,
+.lux-store .cart-total-row.total,
+.lux-store .cart-total-row.total span:last-child { color: var(--lux-ink); }
+.lux-store .cart-header h3 span { color: var(--lux-gold-deep); }
+.lux-store .cart-close-btn { background: var(--lux-ivory-deep); color: var(--lux-ink); }
+.lux-store .cart-footer { background: var(--lux-ivory-deep); }
+.lux-store .cart-item-info { border-bottom-color: var(--lux-line); }
+.lux-store .cart-item-info .qty-controls button { background: var(--lux-surface); border-color: var(--lux-line); }
+.lux-store .cart-item-info .qty-controls button:hover { border-color: var(--lux-teal); color: var(--lux-teal); }
+.lux-store .cart-footer .coupon-row input { background: var(--lux-surface); border-color: var(--lux-line); color: var(--lux-text); }
+.lux-store .cart-footer .free-ship-bar { background: var(--lux-line); }
+.lux-store .cart-empty,
+.lux-store .cart-footer .free-ship-text { color: var(--lux-text-2); }
+.lux-store .checkout-modal,
+.lux-store .modal-box { background: var(--lux-surface); }
+.lux-store .cm-header,
+.lux-store .cm-cart-item,
+.lux-store .cm-total-row.total,
+.lux-store .cm-payment-option,
+.lux-store .cm-shipping-option,
+.lux-store .cm-addr-option,
+.lux-store .ord-addr-opt,
+.lux-store .pay-qr-wrap { border-color: var(--lux-line); }
+.lux-store .cm-header h3,
+.lux-store .cm-step-content h4,
+.lux-store .cm-cart-item .cm-ci-info h5,
+.lux-store .cm-cart-item .cm-ci-price,
+.lux-store .cm-ship-cost,
+.lux-store .cm-total-row.total,
+.lux-store .cm-summary-item .cm-si-value,
+.lux-store .cm-payment-option strong,
+.lux-store .cm-shipping-option strong { color: var(--lux-ink); }
+.lux-store .cm-step,
+.lux-store .cm-step-num { border-color: var(--lux-line); color: var(--lux-muted); }
+.lux-store .cm-step-sep { background: var(--lux-line); }
+.lux-store .cm-step.active { color: var(--lux-ink); }
+.lux-store .cm-step.done { color: var(--lux-gold-dark); }
+.lux-store .cm-step.done .cm-step-num { background: var(--lux-gold); border-color: var(--lux-gold); color: var(--lux-teal-dark); }
+.lux-store .cm-payment-option:hover,
+.lux-store .cm-shipping-option:hover,
+.lux-store .cm-addr-option:hover,
+.lux-store .ord-addr-opt:hover { border-color: var(--lux-teal); background: var(--lux-ivory-deep); }
+.lux-store .cm-payment-option.selected,
+.lux-store .cm-shipping-option.selected { border-color: var(--lux-teal); background: var(--lux-ivory-deep); }
+.lux-store .cm-payment-option i { color: var(--lux-teal); }
+.lux-store .cm-payment-option p,
+.lux-store .cm-shipping-option p,
+.lux-store .cm-pay-note,
+.lux-store .cm-cart-item .cm-ci-info p,
+.lux-store .cm-total-row,
+.lux-store .cm-summary-item .cm-si-label,
+.lux-store .cm-close { color: var(--lux-text-2); }
+.lux-store .cm-close:hover { color: var(--lux-teal); }
+.lux-store .checkout-form .form-group input,
+.lux-store .checkout-form .form-group textarea,
+.lux-store .checkout-form .form-group select,
+.lux-store .review-modal .form-group input,
+.lux-store .review-modal .form-group textarea,
+.lux-store .order-track-modal .track-form input {
+  background: var(--lux-surface);
+  border-color: var(--lux-line);
+  color: var(--lux-text);
+}
+.lux-store .review-modal .form-group label,
+.lux-store .checkout-form .form-group label { color: var(--lux-text-2); }
+.lux-store .payment-option { background: var(--lux-surface); border-color: var(--lux-line); color: var(--lux-text-2); }
+.lux-store .payment-option:hover { border-color: var(--lux-teal); color: var(--lux-teal); }
+.lux-store .payment-option.selected { border-color: var(--lux-teal); background: var(--lux-ivory-deep); color: var(--lux-teal); }
+
+/* --- Profile, addresses, orders, notifications, search suggestions --- */
+.lux-store .profile-section { background: var(--lux-bg); }
+.lux-store .address-card,
+.lux-store .order-history-card,
+.lux-store .notif-dropdown,
+.lux-store .search-suggestions { background: var(--lux-surface); border-color: var(--lux-line); }
+.lux-store .address-card:hover { border-color: var(--lux-gold); }
+.lux-store .address-card h4,
+.lux-store .address-card h5,
+.lux-store .order-history-card .oh-header h5,
+.lux-store .notif-dropdown-header h4,
+.lux-store .notif-dropdown-header .mark-read,
+.lux-store .search-suggestions .suggestion-item .info p { color: var(--lux-ink); }
+.lux-store .address-card p,
+.lux-store .order-history-card .oh-header span,
+.lux-store .search-suggestions .suggestion-item .info p { color: var(--lux-text-2); }
+.lux-store .address-card .address-label,
+.lux-store .address-card .addr-label { background: var(--lux-ivory-deep); color: var(--lux-text-2); }
+.lux-store .address-card .address-label.default,
+.lux-store .address-card .addr-label.default,
+.lux-store .address-card .default-badge { background: var(--lux-gold); color: var(--lux-teal-dark); }
+.lux-store .address-card .address-actions .btn-edit,
+.lux-store .address-card .addr-actions button { background: var(--lux-ivory-deep); color: var(--lux-text-2); border-color: var(--lux-line); }
+.lux-store .address-card .address-actions .btn-edit:hover,
+.lux-store .address-card .addr-actions button:hover { border-color: var(--lux-teal); color: var(--lux-teal); }
+.lux-store .order-history-card .oh-header { background: var(--lux-ivory-deep); border-bottom-color: var(--lux-line); }
+.lux-store .order-history-card .oh-body .oh-items span { background: var(--lux-ivory-deep); color: var(--lux-text-2); }
+.lux-store .order-history-card .oh-footer { border-top-color: var(--lux-line); background: var(--lux-surface); }
+.lux-store .search-suggestions .suggestion-item:hover { background: var(--lux-ivory-deep); }
+.lux-store .search-suggestions .suggestion-item .info h5 { color: var(--lux-ink); }
+.lux-store .notif-dropdown-header { border-bottom-color: var(--lux-line); }
+.lux-store .notif-item { border-bottom-color: var(--lux-line); }
+.lux-store .notif-item.unread { background: var(--lux-blush-soft); }
+.lux-store .notif-item .notif-icon.order { background: var(--lux-gold); color: var(--lux-teal-dark); }
+
+/* --- Mobile header + bottom navigation --- */
+@media (max-width: 768px) {
+  .lux-store header { background: rgba(12, 70, 66, 0.98); }
+  .lux-store header nav ul {
+    background: var(--lux-surface);
+    border-bottom-color: var(--lux-line);
+    box-shadow: var(--lux-shadow-lg);
+  }
+  .lux-store header nav ul li a { color: var(--lux-text); }
+  .lux-store .header-search-mobile .search-box { background: var(--lux-ivory-light); border-color: var(--lux-line); }
+  .lux-store .header-search-mobile .search-box input { color: var(--lux-text); }
+  .lux-store .header-search-mobile .search-box button { background: var(--lux-gold); color: var(--lux-teal-dark); }
+}
+.lux-store .bottom-nav { background: var(--lux-surface); border-top-color: var(--lux-line); }
+.lux-store .bottom-nav-item.active { color: var(--lux-gold-deep); }
+.lux-store .bottom-nav-item .bnav-badge,
+.lux-store .bottom-nav-item .count-badge { background: var(--lux-gold); color: var(--lux-teal-dark); }
+
+/* --- Gold stars and rating accents --- */
+.lux-store .star,
+.lux-store .ts-stars,
+.lux-store .ts-bar-star,
+.lux-store .tc-stars,
+.lux-store .review-modal .star-rating i.active { color: var(--lux-gold); }
+.lux-store .ts-bar-fill { background: var(--lux-gold); }
+.lux-store .star-empty,
+.lux-store .tc-stars .star-empty { color: var(--lux-line); }

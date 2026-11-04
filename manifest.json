@@ -9,8 +9,8 @@
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "background_color": "#ffffff",
-  "theme_color": "#111111",
+  "background_color": "#F7F1E3",
+  "theme_color": "#135E59",
   "orientation": "any",
   "categories": ["shopping"],
   "icons": [

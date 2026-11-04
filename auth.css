@@ -1,47 +1,47 @@
 :root {
-  --auth-primary: #111111;
-  --auth-primary-dark: #111111;
-  --auth-primary-light: rgba(17, 17, 17, 0.08);
-  --auth-bg: #ffffff;
-  --auth-bg-alt: #F7F7F7;
-  --auth-surface: #ffffff;
-  --auth-text: #111111;
-  --auth-text-secondary: #6b7280;
-  --auth-text-muted: #9ca3af;
-  --auth-border: #e5e7eb;
-  --auth-border-focus: #111111;
-  --auth-input-bg: #ffffff;
-  --auth-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  --auth-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.12);
+  --auth-primary: #135E59;
+  --auth-primary-dark: #0C4642;
+  --auth-primary-light: rgba(19, 94, 89, 0.10);
+  --auth-bg: #F7F1E3;
+  --auth-bg-alt: #EFE6D2;
+  --auth-surface: #FFFCF5;
+  --auth-text: #133B38;
+  --auth-text-secondary: #4B6661;
+  --auth-text-muted: #7C8C87;
+  --auth-border: #DED2BC;
+  --auth-border-focus: #C7A04A;
+  --auth-input-bg: #FFFCF5;
+  --auth-shadow: 0 4px 24px rgba(19, 59, 56, 0.08);
+  --auth-shadow-lg: 0 20px 60px rgba(19, 59, 56, 0.12);
   --auth-radius: 12px;
   --auth-radius-sm: 8px;
   --auth-radius-lg: 16px;
   --auth-overlay: rgba(0, 0, 0, 0.5);
   --auth-success: #10b981;
   --auth-error: #ef4444;
-  --auth-warning: #f59e0b;
+  --auth-warning: #A98434;
   --auth-google: #4285f4;
   --auth-facebook: #1877f2;
-  --auth-gradient-start: #111111;
-  --auth-gradient-end: #111111;
+  --auth-gradient-start: #0C4642;
+  --auth-gradient-end: #07332F;
   --auth-transition: 200ms ease;
   --font-sans: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 [data-theme="dark"] {
-  --auth-bg: #111111;
-  --auth-bg-alt: #111111;
-  --auth-surface: #111111;
-  --auth-text: #e5e7eb;
-  --auth-text-secondary: #9ca3af;
-  --auth-text-muted: #6b7280;
-  --auth-border: #333333;
-  --auth-input-bg: #111111;
+  --auth-bg: #0A2F2C;
+  --auth-bg-alt: #0E3A36;
+  --auth-surface: #123F3B;
+  --auth-text: #F7F1E3;
+  --auth-text-secondary: #C8D9D3;
+  --auth-text-muted: #AFC4BE;
+  --auth-border: #23534E;
+  --auth-input-bg: #0E3A36;
   --auth-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   --auth-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.4);
   --auth-overlay: rgba(0, 0, 0, 0.7);
-  --auth-gradient-start: #111111;
-  --auth-gradient-end: #111111;
+  --auth-gradient-start: #07332F;
+  --auth-gradient-end: #052824;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
