@@ -75,14 +75,13 @@
     .header-main { display: flex; align-items: center; gap: 20px; }
     .logo { font-size: 1.6rem; font-weight: 800; color: #fff; flex-shrink: 0; letter-spacing: -0.5px; }
     .logo span { color: #111111; }
-    .header-search-desktop { flex: 1; max-width: 580px; margin: 0 auto; }
-    .header-search-desktop .search-box { display:flex; align-items:center; background:#fff; border-radius:8px; overflow:hidden; border:2px solid transparent; transition:border 0.2s, box-shadow 0.2s; }
-    .header-search-desktop .search-box:focus-within { border-color:#111111; box-shadow:0 0 0 3px rgba(17,17,17,0.15); }
-    .header-search-desktop .search-box select { border:none; padding:8px 10px 8px 14px; font-size:0.8rem; background:#F7F7F7; color:#555; outline:none; cursor:pointer; border-right:1px solid #eee; font-family:inherit; }
-    .header-search-desktop .search-box input { flex:1; border:none; padding:9px 12px; font-size:0.88rem; outline:none; background:transparent; font-family:inherit; }
-    .header-search-desktop .search-box button { background:#111111; color:#fff; border:none; padding:9px 20px; cursor:pointer; font-weight:600; font-size:0.82rem; transition:background 0.2s; display:flex; align-items:center; gap:6px; }
-    .header-search-desktop .search-box button:hover { background:#111111; }
-    .header-search-mobile { display: none; }
+    .header-search { flex: 1; max-width: 580px; margin: 0 auto; }
+    .header-search .search-box { display:flex; align-items:center; background:#fff; border-radius:8px; overflow:hidden; border:2px solid transparent; transition:border 0.2s, box-shadow 0.2s; }
+    .header-search .search-box:focus-within { border-color:#111111; box-shadow:0 0 0 3px rgba(17,17,17,0.15); }
+    .header-search .search-box select { border:none; padding:8px 10px 8px 14px; font-size:0.8rem; background:#F7F7F7; color:#555; outline:none; cursor:pointer; border-right:1px solid #eee; font-family:inherit; }
+    .header-search .search-box input { flex:1; border:none; padding:9px 12px; font-size:0.88rem; outline:none; background:transparent; font-family:inherit; }
+    .header-search .search-box button { background:#111111; color:#fff; border:none; padding:9px 20px; cursor:pointer; font-weight:600; font-size:0.82rem; transition:background 0.2s; display:flex; align-items:center; gap:6px; }
+    .header-search .search-box button:hover { background:#111111; }
     nav { display: flex; align-items: center; gap: 12px; }
     nav ul { display: flex; list-style: none; gap: 8px; }
     nav ul li a { color: #ddd; font-weight: 500; transition: color 0.3s; font-size: 0.88rem; padding: 6px 12px; border-radius: 6px; }
@@ -447,7 +446,7 @@
     .modal-body { display: grid; grid-template-columns: 45fr 55fr; gap: 0; }
     .modal-images { position: relative; background: #F7F7F7; border-radius: 12px 0 0 12px; overflow: hidden; display: flex; flex-direction: column; }
     .modal-images .main-image { width: 100%; height: 450px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: zoom-in; position: relative; padding: 20px; box-sizing: border-box; }
-    .modal-images .main-image img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.3s; }
+    .modal-images .main-image img { width: 100%; height: 100%; object-fit: contain; transition: transform 0.3s; }
     .modal-images .main-image.zoomed img { transform: scale(2); cursor: zoom-out; }
     .modal-images .main-image .play-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 60px; height: 60px; border-radius: 50%; background: rgba(17,17,17,0.9); color: #fff; border: none; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .modal-images .thumb-row { display: flex; gap: 8px; padding: 10px 20px 16px; overflow-x: auto; justify-content: center; }
@@ -626,11 +625,6 @@
       .header-main { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 0; }
       .logo { font-size: 1.4rem; }
       .header-tagline { display: block; color: #ccc; font-size: 0.78rem; text-align: center; padding: 2px 14px 8px; line-height: 1.4; }
-      .header-search-mobile { display: block; padding: 0 10px 10px; }
-      .header-search-mobile .search-box { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); }
-      .header-search-mobile .search-box input { color: #fff; }
-      .header-search-mobile .search-box input::placeholder { color: rgba(255,255,255,0.5); }
-      .header-search-mobile .search-box button { background: #111111; color: #fff; }
       nav { display: flex; align-items: center; }
       nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: rgba(17,17,17,0.98); padding: 16px; gap: 10px; z-index: 999; }
       nav ul.show { display: flex; }
@@ -751,9 +745,6 @@
       .header-main { padding: 8px 10px 0; }
       .logo { font-size: 1.2rem; }
       .header-tagline { font-size: 0.7rem; padding: 2px 10px 6px; }
-      .header-search-mobile { padding: 0 8px 8px; }
-      .header-search-mobile .search-box input { font-size: 0.82rem; }
-      .header-search-mobile .search-box button { font-size: 0.8rem; padding: 6px 10px; }
       .hamburger { font-size: 1.2rem; }
       .nav-icons { gap: 8px; }
       .nav-icons > * { font-size: 0.95rem; }
@@ -835,7 +826,6 @@
       .header-main { padding: 6px 8px 0; }
       .logo { font-size: 1rem; }
       .header-tagline { font-size: 0.65rem; padding: 2px 8px 4px; }
-      .header-search-mobile { padding: 0 6px 6px; }
       .nav-icons { gap: 5px; }
       .nav-icons > * { font-size: 0.85rem; }
       .hamburger { font-size: 1rem; }
@@ -1127,14 +1117,16 @@
     }
 
     /* ===== IMPROVED HEADER SEARCH ===== */
-    .header-search-desktop { display: flex; align-items: center; flex: 1; max-width: 620px; margin: 0 20px; position: relative; }
-    .header-search-desktop .search-box { max-width: 100%; border-radius: 24px; overflow: hidden; border: 2px solid transparent; background: #fff; display: flex; align-items: center; }
-    .header-search-desktop .search-box:focus-within { border-color: #111111; box-shadow: 0 0 0 3px rgba(17,17,17,0.15); }
-    .header-search-desktop .search-box select { border: none; background: #F7F7F7; padding: 10px 12px; font-size: 0.82rem; color: #333; outline: none; cursor: pointer; font-family: inherit; border-radius: 24px 0 0 24px; min-width: 110px; }
-    .header-search-desktop .search-box input { flex: 1; border: none; padding: 10px 14px; font-size: 0.92rem; outline: none; font-family: inherit; min-width: 0; }
-    .header-search-desktop .search-box button { background: #111111; color: #fff; border: none; padding: 10px 24px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.3s; border-radius: 0 24px 24px 0; white-space: nowrap; }
-    .header-search-desktop .search-box button:hover { background: #111111; }
-    .header-search-desktop .search-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border-radius: 0 0 12px 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 100; display: none; max-height: 400px; overflow-y: auto; margin-top: 4px; }
+    .header-search { display: flex; align-items: center; flex: 1; max-width: 620px; margin: 0 20px; position: relative; }
+    .header-search .search-box { max-width: 100%; border-radius: 24px; overflow: hidden; border: 2px solid transparent; background: #fff; display: flex; align-items: center; }
+    .header-search .search-box:focus-within { border-color: #111111; box-shadow: 0 0 0 3px rgba(17,17,17,0.15); }
+    .header-search .search-box select { border: none; background: #F7F7F7; padding: 10px 12px; font-size: 0.82rem; color: #333; outline: none; cursor: pointer; font-family: inherit; border-radius: 24px 0 0 24px; min-width: 110px; }
+    .header-search .search-box input { flex: 1; border: none; padding: 10px 14px; font-size: 0.92rem; outline: none; font-family: inherit; min-width: 0; }
+    .header-search .search-box button { background: #111111; color: #fff; border: none; padding: 10px 24px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.3s; border-radius: 0 24px 24px 0; white-space: nowrap; }
+    .header-search .search-box button:hover { background: #111111; }
+    .header-search .search-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border-radius: 0 0 12px 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 100; display: none; max-height: 400px; overflow-y: auto; margin-top: 4px; }
+    .header-search .search-suggestions.show { display: block; }
+    .header-search .search-suggestions .suggestion-item.active { background: #F7F7F7; }
 
     /* ===== CATEGORY NAV BAR ===== */
     .category-nav { background: #fff; border-bottom: 1px solid #E5E5E5; position: sticky; top: 0; z-index: 999; transition: all 0.3s; }
@@ -1266,12 +1258,19 @@
 
     /* Responsive additions */
     @media (max-width: 1024px) {
-      .header-search-desktop { max-width: 400px; margin: 0 12px; }
-      .header-search-desktop .search-box select { display: none; }
+      .header-search { max-width: 400px; margin: 0 12px; }
+      .header-search .search-box select { display: none; }
     }
 
     @media (max-width: 768px) {
-      .header-search-desktop { display: none; }
+      .header-main { flex-wrap: wrap; gap: 10px 14px; }
+      .header-search { display: flex; order: 3; flex: 1 0 100%; max-width: 100%; margin: 2px 0 10px; }
+      .header-search .search-box { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+      .header-search .search-box input { color: #fff; font-size: 0.86rem; padding: 9px 10px; }
+      .header-search .search-box input::placeholder { color: rgba(255,255,255,0.55); }
+      .header-search .search-box button { padding: 9px 16px; }
+      .header-search #headerSearchClearBtn { color: rgba(255,255,255,0.7) !important; }
+      .header-search .search-suggestions { max-height: 55vh; border-radius: 0 0 12px 12px; }
       .category-nav { display: none; }
       .slide-menu-trigger { display: block !important; }
       .bottom-nav { display: block; }
@@ -1291,6 +1290,71 @@
     @media (min-width: 769px) {
       .slide-menu-trigger { display: none !important; }
       .slide-menu, .slide-menu-overlay { display: none !important; }
+    }
+
+    /* ===== PRODUCT DETAIL PAGE (MOBILE) ===== */
+    @media (max-width: 768px) {
+      #productModal { padding: 0; align-items: stretch; }
+      #productModal .modal-box {
+        max-width: 100%;
+        max-height: 100vh;
+        max-height: 100dvh;
+        border-radius: 0;
+        transform: none;
+      }
+      #productModal .modal-body {
+        display: block;
+      }
+      #productModal .modal-images {
+        border-radius: 0;
+        background: #F7F7F7;
+      }
+      #productModal .modal-images .main-image {
+        height: 62vw;
+        min-height: 240px;
+        max-height: 400px;
+        padding: 10px;
+      }
+      #productModal .modal-images .thumb-row {
+        justify-content: flex-start;
+        padding: 0 12px 12px;
+        gap: 8px;
+      }
+      #productModal .modal-images .thumb-row .thumb {
+        width: 52px;
+        height: 52px;
+      }
+      #productModal .modal-info {
+        padding: 18px 16px 28px;
+        overflow: visible;
+      }
+      #productModal .modal-info h2 {
+        font-size: 1.15rem;
+      }
+      #productModal .modal-info .price-row .current {
+        font-size: 1.5rem;
+      }
+      #productModal .modal-info .extra-info {
+        grid-template-columns: 1fr;
+      }
+      #productModal .modal-close-btn {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+        background: rgba(255,255,255,0.94);
+        color: #111111;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      }
+      #productModal .recommendations-row {
+        padding: 16px 14px 22px;
+        border-radius: 0;
+      }
+      #productModal .recommendations-row .rec-scroll .rec-item {
+        min-width: 120px;
+        max-width: 120px;
+      }
     }
   </style>
   <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
@@ -1437,7 +1501,7 @@
   <div class="container">
     <div class="header-main">
       <a href="#" class="logo" aria-label="Aryal Store Home">Aryal<span>Store</span></a>
-      <div class="header-search-desktop" id="headerSearchDesktop" role="search">
+      <div class="header-search" id="headerSearch" role="search">
         <div class="search-box">
           <select id="headerCategorySelect" aria-label="Search in category">
             <option value="">All Categories</option>
@@ -1449,8 +1513,8 @@
           <input type="text" id="headerSearchInput" placeholder="Search products..." autocomplete="off" oninput="toggleHeaderSearchClear()" aria-label="Search products">
           <i class="fas fa-times-circle" id="headerSearchClearBtn" style="display:none;cursor:pointer;color:#666666;font-size:1.1rem;padding:0 6px;" onclick="clearHeaderSearch()" role="button" aria-label="Clear search"></i>
           <button onclick="doHeaderSearch()" aria-label="Search"><i class="fas fa-search"></i></button>
-          <div class="search-suggestions" id="headerSearchSuggestions" role="listbox"></div>
         </div>
+        <div class="search-suggestions" id="headerSearchSuggestions" role="listbox"></div>
       </div>
       <nav aria-label="Main navigation">
         <ul id="navMenu">
@@ -1476,13 +1540,6 @@
           <div class="hamburger" id="hamburger" role="button" tabindex="0" aria-label="Menu"><i class="fas fa-bars"></i></div>
         </div>
       </nav>
-    </div>
-    <div class="header-search-mobile" id="headerSearchMobile">
-      <div class="search-box" style="max-width:100%;">
-        <input type="text" id="headerSearchMobileInput" placeholder="Search products..." autocomplete="off" oninput="toggleHeaderSearchClear()" aria-label="Search">
-        <i class="fas fa-times-circle" id="headerSearchClearBtn2" style="display:none;cursor:pointer;color:#666666;font-size:1.1rem;padding:0 6px;" onclick="clearHeaderSearch()" role="button"></i>
-        <button onclick="doHeaderSearch()"><i class="fas fa-search"></i></button>
-      </div>
     </div>
   </div>
 </header>
@@ -1544,22 +1601,22 @@
     <h2 class="section-title">Shop by <span style="color:#111111;">Category</span></h2>
     <div class="cat-preview-grid">
       <div class="cat-preview-card" onclick="filterByCategory('clothes')" role="button" tabindex="0" aria-label="Clothes">
-        <img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&q=80" alt="Clothes" loading="lazy">
+        <img src="picture/clothes.webp" alt="Clothes" loading="lazy">
         <div class="cat-overlay"></div>
         <span class="cat-title">Clothes</span>
       </div>
       <div class="cat-preview-card" onclick="filterByCategory('cosmetics')" role="button" tabindex="0" aria-label="Cosmetics">
-        <img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80" alt="Cosmetics" loading="lazy">
+        <img src="picture/cosmetic.avif" alt="Cosmetics" loading="lazy">
         <div class="cat-overlay"></div>
         <span class="cat-title">Cosmetics</span>
       </div>
       <div class="cat-preview-card" onclick="filterByCategory('stationery')" role="button" tabindex="0" aria-label="Stationery">
-        <img src="https://images.unsplash.com/photo-1531346680769-a1d79b57de5c?w=400&q=80" alt="Stationery" loading="lazy">
+        <img src="picture/stationary.jpg" alt="Stationery" loading="lazy">
         <div class="cat-overlay"></div>
         <span class="cat-title">Stationery</span>
       </div>
       <div class="cat-preview-card" onclick="filterByCategory('cylinder')" role="button" tabindex="0" aria-label="Cylinder">
-        <img src="https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&q=80" alt="Cylinder" loading="lazy">
+        <img src="picture/cylinder.jpg" alt="Cylinder" loading="lazy">
         <div class="cat-overlay"></div>
         <span class="cat-title">Cylinder</span>
       </div>
@@ -1640,14 +1697,6 @@
 <section class="products-section" id="products">
   <div class="container">
     <h2 class="section-title">All Products</h2>
-    <div class="search-wrapper">
-      <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Search products..." autocomplete="off" oninput="toggleSearchClear()">
-        <i class="fas fa-times-circle" id="searchClearBtn" style="display:none;cursor:pointer;color:#666666;font-size:1.1rem;padding:0 6px;" onclick="clearSearch()"></i>
-        <button onclick="doSearch()"><i class="fas fa-search"></i> Search</button>
-      </div>
-      <div class="search-suggestions" id="searchSuggestions"></div>
-    </div>
 
     <div class="controls">
       <div class="left">
@@ -1832,7 +1881,8 @@
     <a href="#home" class="bottom-nav-item active" onclick="closeMobileMenu();">
       <i class="fas fa-home"></i><span>Home</span>
     </a>
-    <button class="bottom-nav-item" onclick="closeMobileMenu();document.getElementById('searchInput')?.focus();">
+    <button class="bottom-nav-item"
+      onclick="closeMobileMenu();window.focusTopSearch();">
       <i class="fas fa-search"></i><span>Search</span>
     </button>
     <button class="bottom-nav-item" id="bnavWishlist" onclick="closeMobileMenu();openWishlist();">
@@ -2581,6 +2631,7 @@ function mapProduct(p) {
 let allProducts = [];
 let cart = []; try { cart = JSON.parse(localStorage.getItem('aryal_cart')) || []; } catch {};
 let currentFilter = 'all';
+let currentSearchQuery = '';
 const CATEGORY_MERGE = { clothes: ['clothes', 'men', 'kids'] };
 function normalizeCategory(slug) {
   const key = String(slug || '').toLowerCase();
@@ -2710,7 +2761,7 @@ function updateFreeShipBar() {
   }
 }
 
-function findProduct(id) { return allProducts.find(p => p.id === id); }
+function findProduct(id) { return allProducts.find(p => String(p.id) === String(id)); }
 
 // Nepali rupee formatting (1,00,000 grouping)
 function formatNpr(value) {
@@ -3162,67 +3213,10 @@ function removeCoupon() {
   toast('Coupon removed', 'info');
 }
 
-function doSearch() {
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  document.getElementById('searchSuggestions').classList.remove('show');
-  loadProducts({ search: q });
-}
-
-function toggleSearchClear() {
-  const val = document.getElementById('searchInput').value;
-  document.getElementById('searchClearBtn').style.display = val ? 'inline' : 'none';
-}
-
-function clearSearch() {
-  document.getElementById('searchInput').value = '';
-  document.getElementById('searchClearBtn').style.display = 'none';
-  document.getElementById('searchSuggestions').classList.remove('show');
-  loadProducts({ search: '' });
-  document.getElementById('searchInput').focus();
-}
-
-// Header search functions are now defined in the enhanced search section
-
-document.getElementById('searchInput').addEventListener('input', async function() {
-  const q = this.value.trim();
-  const suggest = document.getElementById('searchSuggestions');
-  if (q.length < 2) { suggest.classList.remove('show'); return; }
-  try {
-    var res = await fetch('/api/products/search?q=' + encodeURIComponent(q));
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    if (data.length) {
-      const mapped = data.map(mapProduct);
-      suggest.innerHTML = mapped.slice(0, 5).map(p => '<div class="suggestion-item" onclick="selectSuggestion(\'' + p.id + '\')">' +
-        (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#666666;"><i class="fas fa-box"></i></div>') +
-        '<div class="info"><h5>' + p.name + '</h5><p>' + (p.price || '') + '</p></div></div>'
-      ).join('') +
-      '<div class="suggestion-item" style="border-top:1px solid #eee;justify-content:center;color:#111111;font-weight:600;" onclick="doSearch()">View all results <i class="fas fa-arrow-right"></i></div>';
-      suggest.classList.add('show');
-    } else {
-      suggest.innerHTML = '<div class="suggestion-item" style="justify-content:center;color:#666666;">No products found</div>';
-      suggest.classList.add('show');
-    }
-  } catch {
-    try {
-      const data = await supaFetch('products', { name: 'ilike.*' + encodeURIComponent(q) + '*', order: 'name.asc' });
-      if (data.length) {
-        const mapped = data.map(mapProduct);
-        suggest.innerHTML = mapped.slice(0, 5).map(p => '<div class="suggestion-item" onclick="selectSuggestion(\'' + p.id + '\')">' +
-          (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#666666;"><i class="fas fa-box"></i></div>') +
-          '<div class="info"><h5>' + p.name + '</h5><p>' + (p.price || '') + '</p></div></div>'
-        ).join('') +
-        '<div class="suggestion-item" style="border-top:1px solid #eee;justify-content:center;color:#111111;font-weight:600;" onclick="doSearch()">View all results <i class="fas fa-arrow-right"></i></div>';
-        suggest.classList.add('show');
-      } else {
-        suggest.classList.remove('show');
-      }
-    } catch {}
-  }
-});
+// Header search functions are defined in the enhanced search section
 
 async function selectSuggestion(id) {
-  document.getElementById('searchSuggestions').classList.remove('show');
+  hideHeaderSearchSuggestions();
   let p = findProduct(id);
   if (p) { viewProduct(id); return; }
   try {
@@ -3264,6 +3258,9 @@ function clearFilters() {
 }
 
 async function loadProducts(params) {
+  if (params && Object.prototype.hasOwnProperty.call(params, 'search')) {
+    currentSearchQuery = (params.search || '').toLowerCase();
+  }
   try {
     var url = '/api/products?';
     if (currentFilter && currentFilter !== 'all') url += '&category=' + encodeURIComponent(categoryApiValue(currentFilter));
@@ -3330,7 +3327,7 @@ function paintProductPage() {
   var grid = document.getElementById('productGrid');
   var moreBtn = document.getElementById('loadMoreBtn');
   var prods = _pagedSource.slice(0, productPage * PRODUCT_PAGE_SIZE);
-  var sq = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  var sq = (currentSearchQuery || '').trim().toLowerCase();
   grid.innerHTML = prods.map(function(p) {
     var pName = escHtml(p.name);
     if (sq.length >= 2) {
@@ -3396,28 +3393,58 @@ function paintProductPage() {
   if (moreBtn) moreBtn.style.display = (_pagedSource.length > prods.length) ? '' : 'none';
 }
 
-async function viewProduct(id) {
-  const p = findProduct(id);
-  if (!p) return;
+function getProductIdFromUrl() {
   try {
-    const full = await supaSingle('products', { id: 'eq.' + encodeURIComponent(id) });
-    if (full) {
-      const mapped = mapProduct(full);
-      currentModalProduct = mapped;
-      showProductModal(mapped);
-      const rv = JSON.parse(localStorage.getItem('aryal_recently_viewed') || '[]');
-      const upd = [id, ...rv.filter(x => x !== id)].slice(0, 10);
-      localStorage.setItem('aryal_recently_viewed', JSON.stringify(upd));
-      fetch('/api/product-views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-id': getSessionId() }, body: JSON.stringify({ product_id: id }) }).catch(() => {});
-      loadRecommendations(id);
-    } else {
-      currentModalProduct = p;
-      showProductModal(p);
-    }
+    return new URLSearchParams(window.location.search).get('product');
   } catch {
-    currentModalProduct = p;
-    showProductModal(p);
+    return null;
   }
+}
+
+function setProductUrl(id, mode) {
+  try {
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('product', id);
+    else url.searchParams.delete('product');
+    const next = url.pathname + url.search + url.hash;
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    if (next === current) return;
+    history[mode === 'replaceState' ? 'replaceState' : 'pushState']({ product: id || null }, '', next);
+  } catch {}
+}
+
+async function viewProduct(id, options) {
+  let p = findProduct(id);
+
+  if (!p) {
+    try {
+      const res = await fetch('/api/products/' + encodeURIComponent(id));
+      if (res.ok) {
+        const full = await res.json();
+        if (full && full.id != null) p = mapProduct(full);
+      }
+    } catch {}
+  }
+
+  if (!p) {
+    try {
+      const full = await supaSingle('products', { id: 'eq.' + encodeURIComponent(id) });
+      if (full) p = mapProduct(full);
+    } catch {}
+  }
+
+  if (!p) return;
+
+  currentModalProduct = p;
+  showProductModal(p);
+
+  const rv = JSON.parse(localStorage.getItem('aryal_recently_viewed') || '[]');
+  const upd = [id, ...rv.filter(x => x !== id)].slice(0, 10);
+  localStorage.setItem('aryal_recently_viewed', JSON.stringify(upd));
+  fetch('/api/product-views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-id': getSessionId() }, body: JSON.stringify({ product_id: id }) }).catch(() => {});
+  loadRecommendations(id);
+
+  if (!(options && options.fromHistory)) setProductUrl(id, 'pushState');
 }
 
 function showProductModal(p) {
@@ -3515,6 +3542,8 @@ function showProductModal(p) {
     document.getElementById('reviewsList').innerHTML = '<p style="color:#565959;font-size:0.85rem;">No reviews yet. Be the first to review!</p>';
   }
 
+  const productModalBox = document.querySelector('#productModal .modal-box');
+  if (productModalBox) productModalBox.scrollTop = 0;
   document.getElementById('productModal').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -3568,12 +3597,19 @@ function buyNowFromModal() {
   setTimeout(showCheckout, 350);
 }
 
-function closeProductModal() {
+function closeProductModal(fromHistory) {
   document.getElementById('productModal').classList.remove('open');
   document.body.style.overflow = '';
   currentModalProduct = null;
   currentModalImage = '';
+  if (!fromHistory) setProductUrl(null, 'replaceState');
 }
+
+window.addEventListener('popstate', function() {
+  const id = getProductIdFromUrl();
+  if (id) viewProduct(id, { fromHistory: true });
+  else closeProductModal(true);
+});
 
 async function loadRecommendations(id) {
   try {
@@ -3636,7 +3672,7 @@ async function toggleWishlistFromModal() {
 
 function shareProduct() {
   if (!currentModalProduct) return;
-  const url = window.location.origin + '/?product=' + currentModalProduct.id;
+  const url = window.location.origin + '/?product=' + encodeURIComponent(currentModalProduct.id);
   const text = 'Check out ' + currentModalProduct.name + ' at Aryal Store - ' + currentModalProduct.price;
   if (navigator.share) {
     navigator.share({ title: currentModalProduct.name, text: text, url: url }).catch(() => {});
@@ -4142,101 +4178,14 @@ window.addEventListener('scroll', () => {
 
 // Close search suggestions on click outside
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.search-wrapper')) {
-    const sug = document.getElementById('searchSuggestions');
-    if (sug) sug.classList.remove('show');
+  if (!e.target.closest('.header-search')) {
+    hideHeaderSearchSuggestions();
   }
   if (!e.target.closest('.user-menu-btn')) {
     const ud = document.getElementById('userDropdown');
     if (ud) ud.classList.remove('show');
   }
 });
-
-// ==================== ENHANCED SEARCH ====================
-let searchTab = 'suggestions';
-async function doAdvancedSearch() {
-  const q = document.getElementById('searchInput').value.trim();
-  if (!q) return;
-  await fetch('/api/search-history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) }).catch(() => {});
-  document.getElementById('searchSuggestions').classList.remove('show');
-  loadProducts({ search: q });
-}
-
-document.getElementById('searchInput').addEventListener('focus', async function() {
-  await showSearchSuggestions(this.value.trim());
-});
-
-async function showSearchSuggestions(q) {
-  const suggest = document.getElementById('searchSuggestions');
-  suggest.innerHTML = '<div class="search-tabs"><div class="stab active" data-tab="suggestions" onclick="switchSearchTab(\'suggestions\')">Suggestions</div><div class="stab" data-tab="history" onclick="switchSearchTab(\'history\')">History</div><div class="stab" data-tab="trending" onclick="switchSearchTab(\'trending\')">Trending</div></div><div class="search-tab-content active" id="searchTabSuggestions"></div><div class="search-tab-content" id="searchTabHistory"></div><div class="search-tab-content" id="searchTabTrending"></div>';
-  if (q.length >= 2) {
-    try {
-      const res = await fetch('/api/products/search/advanced?q=' + encodeURIComponent(q));
-      const data = await res.json();
-      const mapped = data.map(p => ({ id: p.id, name: p.name, price: p.price, image: p.image, category: p.category }));
-      var c = document.getElementById('searchTabSuggestions');
-      if (mapped.length) {
-        c.innerHTML = mapped.map(function(p) {
-          var hName = p.name;
-          if (q.length >= 2) {
-            var re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
-            hName = p.name.replace(re, '<span class="search-hl">$1</span>');
-          }
-          return '<div class="suggestion-item" onclick="selectSuggestion(\'' + p.id + '\')">' +
-            (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#666666;"><i class="fas fa-box"></i></div>') +
-            '<div class="info"><h5>' + hName + '</h5><p>' + (p.price || '') + '</p></div></div>';
-        }).join('');
-      } else {
-        c.innerHTML = '<div class="notif-empty"><i class="fas fa-search"></i>No suggestions found</div>';
-      }
-    } catch { document.getElementById('searchTabSuggestions').innerHTML = '<div class="notif-empty">No results</div>'; }
-  } else {
-    document.getElementById('searchTabSuggestions').innerHTML = '<div class="notif-empty"><i class="fas fa-search"></i>Type to search...</div>';
-  }
-  loadSearchHistory();
-  loadTrendingSearches();
-  suggest.classList.add('show');
-}
-
-function switchSearchTab(tab) {
-  document.querySelectorAll('.search-tabs .stab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.search-tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelector('.search-tabs .stab[data-tab="' + tab + '"]').classList.add('active');
-  document.getElementById('searchTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-}
-
-async function loadSearchHistory() {
-  try {
-    const res = await fetch('/api/search-history', { headers: { 'x-session-id': SESSION_ID } });
-    const data = await res.json();
-    const c = document.getElementById('searchTabHistory');
-    if (data && data.length) {
-      c.innerHTML = data.map(q => '<div class="search-history-item" onclick="document.getElementById(\'searchInput\').value=\'' + q.replace(/'/g, "\\'") + '\';doAdvancedSearch();"><i class="fas fa-history" style="color:#ccc;"></i> ' + q + '<span class="sh-remove" onclick="event.stopPropagation();removeSearchHistoryItem(\'' + q.replace(/'/g, "\\'") + '\')"><i class="fas fa-times"></i></span></div>').join('');
-    } else {
-      c.innerHTML = '<div class="notif-empty"><i class="fas fa-history"></i>No search history</div>';
-    }
-  } catch { document.getElementById('searchTabHistory').innerHTML = ''; }
-}
-
-async function loadTrendingSearches() {
-  try {
-    const res = await fetch('/api/trending-searches');
-    const data = await res.json();
-    const c = document.getElementById('searchTabTrending');
-    if (data && data.length) {
-      c.innerHTML = data.map((t, i) => '<div class="trending-item" onclick="document.getElementById(\'searchInput\').value=\'' + t.query.replace(/'/g, "\\'") + '\';doAdvancedSearch();"><span class="trend-num ' + (i < 3 ? 'top' : '') + '">' + (i + 1) + '</span> ' + t.query + '</div>').join('');
-    } else {
-      c.innerHTML = '<div class="notif-empty"><i class="fas fa-fire"></i>No trending searches</div>';
-    }
-  } catch { document.getElementById('searchTabTrending').innerHTML = ''; }
-}
-
-async function removeSearchHistoryItem(query) {
-  try {
-    await fetch('/api/search-history', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'x-session-id': SESSION_ID }, body: JSON.stringify({ query }) });
-  } catch {}
-  loadSearchHistory();
-}
 
 // ==================== ENHANCED FILTERING ====================
 function applyAdvancedFilters() {
@@ -4366,8 +4315,6 @@ function filterByCategory(slug) {
 
 function searchByCategory(category) {
   if (!category) return;
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) searchInput.value = 'Category: ' + category;
   filterByCategory(category.toLowerCase());
 }
 
@@ -4999,7 +4946,7 @@ async function loadWishlistPanel() {
     const items = await res.json();
     if (!items || !items.length) { container.innerHTML = '<p style="color:#666666;">Your wishlist is empty.</p>'; return; }
     container.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;">' +
-      items.map(p => '<div style="border:1px solid #eee;border-radius:8px;padding:10px;text-align:center;cursor:pointer;" onclick="closeProfileSection();showProductDetail(\'' + p.id + '\')">' +
+      items.map(p => '<div style="border:1px solid #eee;border-radius:8px;padding:10px;text-align:center;cursor:pointer;" onclick="closeProfileSection();viewProduct(\'' + p.id + '\')">' +
       (p.image ? '<img src="' + p.image + '" style="width:100%;height:100px;object-fit:contain;margin-bottom:6px;" loading="lazy">' : '<div style="height:100px;background:#F7F7F7;border-radius:4px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fas fa-box" style="font-size:2rem;"></i></div>') +
       '<p style="font-size:0.78rem;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (p.name || '') + '</p>' +
       '<p style="font-size:0.82rem;font-weight:700;color:#111111;">' + (p.price || '') + '</p></div>').join('') + '</div>';
@@ -5421,8 +5368,8 @@ openReviewModal = function() {
 
 // Update viewProduct to store review IDs in the DOM
 const originalViewProduct = viewProduct;
-viewProduct = function(id) {
-  originalViewProduct(id);
+viewProduct = function(id, options) {
+  originalViewProduct(id, options);
   // Store review IDs for edit/delete
   setTimeout(() => {
     const reviewItemEls = document.querySelectorAll('#reviewsList .review-item');
@@ -5556,103 +5503,207 @@ window.addEventListener('scroll', function() {
 });
 
 // ==================== HEADER SEARCH ENHANCEMENT ====================
+var headerSuggestAbort = null;
+
+function hideHeaderSearchSuggestions() {
+  var el = document.getElementById('headerSearchSuggestions');
+  if (el) {
+    el.classList.remove('show');
+    el.innerHTML = '';
+  }
+  if (headerSuggestAbort) {
+    headerSuggestAbort.abort();
+    headerSuggestAbort = null;
+  }
+}
+
+function headerSuggestionMatches(p, q, cat) {
+  if (!p) return false;
+  if (cat && normalizeCategory(p.category) !== normalizeCategory(cat)) return false;
+  var haystack = [p.name, p.category, p.brand, p.desc].join(' ').toLowerCase();
+  return haystack.indexOf(q) !== -1;
+}
+
+function getLocalHeaderSuggestions(q, cat) {
+  var needle = String(q || '').toLowerCase();
+  if (!needle || !Array.isArray(allProducts)) return [];
+  return allProducts.filter(function(p) {
+    return headerSuggestionMatches(p, needle, cat);
+  }).slice(0, 6);
+}
+
+function highlightSuggestionName(name, q) {
+  var safe = escHtml(name || '');
+  if (!q) return safe;
+  try {
+    var re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    return safe.replace(re, '<span class="search-hl">$1</span>');
+  } catch (e) { return safe; }
+}
+
+function renderHeaderSearchSuggestions(suggest, data, q) {
+  if (!suggest) return;
+  var mapped = (data || []).slice(0, 6).map(function(p) {
+    return p && p.price_num !== undefined ? p : mapProduct(p);
+  });
+  if (!mapped.length) {
+    suggest.innerHTML = '<div class="suggestion-item" style="justify-content:center;color:#666666;">No products found</div>';
+    suggest.classList.add('show');
+    return;
+  }
+  suggest.innerHTML = mapped.map(function(p) {
+    return '<div class="suggestion-item" data-product-id="' + p.id + '" onclick="selectSuggestion(\'' + p.id + '\')">' +
+      (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy" alt="">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#666666;"><i class="fas fa-box"></i></div>') +
+      '<div class="info"><h5>' + highlightSuggestionName(p.name, q) + '</h5><p>' + escHtml(p.price || '') + '</p></div></div>';
+  }).join('') +
+  '<div class="suggestion-item" style="border-top:1px solid #eee;justify-content:center;color:#111111;font-weight:600;" onclick="doHeaderSearch()">View all results <i class="fas fa-arrow-right"></i></div>';
+  suggest.classList.add('show');
+}
+
+function showHeaderSearchStatus(suggest, text) {
+  if (!suggest) return;
+  suggest.innerHTML = '<div class="suggestion-item" style="justify-content:center;color:#666666;"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>' + escHtml(text) + '</div>';
+  suggest.classList.add('show');
+}
+
+async function fetchHeaderSearchResults(input, suggest, categorySelect, q, cat, local) {
+  if (!input || !suggest) return;
+  if (headerSuggestAbort) headerSuggestAbort.abort();
+  var controller = new AbortController();
+  headerSuggestAbort = controller;
+  try {
+    var url = '/api/products/search?q=' + encodeURIComponent(q);
+    var res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error('Search failed');
+    var data = await res.json();
+    if (input.value.trim() !== q) return;
+    if (cat) data = (data || []).filter(function(p) { return normalizeCategory(p.category) === normalizeCategory(cat); });
+    if ((!data || !data.length) && local && local.length) return;
+    renderHeaderSearchSuggestions(suggest, data || [], q);
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    if (input.value.trim() !== q) return;
+    if (local && local.length) return;
+    try {
+      var filters = { name: 'ilike.*' + encodeURIComponent(q) + '*', order: 'name.asc', limit: 10 };
+      if (cat) filters.category = categoryFilterValue(cat);
+      var fallback = await supaFetch('products', filters);
+      if (input.value.trim() !== q) return;
+      renderHeaderSearchSuggestions(suggest, fallback || [], q);
+    } catch (e2) {
+      if (input.value.trim() === q) renderHeaderSearchSuggestions(suggest, [], q);
+    }
+  } finally {
+    if (headerSuggestAbort === controller) headerSuggestAbort = null;
+  }
+}
+
+function updateHeaderSearchSuggestions(input, suggest, categorySelect) {
+  if (!input || !suggest) return;
+  var q = input.value.trim();
+  if (!q) { hideHeaderSearchSuggestions(); return; }
+  var cat = categorySelect ? categorySelect.value : '';
+  var local = getLocalHeaderSuggestions(q, cat);
+  if (local.length) renderHeaderSearchSuggestions(suggest, local, q);
+  else showHeaderSearchStatus(suggest, 'Searching...');
+  fetchHeaderSearchResults(input, suggest, categorySelect, q, cat, local);
+}
+
+function bindHeaderSearchInput(input, suggest, categorySelect) {
+  if (!input || !suggest) return;
+  var timer = null;
+  input.addEventListener('input', function() {
+    toggleHeaderSearchClear();
+    var q = input.value.trim();
+    clearTimeout(timer);
+    if (!q) { hideHeaderSearchSuggestions(); return; }
+    var cat = categorySelect ? categorySelect.value : '';
+    var local = getLocalHeaderSuggestions(q, cat);
+    if (local.length) renderHeaderSearchSuggestions(suggest, local, q);
+    else showHeaderSearchStatus(suggest, 'Searching...');
+    timer = setTimeout(function() {
+      fetchHeaderSearchResults(input, suggest, categorySelect, q, cat, local);
+    }, 120);
+  });
+  input.addEventListener('keydown', function(e) {
+    var items = Array.prototype.slice.call(suggest.querySelectorAll('.suggestion-item[data-product-id]'));
+    if (e.key === 'Escape') {
+      hideHeaderSearchSuggestions();
+      input.blur();
+      return;
+    }
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && suggest.classList.contains('show')) {
+      if (!items.length) return;
+      e.preventDefault();
+      var current = -1;
+      items.forEach(function(el, i) { if (el.classList.contains('active')) current = i; });
+      var next = e.key === 'ArrowDown' ? (current + 1) % items.length : (current <= 0 ? items.length - 1 : current - 1);
+      items.forEach(function(el) { el.classList.remove('active'); });
+      items[next].classList.add('active');
+      items[next].scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var active = suggest.querySelector('.suggestion-item.active[data-product-id]') || items[0];
+      if (active) { active.click(); return; }
+      doHeaderSearch();
+    }
+  });
+  input.addEventListener('focus', function() {
+    if (input.value.trim()) updateHeaderSearchSuggestions(input, suggest, categorySelect);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-  const desktopSearchInput = document.getElementById('headerSearchInput');
-  if (desktopSearchInput) {
-    desktopSearchInput.addEventListener('input', async function() {
-      const q = this.value.trim();
-      const suggest = document.getElementById('headerSearchSuggestions');
-      if (!suggest) return;
-      if (q.length < 2) { suggest.classList.remove('show'); return; }
-      try {
-        const cat = document.getElementById('headerCategorySelect')?.value || '';
-        let url = '/api/products/search?q=' + encodeURIComponent(q);
-        if (cat) url += '&category=' + encodeURIComponent(cat);
-        var res = await fetch(url);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        if (data.length) {
-          const mapped = data.slice(0, 6).map(mapProduct);
-          suggest.innerHTML = mapped.map(function(p) {
-            return '<div class="suggestion-item" onclick="selectSuggestion(\'' + p.id + '\')">' +
-              (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#666666;"><i class="fas fa-box"></i></div>') +
-              '<div class="info"><h5>' + p.name + '</h5><p>' + (p.price || '') + '</p></div></div>';
-          }).join('') +
-          '<div class="suggestion-item" style="border-top:1px solid #eee;justify-content:center;color:#111111;font-weight:600;" onclick="doHeaderSearch()">View all results <i class="fas fa-arrow-right"></i></div>';
-          suggest.classList.add('show');
-        } else {
-          suggest.innerHTML = '<div class="suggestion-item" style="justify-content:center;color:#666666;">No products found</div>';
-          suggest.classList.add('show');
-        }
-      } catch(e) {
-        // Fallback: direct Supabase
-        try {
-          const cat = document.getElementById('headerCategorySelect')?.value || '';
-          let filters = { name: 'ilike.*' + encodeURIComponent(q) + '*', order: 'name.asc' };
-          if (cat) filters.category = categoryFilterValue(cat);
-          const data = await supaFetch('products', filters);
-          if (data.length) {
-            const mapped = data.slice(0, 6).map(mapProduct);
-            suggest.innerHTML = mapped.map(function(p) {
-              return '<div class="suggestion-item" onclick="selectSuggestion(\'' + p.id + '\')">' +
-                (p.image ? '<img src="' + imgUrl(p.image) + '" loading="lazy">' : '<div style="width:40px;height:40px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#666666;"><i class="fas fa-box"></i></div>') +
-                '<div class="info"><h5>' + p.name + '</h5><p>' + (p.price || '') + '</p></div></div>';
-            }).join('') +
-            '<div class="suggestion-item" style="border-top:1px solid #eee;justify-content:center;color:#111111;font-weight:600;" onclick="doHeaderSearch()">View all results <i class="fas fa-arrow-right"></i></div>';
-            suggest.classList.add('show');
-          } else {
-            suggest.innerHTML = '<div class="suggestion-item" style="justify-content:center;color:#666666;">No products found</div>';
-            suggest.classList.add('show');
-          }
-        } catch(e2) { suggest.classList.remove('show'); }
-      }
-    });
-    desktopSearchInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const suggest = document.getElementById('headerSearchSuggestions');
-        if (suggest && suggest.classList.contains('show')) {
-          const first = suggest.querySelector('.suggestion-item');
-          if (first) { first.click(); return; }
-        }
-        doHeaderSearch();
-      }
+  var input = document.getElementById('headerSearchInput');
+  var suggest = document.getElementById('headerSearchSuggestions');
+  var categorySelect = document.getElementById('headerCategorySelect');
+  bindHeaderSearchInput(input, suggest, categorySelect);
+  if (categorySelect) {
+    categorySelect.addEventListener('change', function() {
+      if (input && input.value.trim()) updateHeaderSearchSuggestions(input, suggest, categorySelect);
+      else hideHeaderSearchSuggestions();
     });
   }
 });
 
-// Override doHeaderSearch to use the correct input
+window.focusTopSearch = function() {
+  var input = document.getElementById('headerSearchInput');
+  if (input) input.focus();
+};
+
 function doHeaderSearch() {
-  const desktopInput = document.getElementById('headerSearchInput');
-  const mobileInput = document.getElementById('headerSearchMobileInput');
-  const q = (desktopInput ? desktopInput.value.trim() : '') || (mobileInput ? mobileInput.value.trim() : '');
-  const suggest = document.getElementById('headerSearchSuggestions');
-  if (suggest) suggest.classList.remove('show');
+  var input = document.getElementById('headerSearchInput');
+  var q = (input ? input.value : '').trim();
+  hideHeaderSearchSuggestions();
   if (q) {
     loadProducts({ search: q.toLowerCase() });
-    document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+    var products = document.getElementById('products');
+    if (products) products.scrollIntoView({ behavior: 'smooth' });
+    fetch('/api/search-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-id': SESSION_ID },
+      body: JSON.stringify({ query: q })
+    }).catch(function() {});
   }
-  if (desktopInput) desktopInput.blur();
-  if (mobileInput) mobileInput.blur();
+  if (input) input.blur();
 }
 
 function toggleHeaderSearchClear() {
-  const desktopInput = document.getElementById('headerSearchInput');
-  const mobileInput = document.getElementById('headerSearchMobileInput');
-  const val = (desktopInput ? desktopInput.value : '') || (mobileInput ? mobileInput.value : '');
-  const clearBtn = document.getElementById('headerSearchClearBtn');
-  if (clearBtn) clearBtn.style.display = val ? 'inline' : 'none';
+  var input = document.getElementById('headerSearchInput');
+  var clearBtn = document.getElementById('headerSearchClearBtn');
+  if (clearBtn) clearBtn.style.display = input && input.value ? 'inline' : 'none';
 }
 
 function clearHeaderSearch() {
-  const desktopInput = document.getElementById('headerSearchInput');
-  const mobileInput = document.getElementById('headerSearchMobileInput');
-  if (desktopInput) desktopInput.value = '';
-  if (mobileInput) mobileInput.value = '';
-  const clearBtn = document.getElementById('headerSearchClearBtn');
-  if (clearBtn) clearBtn.style.display = 'none';
-  const suggest = document.getElementById('headerSearchSuggestions');
-  if (suggest) suggest.classList.remove('show');
+  var input = document.getElementById('headerSearchInput');
+  if (input) input.value = '';
+  toggleHeaderSearchClear();
+  hideHeaderSearchSuggestions();
+  currentSearchQuery = '';
+  loadProducts({ search: '' });
+  if (input) input.focus();
 }
 
 // ==================== SKELETON LOADING ====================
@@ -5673,36 +5724,6 @@ document.addEventListener('DOMContentLoaded', function() {
       this.classList.add('active');
     });
   });
-  // Mobile search enter key
-  const mobileSearch = document.getElementById('headerSearchMobileInput');
-  if (mobileSearch) {
-    mobileSearch.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const suggest = document.getElementById('headerSearchSuggestions');
-        if (suggest && suggest.classList.contains('show')) {
-          const first = suggest.querySelector('.suggestion-item');
-          if (first) { first.click(); return; }
-        }
-        doHeaderSearch();
-      }
-    });
-  }
-  // Products section search enter key
-  const sectionSearch = document.getElementById('searchInput');
-  if (sectionSearch) {
-    sectionSearch.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const suggest = document.getElementById('searchSuggestions');
-        if (suggest && suggest.classList.contains('show')) {
-          const first = suggest.querySelector('.suggestion-item');
-          if (first) { first.click(); return; }
-        }
-        doSearch();
-      }
-    });
-  }
 });
 
 // ==================== CAROUSEL ====================
@@ -5842,6 +5863,12 @@ function initCarousel() {
   }
 
   await fetches;
+
+  // Open the product detail page when the URL contains ?product=<id>
+  const deepLinkProductId = getProductIdFromUrl();
+  if (deepLinkProductId) {
+    viewProduct(deepLinkProductId, { fromHistory: true });
+  }
 
   // Initialize Google Sign-In buttons
   window._googleInitialized = false;

@@ -165,6 +165,40 @@ function getSessionId(req) {
   return req.headers['x-session-id'] || 'anonymous_' + req.ip;
 }
 
+function isAdminRequest(req) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return false;
+  try {
+    const user = jwt.verify(header.split(' ')[1], JWT_SECRET);
+    return !!(user && user.role === 'admin');
+  } catch {
+    return false;
+  }
+}
+
+function stripProductCost(value) {
+  if (Array.isArray(value)) return value.map(stripProductCost);
+  if (value && typeof value === 'object') {
+    const copy = {};
+    for (const key in value) {
+      if (key === 'cost_price') continue;
+      copy[key] = stripProductCost(value[key]);
+    }
+    return copy;
+  }
+  return value;
+}
+
+// Cost prices are admin-only. Public product responses never include them.
+app.use(['/api/products', '/api/recommendations'], function(req, res, next) {
+  if (req.method !== 'GET' || isAdminRequest(req)) return next();
+  const sendJson = res.json.bind(res);
+  res.json = function(body) {
+    return sendJson(stripProductCost(body));
+  };
+  next();
+});
+
 const UNKNOWN_COLUMN_RE = /column\s+(?:\w+\.)?(\w+)\s+does not exist|could not find the '([^']+)' column of/i;
 
 function unknownColumnOf(msg) {
@@ -653,14 +687,17 @@ app.get('/api/products/:id', async (req, res) => {
 
 app.post('/api/products', adminMiddleware, async (req, res) => {
   try {
-    const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
+    const { name, category, subcategory, description, desc, price, cost_price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
     if (!name || !category) return res.status(400).json({ error: 'Name and category are required' });
     const imageList = parseImageList(images);
     const primaryImage = image_url || image || imageList[0] || '';
     const { data, error } = await supabaseInsert('products', {
       name, category, subcategory: subcategory || '',
-      description: description || desc || '', price: price || '',
-      compare_price: compare_price || '', icon: icon || 'fas fa-box',
+      description: description || desc || '',
+      price: price !== undefined && price !== null && price !== '' ? price : 0,
+      cost_price: cost_price !== undefined && cost_price !== null && cost_price !== '' ? cost_price : 0,
+      compare_price: compare_price !== undefined && compare_price !== null && compare_price !== '' ? compare_price : 0,
+      icon: icon || 'fas fa-box',
       gradient: gradient || 'linear-gradient(135deg, #e94560, #d63851)',
       image_url: primaryImage, images: imageList, video_url: video_url || '',
       sizes: sizes || '', colors: colors || '', material: material || '',
@@ -679,9 +716,9 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
 
 app.put('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
-    const { name, category, subcategory, description, desc, price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
+    const { name, category, subcategory, description, desc, price, cost_price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
     const updateData = {
-      name, category, subcategory, price, compare_price, icon, gradient,
+      name, category, subcategory, price, cost_price, compare_price, icon, gradient,
       video_url, sizes, colors, material, care_instructions,
       fit_info, brand, sku, status,
       is_featured: is_featured ? 1 : 0, is_new: is_new ? 1 : 0,
@@ -1334,6 +1371,7 @@ async function createOrderFromRequest(input) {
       const wa = orderWorkflow.buildWhatsAppUrl(settings.whatsapp_number || settings.store_phone, orderWorkflow.notificationMessage('request_received', order));
       if (wa) console.log('Order request WhatsApp link:', wa);
       sendOrderEmail(order, orderItems, settings);
+      sendOrderWhatsApp(order, orderItems, settings);
     }
   } catch (e) {}
 
@@ -2858,6 +2896,7 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
 
     const { data: allOrders } = await from('orders').select('total_amount, status, created_at');
     const nonCancelled = (allOrders || []).filter(function(o) { return o.status !== 'cancelled' && o.status !== 'CANCELLED' && o.status !== 'REFUNDED' && o.status !== 'REFUND_PENDING'; });
+    const nonCancelledOrderIds = new Set(nonCancelled.map(function(o) { return String(o.id); }));
     const totalRevenue = nonCancelled.reduce(function(sum, o) {
       return sum + (parseFloat(String(o.total_amount || '0').replace(/[^0-9.]/g, '')) || 0);
     }, 0);
@@ -2887,10 +2926,25 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
     const { data: lowStock } = await supabase.from('products').select('id, name, stock').eq('status', 'active').lt('stock', 10).order('stock').limit(10);
     const lowStockCount = (lowStock || []).length;
 
-    const { data: allOrderItems } = await from('order_items').select('product_id, quantity, unit_price');
-    const { data: allProducts } = await supabase.from('products').select('id, category');
+    const { data: allOrderItems } = await from('order_items').select('order_id, product_id, quantity, unit_price');
+    const { data: allProducts } = await supabase.from('products').select('id, category, cost_price');
     const prodCategory = {};
-    if (allProducts) allProducts.forEach(function(p) { prodCategory[p.id] = p.category; });
+    const prodCost = {};
+    if (allProducts) allProducts.forEach(function(p) {
+      prodCategory[p.id] = p.category;
+      prodCost[String(p.id)] = parseFloat(String(p.cost_price || '0').replace(/[^0-9.]/g, '')) || 0;
+    });
+    let productRevenue = 0;
+    let totalCost = 0;
+    for (const oi of allOrderItems || []) {
+      if (!nonCancelledOrderIds.has(String(oi.order_id))) continue;
+      const qty = Number(oi.quantity) || 0;
+      const unitPrice = parseFloat(String(oi.unit_price || '0').replace(/[^0-9.]/g, '')) || 0;
+      productRevenue += unitPrice * qty;
+      totalCost += (prodCost[String(oi.product_id)] || 0) * qty;
+    }
+    const grossProfit = productRevenue - totalCost;
+    const grossMargin = productRevenue > 0 ? (grossProfit / productRevenue) * 100 : 0;
     const catStats = {};
     for (const oi of allOrderItems || []) {
       const cat = prodCategory[oi.product_id] || 'unknown';
@@ -2921,6 +2975,10 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
       todayOrders: todayOrders || 0,
       totalRevenue,
       todayRevenue,
+      productRevenue,
+      totalCost,
+      grossProfit,
+      grossMargin,
       totalProducts: totalProducts || 0,
       totalCustomers: totalCustomers || 0,
       totalSubscribers: totalSubscribers || 0,
@@ -3340,6 +3398,7 @@ app.post('/api/products/bulk-import', adminMiddleware, async (req, res) => {
         subcategory: (r.subcategory || '').toString().trim(),
         description: (r.description || '').toString().trim(),
         price: normalizedPrice,
+        cost_price: r.cost_price !== undefined && r.cost_price !== null && r.cost_price !== '' ? (parseFloat(String(r.cost_price).replace(/[^0-9.]/g, '')) || 0) : 0,
         compare_price: parseNPR(compare),
         image_url: (r.image_url || r.image || '').toString().trim(),
         brand: (r.brand || '').toString().trim(),
@@ -3392,6 +3451,7 @@ app.post('/api/products/bulk-import-csv', adminMiddleware, async (req, res) => {
         subcategory: o.subcategory || '',
         description: o.description || o.desc || '',
         price: o.price,
+        cost_price: o.cost_price || o.costprice || '',
         compare_price: o.compare_price || o.compareprice || '',
         image_url: o.image_url || o.image || '',
         brand: o.brand || '',
@@ -3476,6 +3536,7 @@ async function importProductsIntoResponse(res, products) {
       subcategory: (r.subcategory || '').toString().trim(),
       description: (r.description || '').toString().trim(),
       price: normalizedPrice,
+      cost_price: r.cost_price !== undefined && r.cost_price !== null && r.cost_price !== '' ? (parseFloat(String(r.cost_price).replace(/[^0-9.]/g, '')) || 0) : 0,
       compare_price: parseNPR(r.compare_price),
       image_url: (r.image_url || '').toString().trim(),
       brand: (r.brand || '').toString().trim(),

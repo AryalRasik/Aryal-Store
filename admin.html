@@ -144,6 +144,7 @@
     <h2>Admin <span>Dashboard</span></h2>
     <div class="admin-info">
       <span>Logged in as Admin</span>
+      <button class="logout-btn" id="alertEnableBtn" onclick="enableOrderAlerts()"><i class="fas fa-bell"></i> Enable alerts</button>
       <button class="logout-btn" onclick="handleLogout()">Logout</button>
     </div>
   </div>
@@ -211,9 +212,21 @@
             </div>
           </div>
           <div class="form-row-3">
-            <div class="form-group"><label>Price (Rs.)</label><input type="text" id="prodPrice" placeholder="e.g. 899"></div>
+            <div class="form-group"><label>Price (Rs.)</label><input type="text" id="prodPrice" placeholder="e.g. 899" oninput="updateProductProfitPreview()"></div>
             <div class="form-group"><label>Compare Price</label><input type="text" id="prodCompare" placeholder="Original price"></div>
             <div class="form-group"><label>Stock</label><input type="number" id="prodStock" value="100"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cost Price (Rs.) *</label>
+              <input type="number" id="prodCost" min="0" step="0.01" placeholder="e.g. 500" oninput="updateProductProfitPreview()">
+              <div class="tag-hint">Private admin cost. This is never shown to customers.</div>
+            </div>
+            <div class="form-group">
+              <label>Profit per Unit</label>
+              <input type="text" id="prodProfitPreview" readonly style="background:#f7f7f7;font-weight:700;">
+              <div class="tag-hint" id="prodProfitHint">Enter selling and cost prices to see profit.</div>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group"><label>Brand</label><input type="text" id="prodBrand"></div>
@@ -266,7 +279,7 @@
         </div>
         <div class="card">
           <h4><i class="fas fa-file-import"></i> Bulk Import Products (CSV)</h4>
-          <p style="color:#888;font-size:0.82rem;margin-bottom:12px;">Upload a CSV file with columns: <code>name, category, price, compare_price, image_url, stock, brand, sizes, colors, material, description, subcategory, care_instructions, fit_info, is_featured, is_new, is_best_seller, is_trending</code>. Category must be one of: clothes, men, women, kids, accessories, stationery, cosmetics, cylinder, shoes. Price should be a number (e.g. 899).</p>
+          <p style="color:#888;font-size:0.82rem;margin-bottom:12px;">Upload a CSV file with columns: <code>name, category, price, cost_price, compare_price, image_url, stock, brand, sizes, colors, material, description, subcategory, care_instructions, fit_info, is_featured, is_new, is_best_seller, is_trending</code>. Category must be one of: clothes, men, women, kids, accessories, stationery, cosmetics, cylinder, shoes. Price and cost price should be numbers (e.g. 899 and 450). Cost price is private and never shown to customers.</p>
           <div class="btn-group">
             <button class="btn btn-outline" style="background:#fff;border:2px solid #e94560;color:#e94560;" onclick="downloadTemplate()"><i class="fas fa-download"></i> Download Template</button>
             <label class="btn btn-primary" style="cursor:pointer;"><i class="fas fa-upload"></i> Choose CSV <input type="file" id="bulkCsvFile" accept=".csv,text/csv" style="display:none;" onchange="handleBulkFile(this)"></label>
@@ -452,6 +465,14 @@ let currentOrderFilter = 'all';
 let prodImageUrls = [];
 let prodPendingFiles = [];
 let prodPreviewObjectUrls = [];
+let knownOrderIds = new Set();
+let alertedOrderIds = new Set();
+let ordersInitialized = false;
+let orderPollTimer = null;
+let unseenOrders = 0;
+let alertAudioCtx = null;
+const ORDER_POLL_MS = 15000;
+const ORDER_ALERTS_KEY = 'aryal_order_alerts';
 
 function getAdminToken() { return localStorage.getItem(ADMIN_TOKEN_KEY); }
 function saveAdminToken(t) { localStorage.setItem(ADMIN_TOKEN_KEY, t); }
@@ -479,6 +500,176 @@ function escape(t) {
   d.textContent = t;
   return d.innerHTML;
 }
+
+function orderAlertsEnabled() {
+  return localStorage.getItem(ORDER_ALERTS_KEY) === '1';
+}
+
+function updateAlertButton() {
+  const btn = document.getElementById('alertEnableBtn');
+  if (!btn) return;
+  const on = orderAlertsEnabled();
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+  if (!on) {
+    btn.innerHTML = '<i class="fas fa-bell"></i> Enable alerts';
+    btn.style.background = 'transparent';
+    btn.style.color = '#e94560';
+  } else if (canNotify) {
+    btn.innerHTML = '<i class="fas fa-bell"></i> Alerts on';
+    btn.style.background = '#27ae60';
+    btn.style.borderColor = '#27ae60';
+    btn.style.color = '#fff';
+  } else {
+    btn.innerHTML = '<i class="fas fa-bell"></i> Tab alerts on';
+    btn.style.background = '#f39c12';
+    btn.style.borderColor = '#f39c12';
+    btn.style.color = '#fff';
+  }
+}
+
+function playOrderAlertSound() {
+  if (!orderAlertsEnabled()) return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!alertAudioCtx) alertAudioCtx = new Ctx();
+    if (alertAudioCtx.state === 'suspended') alertAudioCtx.resume();
+    [0, 0.22].forEach(function(delay, index) {
+      const osc = alertAudioCtx.createOscillator();
+      const gain = alertAudioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = index ? 1046 : 880;
+      const start = alertAudioCtx.currentTime + delay;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.25, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
+      osc.connect(gain);
+      gain.connect(alertAudioCtx.destination);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
+  } catch (e) {}
+}
+
+async function enableOrderAlerts() {
+  localStorage.setItem(ORDER_ALERTS_KEY, '1');
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx && !alertAudioCtx) alertAudioCtx = new Ctx();
+    if (alertAudioCtx && alertAudioCtx.state === 'suspended') await alertAudioCtx.resume();
+  } catch (e) {}
+  if ('Notification' in window) {
+    try {
+      if (Notification.permission === 'default') await Notification.requestPermission();
+    } catch (e) {}
+  }
+  updateAlertButton();
+  playOrderAlertSound();
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+  showMsg(canNotify ? 'Order alerts enabled. You will get sound and desktop notifications.' : 'Order alerts enabled. Sound and in-tab alerts are active.', 'success');
+}
+
+function updateOrderBadge() {
+  const badge = document.getElementById('orderBadge');
+  if (!badge) return;
+  if (unseenOrders > 0) {
+    badge.textContent = unseenOrders;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function openOrdersTab() {
+  const nav = document.querySelector('.nav-item[data-tab="orders"]');
+  if (nav) nav.click();
+}
+
+function alertNewOrder(order) {
+  const id = String(order.id);
+  if (alertedOrderIds.has(id)) return;
+  alertedOrderIds.add(id);
+  const code = order.order_code || '#' + id.slice(0, 8);
+  const amount = order.total_amount != null ? 'Rs. ' + (Number(String(order.total_amount).replace(/[^0-9.]/g, '')) || 0).toLocaleString() : '';
+  const title = 'New order ' + code;
+  const body = (order.customer_name || 'Customer') + (amount ? ' • ' + amount : '') + (order.customer_phone ? ' • ' + order.customer_phone : '');
+  playOrderAlertSound();
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      const notification = new Notification(title, { body: body, tag: 'order-' + id, requireInteraction: true });
+      notification.onclick = function() {
+        window.focus();
+        openOrdersTab();
+        notification.close();
+      };
+    } catch (e) {}
+  }
+  showMsg(title + ' — ' + body, 'success');
+  if (document.querySelector('#tab-analytics.active')) {
+    loadAnalytics();
+  }
+}
+
+function handleOrderSnapshot(orders) {
+  const list = Array.isArray(orders) ? orders : [];
+  const ids = new Set(list.map(function(o) { return String(o.id); }));
+  if (!ordersInitialized) {
+    knownOrderIds = ids;
+    ordersInitialized = true;
+    updateOrderBadge();
+    return;
+  }
+  const fresh = list.filter(function(o) {
+    const id = String(o.id);
+    if (knownOrderIds.has(id) || alertedOrderIds.has(id)) return false;
+    const status = String(o.status || '').toUpperCase();
+    return !status || status === 'REQUESTED' || status === 'PENDING' || status === 'NEW';
+  });
+  if (fresh.length) {
+    fresh.slice().reverse().forEach(alertNewOrder);
+    if (!document.querySelector('#tab-orders.active')) unseenOrders += fresh.length;
+    updateOrderBadge();
+  }
+  knownOrderIds = ids;
+}
+
+async function pollNewOrders() {
+  if (!getAdminToken()) return;
+  try {
+    const orders = await api('/orders');
+    allOrders = orders;
+    handleOrderSnapshot(orders);
+    if (document.querySelector('#tab-orders.active')) renderFilteredOrders();
+  } catch (e) {}
+}
+
+function startOrderPolling() {
+  if (orderPollTimer) return;
+  orderPollTimer = setInterval(pollNewOrders, ORDER_POLL_MS);
+}
+
+function stopOrderPolling() {
+  if (orderPollTimer) {
+    clearInterval(orderPollTimer);
+    orderPollTimer = null;
+  }
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && getAdminToken()) pollNewOrders();
+});
+window.addEventListener('focus', function() {
+  if (getAdminToken()) pollNewOrders();
+});
+document.addEventListener('click', function() {
+  if (!orderAlertsEnabled()) return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx && !alertAudioCtx) alertAudioCtx = new Ctx();
+    if (alertAudioCtx && alertAudioCtx.state === 'suspended') alertAudioCtx.resume();
+  } catch (e) {}
+});
+updateAlertButton();
 
 // Backend API call with JWT auth
 async function api(url, opts = {}) {
@@ -629,6 +820,7 @@ async function handleLogin() {
 document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
 
 function showLoginPage() {
+  stopOrderPolling();
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loginPassword').value = '';
@@ -637,6 +829,12 @@ function showLoginPage() {
 
 function handleLogout() {
   clearAdminToken();
+  stopOrderPolling();
+  ordersInitialized = false;
+  knownOrderIds = new Set();
+  alertedOrderIds = new Set();
+  unseenOrders = 0;
+  updateOrderBadge();
   showLoginPage();
 }
 
@@ -648,6 +846,11 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('tab-' + item.dataset.tab).classList.add('active');
     const fns = { analytics: loadAnalytics, hero: loadHero, about: loadAbout, categories: loadCategories, testimonials: loadTestimonials, contact: loadContact, reviews: loadReviews, returns: loadReturns, coupons: loadCoupons };
     if (fns[item.dataset.tab]) fns[item.dataset.tab]();
+    if (item.dataset.tab === 'orders') {
+      unseenOrders = 0;
+      updateOrderBadge();
+      renderFilteredOrders();
+    }
   });
 });
 
@@ -690,7 +893,12 @@ if (location.search.includes('reset=')) {
 })();
 
 async function loadAllTabs() {
-  await Promise.all([loadHero(), loadAbout(), loadProducts(), loadTestimonials(), loadContact(), loadOrders(), loadSettings(), loadAnalytics(), loadCategories(), loadReviews(), loadReturns(), loadCoupons()]);
+  try {
+    await Promise.all([loadHero(), loadAbout(), loadProducts(), loadTestimonials(), loadContact(), loadOrders(), loadSettings(), loadAnalytics(), loadCategories(), loadReviews(), loadReturns(), loadCoupons()]);
+  } finally {
+    updateAlertButton();
+    startOrderPolling();
+  }
 }
 
 // SETTINGS (via Supabase direct)
@@ -943,10 +1151,39 @@ function initTagField(hiddenId) {
 initTagField('prodSizes');
 initTagField('prodColors');
 
+function moneyValue(value) {
+  const n = parseFloat(String(value == null ? '' : value).replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function updateProductProfitPreview() {
+  const priceInput = document.getElementById('prodPrice');
+  const costInput = document.getElementById('prodCost');
+  const preview = document.getElementById('prodProfitPreview');
+  const hint = document.getElementById('prodProfitHint');
+  if (!priceInput || !costInput || !preview) return;
+  const price = moneyValue(priceInput.value);
+  const cost = moneyValue(costInput.value);
+  const profit = price - cost;
+  preview.value = 'Rs. ' + profit.toFixed(2);
+  preview.style.color = profit < 0 ? '#e74c3c' : '#27ae60';
+  if (hint) {
+    hint.textContent = price > 0
+      ? 'Margin: ' + ((profit / price) * 100).toFixed(1) + '%'
+      : 'Enter selling and cost prices to see profit.';
+  }
+}
+
 async function saveProduct() {
   const id = document.getElementById('editProductId').value;
   const name = document.getElementById('prodName').value.trim();
   if (!name) { showMsg('Product name is required', 'error'); return; }
+  const costRaw = document.getElementById('prodCost').value.trim();
+  const costPrice = parseFloat(costRaw);
+  if (costRaw === '' || isNaN(costPrice) || costPrice < 0) {
+    showMsg('Please enter a valid cost price', 'error');
+    return;
+  }
 
   const manualImageUrl = document.getElementById('prodImage').value.trim();
   let uploadedUrls = [];
@@ -979,6 +1216,7 @@ async function saveProduct() {
     description: document.getElementById('prodDesc').value,
     price: parseFloat(document.getElementById('prodPrice').value) || 0,
     compare_price: parseFloat(document.getElementById('prodCompare').value) || 0,
+    cost_price: costPrice,
     image_url: primaryImage, images: allImages, sizes: document.getElementById('prodSizes').value,
     colors: document.getElementById('prodColors').value,
     material: document.getElementById('prodMaterial').value,
@@ -1013,7 +1251,7 @@ async function saveProduct() {
 
 function resetForm() {
   document.getElementById('editProductId').value = '';
-  ['prodName','prodDesc','prodPrice','prodCompare','prodBrand','prodSku','prodSizes','prodColors','prodMaterial'].forEach(id => document.getElementById(id).value = '');
+  ['prodName','prodDesc','prodPrice','prodCompare','prodCost','prodBrand','prodSku','prodSizes','prodColors','prodMaterial'].forEach(id => document.getElementById(id).value = '');
   renderTagChips('prodSizes');
   renderTagChips('prodColors');
   document.getElementById('prodSizesInput').value = '';
@@ -1029,6 +1267,7 @@ function resetForm() {
   prodImageUrls = [];
   prodPendingFiles = [];
   renderProdImagePreview();
+  updateProductProfitPreview();
   document.getElementById('formTitle').textContent = 'Add Product';
   document.getElementById('cancelBtn').style.display = 'none';
 }
@@ -1042,6 +1281,8 @@ function editProduct(id) {
   document.getElementById('prodDesc').value = p.description || p.desc || '';
   document.getElementById('prodPrice').value = p.price || '';
   document.getElementById('prodCompare').value = p.compare_price || '';
+  document.getElementById('prodCost').value = p.cost_price != null ? p.cost_price : '';
+  updateProductProfitPreview();
   document.getElementById('prodBrand').value = p.brand || '';
   document.getElementById('prodSku').value = p.sku || '';
   document.getElementById('prodSizes').value = p.sizes || '';
@@ -1082,7 +1323,12 @@ function renderFilteredProducts() {
   const filtered = currentProdFilter === 'all' ? allProducts : allProducts.filter(p => p.category === currentProdFilter);
   const list = document.getElementById('productList');
   if (!filtered.length) { list.innerHTML = '<p style="color:#888;">No products.</p>'; return; }
-  list.innerHTML = filtered.map(p => '<div class="list-item">' + (p.image_url ? '<img src="' + p.image_url + '" class="preview-img" onerror="this.style.display=\'none\'">' : '') + '<div class="info"><h5>' + escape(p.name) + '</h5><p>' + (p.category || '') + ' | Rs. ' + (p.price || 0) + ' | Stock: ' + (p.stock || 0) + '</p></div><div class="actions"><button class="btn btn-primary btn-sm" onclick="editProduct(\'' + p.id + '\')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.id + '\')"><i class="fas fa-trash"></i></button></div></div>').join('');
+  list.innerHTML = filtered.map(p => {
+    const price = moneyValue(p.price);
+    const cost = moneyValue(p.cost_price);
+    const profit = price - cost;
+    return '<div class="list-item">' + (p.image_url ? '<img src="' + p.image_url + '" class="preview-img" onerror="this.style.display=\'none\'">' : '') + '<div class="info"><h5>' + escape(p.name) + '</h5><p>' + (p.category || '') + ' | Price: Rs. ' + price + ' | Cost: Rs. ' + cost + ' | <span style="color:' + (profit < 0 ? '#e74c3c' : '#27ae60') + ';font-weight:600;">Profit: Rs. ' + profit + '</span> | Stock: ' + (p.stock || 0) + '</p></div><div class="actions"><button class="btn btn-primary btn-sm" onclick="editProduct(\'' + p.id + '\')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.id + '\')"><i class="fas fa-trash"></i></button></div></div>';
+  }).join('');
 }
 
 function filterProducts(filter) {
@@ -1102,12 +1348,12 @@ async function deleteProduct(id) {
 let bulkCsvRows = [];
 
 function downloadTemplate() {
-  const header = 'name,category,description,price,compare_price,image_url,stock,brand,sizes,colors,material,care_instructions,fit_info,subcategory,is_featured,is_new,is_best_seller,is_trending';
+  const header = 'name,category,description,price,cost_price,compare_price,image_url,stock,brand,sizes,colors,material,care_instructions,fit_info,subcategory,is_featured,is_new,is_best_seller,is_trending';
   const rows = [
-    "Men's Premium Cotton T-Shirt,clothes,\"High-quality 100% cotton t-shirt, comfortable regular fit.\",899,1499,https://example.com/tshirt.jpg,100,Premium Wear,\"S,M,L,XL\",\"Black,White\",100% Cotton,Machine wash cold.,Regular fit.,Top Wear,0,1,0,0",
-    "Vitamin E Face Cream 50ml,cosmetics,Moisturizing face cream with Vitamin E.,449,599,https://example.com/cream.jpg,90,GlowUp,,,,Natural ingredients,Apply twice daily.,,1,0,0,1",
-    "A5 Spiral Notebook 200 Pages,stationery,Premium A5 notebook with 200 ruled pages.,249,350,https://example.com/notebook.jpg,200,StudyPro,,,,,,,,0,0,0,0",
-    "LPG Gas Cylinder 13.2kg,cylinder,Standard household LPG cylinder.,1850,1950,,30,Nepal Gas,,,,,,,,0,0,0,0"
+    "Men's Premium Cotton T-Shirt,clothes,\"High-quality 100% cotton t-shirt, comfortable regular fit.\",899,450,1499,https://example.com/tshirt.jpg,100,Premium Wear,\"S,M,L,XL\",\"Black,White\",100% Cotton,Machine wash cold.,Regular fit.,Top Wear,0,1,0,0",
+    "Vitamin E Face Cream 50ml,cosmetics,Moisturizing face cream with Vitamin E.,449,220,599,https://example.com/cream.jpg,90,GlowUp,,,,Natural ingredients,Apply twice daily.,,1,0,0,1",
+    "A5 Spiral Notebook 200 Pages,stationery,Premium A5 notebook with 200 ruled pages.,249,120,350,https://example.com/notebook.jpg,200,StudyPro,,,,,,,,0,0,0,0",
+    "LPG Gas Cylinder 13.2kg,cylinder,Standard household LPG cylinder.,1850,1650,1950,,30,Nepal Gas,,,,,,,,0,0,0,0"
   ];
   const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -1248,7 +1494,11 @@ async function deleteTestimonial(id) {
 
 // ORDERS
 async function loadOrders() {
-  try { allOrders = await api('/orders'); renderFilteredOrders(); } catch {}
+  try {
+    allOrders = await api('/orders');
+    renderFilteredOrders();
+    handleOrderSnapshot(allOrders);
+  } catch {}
 }
 function renderFilteredOrders() {
   const filtered = allOrders.filter(o => matchesOrderFilter(o, currentOrderFilter));
@@ -1617,20 +1867,28 @@ async function deleteSubscriber(id) {
 // ANALYTICS
 async function loadAnalytics() {
   try {
-    const [prods, orders, subs] = await Promise.all([
+    const [prods, orders, subs, summary] = await Promise.all([
       supaFetch('products', { select: 'id,stock,name' }),
       supaFetch('orders', { order: 'created_at.desc', limit: '5' }),
-      supaFetch('subscribers', { select: 'id' })
+      supaFetch('subscribers', { select: 'id' }),
+      api('/analytics/summary').catch(() => null)
     ]);
     const allOrders = await supaFetch('orders');
     const totalRevenue = allOrders.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
     const pendingCount = allOrders.filter(o => o.status === 'pending').length;
     const totalProducts = prods.length || 0;
     const totalSubs = subs.length || 0;
+    const hasProfit = !!(summary && summary.totalCost !== undefined);
+    const totalCost = hasProfit ? Number(summary.totalCost) || 0 : 0;
+    const grossProfit = hasProfit ? Number(summary.grossProfit) || 0 : 0;
+    const grossMargin = hasProfit ? Number(summary.grossMargin) || 0 : 0;
+    const profitLabel = hasProfit ? 'Rs. ' + grossProfit.toLocaleString() + (grossMargin ? ' (' + grossMargin.toFixed(1) + '%)' : '') : '—';
     document.getElementById('analyticsStats').innerHTML = `
       <div class="stat-card"><div class="icon"><i class="fas fa-box"></i></div><div class="num">${totalProducts}</div><div class="label">Total Products</div></div>
       <div class="stat-card"><div class="icon"><i class="fas fa-truck"></i></div><div class="num">${allOrders.length}</div><div class="label">Total Orders</div></div>
       <div class="stat-card"><div class="icon"><i class="fas fa-rupee-sign"></i></div><div class="num">Rs. ${totalRevenue.toLocaleString()}</div><div class="label">Total Revenue</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-coins"></i></div><div class="num">${hasProfit ? 'Rs. ' + totalCost.toLocaleString() : '—'}</div><div class="label">Cost of Goods Sold</div></div>
+      <div class="stat-card"><div class="icon"><i class="fas fa-chart-line"></i></div><div class="num" style="color:${hasProfit && grossProfit < 0 ? '#e74c3c' : '#27ae60'};">${profitLabel}</div><div class="label">Gross Profit</div></div>
       <div class="stat-card"><div class="icon"><i class="fas fa-clock"></i></div><div class="num">${pendingCount}</div><div class="label">Pending Orders</div></div>
       <div class="stat-card"><div class="icon"><i class="fas fa-bell"></i></div><div class="num">${totalSubs}</div><div class="label">Subscribers</div></div>`;
     const colors = { pending: '#f39c12', processing: '#3498db', shipped: '#9b59b6', delivered: '#27ae60', cancelled: '#e74c3c' };

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS products (
   name TEXT NOT NULL,
   description TEXT,
   price NUMERIC DEFAULT 0,
+  cost_price NUMERIC DEFAULT 0,
   image_url TEXT DEFAULT '',
   category TEXT DEFAULT '',
   stock INTEGER DEFAULT 0,
