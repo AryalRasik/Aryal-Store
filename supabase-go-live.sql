@@ -271,6 +271,24 @@ CREATE TABLE IF NOT EXISTS saved_addresses (
 );
 CREATE INDEX IF NOT EXISTS idx_saved_addresses_session ON saved_addresses(session_id);
 
+CREATE TABLE IF NOT EXISTS delivery_locations (
+  id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  label      TEXT NOT NULL DEFAULT '',
+  address    TEXT NOT NULL DEFAULT '',
+  is_active  INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_delivery_locations_active ON delivery_locations(is_active, sort_order);
+ALTER TABLE delivery_locations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS user_addresses ADD COLUMN IF NOT EXISTS delivery_location_id BIGINT;
+ALTER TABLE IF EXISTS saved_addresses ADD COLUMN IF NOT EXISTS delivery_location_id BIGINT;
+ALTER TABLE IF EXISTS orders ADD COLUMN IF NOT EXISTS delivery_location_id BIGINT;
+CREATE INDEX IF NOT EXISTS idx_user_addresses_delivery_location ON user_addresses(delivery_location_id);
+CREATE INDEX IF NOT EXISTS idx_saved_addresses_delivery_location ON saved_addresses(delivery_location_id);
+CREATE INDEX IF NOT EXISTS idx_orders_delivery_location ON orders(delivery_location_id);
+
 CREATE TABLE IF NOT EXISTS search_history (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id TEXT NOT NULL DEFAULT '',
@@ -341,7 +359,7 @@ BEGIN
       'users','user_addresses','password_reset_tokens',
       'email_verification_tokens','user_sessions','user_cart',
       'order_offers','order_refunds','notifications','wishlist',
-      'recently_viewed','saved_addresses','search_history',
+      'recently_viewed','saved_addresses','delivery_locations','search_history',
       'trending_searches','site_analytics','product_views',
       'flash_sales','flash_sale_products'
     ])

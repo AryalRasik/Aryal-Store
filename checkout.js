@@ -8,6 +8,7 @@
   const API_ADDR = '/api/users/addresses';
   const API_ME = '/api/auth/me';
   const API_PAYMENT_CONFIG = '/api/payment-config';
+  const API_DELIVERY_LOCATIONS = '/api/delivery-locations';
   const DEFAULT_FREE_SHIPPING_THRESHOLD = 2000;
 
   let state = {
@@ -23,6 +24,7 @@
     discount: 0,
     address: null,
     addresses: [],
+    deliveryLocations: [],
     location: { latitude: null, longitude: null, accuracy: null },
     orderId: null,
     orderCode: '',
@@ -52,53 +54,31 @@
     { id: 'online', label: 'Online Payment', icon: 'fa-qrcode', desc: 'Pay by scanning the shop QR code' }
   ];
 
-  const LOCATIONS = window.NEPAL_LOCATIONS || { provinces: [] };
-
-  function getProvince(name) { return LOCATIONS.provinces.find(p => p.name === name); }
-  function getDistrictData(province, name) { const p = getProvince(province); return p ? p.districts.find(d => d.name === name) : null; }
-
-  function populateAddressSelects() {
-    const provSel = $('addrProvince');
-    if (!provSel) return;
-    provSel.innerHTML = '<option value="">Select Province</option>' + LOCATIONS.provinces.map(p =>
-      `<option value="${p.name}">${p.name}${p.nameNp ? ' (' + p.nameNp + ')' : ''}</option>`).join('');
-    populateDistricts();
+  async function loadDeliveryLocations() {
+    try {
+      const res = await fetch(API_DELIVERY_LOCATIONS);
+      state.deliveryLocations = res.ok ? await res.json() : [];
+    } catch {
+      state.deliveryLocations = [];
+    }
+    renderDeliveryLocationOptions();
   }
 
-  function populateDistricts() {
-    const provSel = $('addrProvince');
-    const distSel = $('addrDistrict');
-    if (!distSel) return;
-    const province = provSel.value;
-    const districts = province ? (getProvince(province) || {}).districts || [] : [];
-    distSel.innerHTML = '<option value="">Select District</option>' + districts.map(d =>
-      `<option value="${d.name}">${d.name}${d.nameNp ? ' (' + d.nameNp + ')' : ''}</option>`).join('');
-    distSel.disabled = !province;
-    populateMunicipalities();
-  }
-
-  function populateMunicipalities() {
-    const distSel = $('addrDistrict');
-    const munSel = $('addrMunicipality');
-    if (!munSel) return;
-    const district = distSel.value;
-    const muns = district ? (getDistrictData($('addrProvince').value, district) || {}).municipalities || [] : [];
-    munSel.innerHTML = '<option value="">Select Municipality</option>' + muns.map(m =>
-      `<option value="${m.name}">${m.name}${m.nameNp ? ' (' + m.nameNp + ')' : ''}</option>`).join('');
-    munSel.disabled = !district;
+  function renderDeliveryLocationOptions() {
+    const select = $('addrDeliveryLocation');
+    if (!select) return;
+    const current = select.value;
+    const options = state.deliveryLocations.map(function (loc) {
+      return '<option value="' + escapeHtml(String(loc.id)) + '">' + escapeHtml(loc.label || '') + ' — ' + escapeHtml(loc.address || '') + '</option>';
+    }).join('');
+    select.innerHTML = '<option value="">Select a delivery address</option>' + options;
+    if (current) select.value = current;
   }
 
   function formatAddress(a) {
     if (!a) return '';
-    const parts = [
-      a.municipality || '',
-      a.district || a.city || '',
-      a.ward ? 'Ward ' + a.ward : '',
-      a.tole || a.address || ''
-    ].filter(Boolean);
-    const line = parts.join(', ');
-    const prov = a.state || a.province || '';
-    return line + (prov ? ', ' + prov : '');
+    if (a.address) return a.address;
+    return [a.tole, a.ward ? 'Ward ' + a.ward : '', a.landmark].filter(Boolean).join(', ');
   }
 
   function $(id) { return document.getElementById(id); }
@@ -147,10 +127,7 @@
     const form = $('coAddressForm');
     if (!form || form.classList.contains('co-hidden') || !window.AryalLocation) return;
     const match = AryalLocation.matchNepalLocation(data.address || {});
-    if (match.province) AryalLocation.fillSelect('addrProvince', match.province);
-    if (match.district) AryalLocation.fillSelect('addrDistrict', match.district);
-    if (match.municipality) AryalLocation.fillSelect('addrMunicipality', match.municipality);
-    if (match.street) AryalLocation.fillInput('addrStreet', match.street);
+    if (match.street && !$('addrStreet').value) AryalLocation.fillInput('addrStreet', match.street);
     if (match.tole && !$('addrLandmark').value) AryalLocation.fillInput('addrLandmark', match.tole);
   }
 
@@ -174,7 +151,7 @@
   function init() {
     createToastContainer();
     createAuthModal();
-    populateAddressSelects();
+    loadDeliveryLocations();
     initLocationPicker();
     renderSteps();
     loadCart();
@@ -523,11 +500,8 @@
     $('addrFullName').value = data ? (data.full_name || '') : '';
     $('addrPhone').value = data ? (data.phone || '') : '';
     $('addrEmail').value = data ? (data.email || '') : '';
-    $('addrProvince').value = data ? (data.state || data.province || '') : '';
-    populateDistricts();
-    $('addrDistrict').value = data ? (data.district || data.city || '') : '';
-    populateMunicipalities();
-    $('addrMunicipality').value = data ? (data.municipality || '') : '';
+    renderDeliveryLocationOptions();
+    $('addrDeliveryLocation').value = data && data.delivery_location_id ? String(data.delivery_location_id) : '';
     $('addrWard').value = data ? (data.ward || '') : '';
     $('addrStreet').value = data ? (data.tole || '') : '';
     $('addrLandmark').value = data ? (data.landmark || '') : '';
@@ -543,9 +517,7 @@
     const fullName = $('addrFullName').value.trim();
     const phone = $('addrPhone').value.trim();
     const email = $('addrEmail').value.trim();
-    const province = $('addrProvince').value;
-    const district = $('addrDistrict').value;
-    const municipality = $('addrMunicipality').value;
+    const deliveryLocationId = $('addrDeliveryLocation').value;
     const ward = $('addrWard').value.trim();
     const tole = $('addrStreet').value.trim();
     const landmark = $('addrLandmark').value.trim();
@@ -553,20 +525,19 @@
     const label = $('addrLabel').value;
     if (!fullName) { showToast('Full name is required', 'error'); return; }
     if (!phone) { showToast('Phone number is required', 'error'); return; }
-    if (!province) { showToast('Please select a province', 'error'); return; }
-    if (!district) { showToast('Please select a district', 'error'); return; }
-    if (!municipality) { showToast('Please select a municipality', 'error'); return; }
-    if (!ward && !tole) { showToast('Ward number or Tole/Street is required', 'error'); return; }
-    const address = [tole, ward ? 'Ward ' + ward : '', municipality, district].filter(Boolean).join(', ');
+    if (!deliveryLocationId) { showToast('Please select a delivery address', 'error'); return; }
     const user = getCurrentUser();
     if (!user) { showToast('Please sign in first', 'error'); return; }
     const location = getOrderLocation();
     const addrData = {
       full_name: fullName, phone, email,
-      state: province, city: district,
-      district, municipality, ward, tole, landmark,
+      delivery_location_id: deliveryLocationId,
+      address_details: tole,
+      ward,
+      tole,
+      landmark,
       instructions: $('coDeliveryInstructions') ? $('coDeliveryInstructions').value.trim() : '',
-      address, zip_code: zip, label, country: 'Nepal',
+      zip_code: zip, label, country: 'Nepal',
       latitude: location.latitude || null,
       longitude: location.longitude || null,
       location_accuracy: location.accuracy || null
@@ -582,8 +553,14 @@
       if (d.error) { showToast(d.error, 'error'); return; }
       showToast(editId ? 'Address updated' : 'Address saved', 'success');
       $('coAddressForm').classList.add('co-hidden');
-      loadAddresses();
-      if (!editId) state.address = { ...addrData, id: d.id || Date.now() };
+      loadAddresses().then(function () {
+        const saved = state.addresses.find(function (a) { return String(a.id) === String(d.id); });
+        if (saved) {
+          state.address = saved;
+          applyAddressLocation(saved);
+          renderAddresses();
+        }
+      });
     }).catch(() => showToast('Failed to save address', 'error'));
   }
 
@@ -805,6 +782,7 @@
     if (state.loading) return;
     if (!state.cart.length) { showToast('Your cart is empty', 'error'); return; }
     if (!state.address) { showToast('Please select a shipping address', 'error'); goToStep(3); return; }
+    if (!state.address.delivery_location_id) { showToast('Please select an address added by the store', 'error'); goToStep(3); return; }
     if (!state.payment) { showToast('Please select Online Payment to continue', 'error'); goToStep(5); return; }
 
     state.loading = true;
@@ -832,7 +810,9 @@
       customer_name: state.address.full_name || user?.name || 'Guest',
       customer_phone: state.address.phone || user?.phone || '',
       customer_email: state.address.email || user?.email || '',
-      customer_address: formatAddress(state.address),
+      customer_address: state.address.address || formatAddress(state.address),
+      delivery_location_id: state.address.delivery_location_id,
+      customer_address_details: state.address.tole || '',
       customer_province: state.address.state || state.address.province || '',
       customer_district: state.address.district || state.address.city || '',
       customer_municipality: state.address.municipality || '',
@@ -1052,8 +1032,6 @@
     // Address form
     $('coSaveAddressBtn').addEventListener('click', saveAddress);
     $('coCancelAddressBtn').addEventListener('click', function() { $('coAddressForm').classList.add('co-hidden'); });
-    $('addrProvince').addEventListener('change', populateDistricts);
-    $('addrDistrict').addEventListener('change', populateMunicipalities);
 
     // Place order
     $('coPlaceOrderBtn').addEventListener('click', placeOrder);

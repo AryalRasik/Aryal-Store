@@ -8,6 +8,7 @@ const { rateLimiter, checkAccountLockout, incrementLoginAttempts, resetLoginAtte
 const { validateSignupBody, validateLoginBody, sanitizeObject } = require('../middleware/validate');
 const { sendVerificationEmail, sendPasswordResetEmail, sendEmail } = require('../utils/email');
 const { generateCsrfToken } = require('../utils/csrf');
+const deliveryLocations = require('../deliveryLocations');
 
 const router = express.Router();
 
@@ -461,7 +462,18 @@ router.get('/addresses', authMiddleware, async (req, res) => {
       .eq('user_id', req.user.id)
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: false });
-    res.json(addresses || []);
+    const active = await deliveryLocations.listActive();
+    const activeIds = new Set(active.map(function (row) { return String(row.id); }));
+    const kept = [];
+    for (const row of addresses || []) {
+      const locationId = row.delivery_location_id ? String(row.delivery_location_id) : '';
+      if (locationId && activeIds.has(locationId)) {
+        kept.push(row);
+      } else if (activeIds.size) {
+        await (await from('user_addresses')).delete().eq('id', row.id).eq('user_id', req.user.id);
+      }
+    }
+    res.json(kept);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -471,11 +483,17 @@ router.get('/addresses', authMiddleware, async (req, res) => {
 router.post('/addresses', authMiddleware, async (req, res) => {
   try {
     const sanitized = sanitizeObject(req.body);
-    const { label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default } = sanitized;
+    const { label, full_name, phone, email, city, state, district, municipality, ward, tole, landmark, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default, delivery_location_id, address_details } = sanitized;
 
-    if (!full_name || !phone || !address) {
-      return res.status(400).json({ error: 'Full name, phone, and address are required' });
+    if (!full_name || !phone) {
+      return res.status(400).json({ error: 'Full name and phone are required' });
     }
+
+    const location = await deliveryLocations.getActiveById(delivery_location_id);
+    if (!location) {
+      return res.status(400).json({ error: 'Please select a delivery address from the list.' });
+    }
+    const address = deliveryLocations.composeAddress(location, { address_details, ward, tole, landmark });
 
     if (is_default) {
       await (await from('user_addresses')).update({ is_default: false }).eq('user_id', req.user.id);
@@ -488,6 +506,7 @@ router.post('/addresses', authMiddleware, async (req, res) => {
       phone,
       email: email || '',
       address,
+      delivery_location_id: location.id,
       city: city || '',
       state: state || '',
       district: district || '',
@@ -515,14 +534,20 @@ router.post('/addresses', authMiddleware, async (req, res) => {
 router.put('/addresses/:id', authMiddleware, async (req, res) => {
   try {
     const sanitized = sanitizeObject(req.body);
-    const { label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default } = sanitized;
+    const { label, full_name, phone, email, city, state, district, municipality, ward, tole, landmark, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default, delivery_location_id, address_details } = sanitized;
+
+    const location = await deliveryLocations.getActiveById(delivery_location_id);
+    if (!location) {
+      return res.status(400).json({ error: 'Please select a delivery address from the list.' });
+    }
+    const address = deliveryLocations.composeAddress(location, { address_details, ward, tole, landmark });
 
     if (is_default) {
       await (await from('user_addresses')).update({ is_default: false }).eq('user_id', req.user.id);
     }
 
     const { error } = await (await from('user_addresses')).update({
-      label, full_name, phone, email, address, city, state, district, municipality, ward, tole, landmark, instructions,
+      label, full_name, phone, email, address, delivery_location_id: location.id, city, state, district, municipality, ward, tole, landmark, instructions,
       latitude: parseCoordinate(latitude, -90, 90),
       longitude: parseCoordinate(longitude, -180, 180),
       location_accuracy: parseCoordinate(location_accuracy, 0, 1000000),

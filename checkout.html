@@ -6,6 +6,13 @@
   <meta name="description" content="Secure checkout at Aryal Store">
   <meta name="robots" content="noindex, nofollow">
   <title>Checkout - Aryal Store</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#135E59">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Aryal Store">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="checkout.css">
   <link rel="stylesheet" href="auth.css">
@@ -88,16 +95,16 @@
               <div class="co-field"><label>Full Name</label><input type="text" id="addrFullName" placeholder="Ram Prasad Aryal"></div>
               <div class="co-field"><label>Phone Number</label><input type="tel" id="addrPhone" placeholder="98XXXXXXXX"></div>
             </div>
-            <div class="co-row">
-              <div class="co-field"><label>Province</label><select id="addrProvince"><option value="">Select Province</option></select></div>
-              <div class="co-field"><label>District</label><select id="addrDistrict"><option value="">Select District</option></select></div>
+            <div class="co-field">
+              <label>Delivery Address</label>
+              <select id="addrDeliveryLocation"><option value="">Select a delivery address</option></select>
+              <div style="font-size:0.72rem;color:var(--co-text-muted);margin-top:4px;">Only places added by the store are available.</div>
             </div>
             <div class="co-row">
-              <div class="co-field"><label>Municipality</label><select id="addrMunicipality"><option value="">Select Municipality</option></select></div>
-              <div class="co-field"><label>Ward Number</label><input type="text" id="addrWard" placeholder="Ward No. 4"></div>
+              <div class="co-field"><label>House / Tole / Street</label><input type="text" id="addrStreet" placeholder="House no., Tole or Street"></div>
+              <div class="co-field"><label>Ward Number <span style="color:var(--co-text-muted);font-weight:400;">(optional)</span></label><input type="text" id="addrWard" placeholder="Ward No. 4"></div>
             </div>
             <div class="co-row">
-              <div class="co-field"><label>Tole/Street</label><input type="text" id="addrStreet" placeholder="Tansen Road"></div>
               <div class="co-field"><label>Landmark <span style="color:var(--co-text-muted);font-weight:400;">(optional)</span></label><input type="text" id="addrLandmark" placeholder="Near the temple"></div>
             </div>
             <div class="co-row">
@@ -206,5 +213,6 @@
   <script src="nepal-locations.js"></script>
   <script src="location-address.js"></script>
   <script src="checkout.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>

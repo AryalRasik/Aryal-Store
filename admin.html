@@ -209,6 +209,7 @@
       <div class="nav-item" data-tab="categories"><i class="fas fa-tags"></i> Categories</div>
       <div class="nav-item" data-tab="testimonials"><i class="fas fa-quote-right"></i> Testimonials</div>
       <div class="nav-item" data-tab="contact"><i class="fas fa-address-card"></i> Contact</div>
+      <div class="nav-item" data-tab="delivery"><i class="fas fa-map-marker-alt"></i> Delivery Addresses</div>
       <div class="nav-item" data-tab="orders"><i class="fas fa-truck"></i> Orders <span id="orderBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:50px;padding:1px 8px;font-size:0.65rem;margin-left:6px;">0</span></div>
       <div class="nav-item" data-tab="reviews"><i class="fas fa-star"></i> Reviews</div>
       <div class="nav-item" data-tab="returns"><i class="fas fa-undo"></i> Returns</div>
@@ -398,6 +399,29 @@
             <div class="form-group"><label>Longitude</label><input type="text" id="mapLng" value="83.4126681"></div>
           </div>
           <button class="btn btn-primary" onclick="saveContact()">Save Contact</button>
+        </div>
+      </div>
+
+      <!-- DELIVERY ADDRESSES -->
+      <div class="tab-content" id="tab-delivery">
+        <h3>Delivery Addresses</h3>
+        <div class="card">
+          <p class="tag-hint" style="margin-top:0;">Customers can only save or select these addresses at checkout. Deleting a place removes it from customer saved addresses, but past orders keep their address snapshot.</p>
+          <input type="hidden" id="deliveryLocationId" value="">
+          <div class="form-row">
+            <div class="form-group"><label>Place Name *</label><input type="text" id="deliveryLocationLabel" placeholder="e.g. Home, Office, Kathmandu Branch"></div>
+            <div class="form-group"><label>Sort Order</label><input type="number" id="deliveryLocationSort" value="0"></div>
+          </div>
+          <div class="form-group"><label>Full Address *</label><textarea id="deliveryLocationAddress" rows="2" placeholder="e.g. New Baneshwor, Kathmandu"></textarea></div>
+          <div class="form-group"><label><input type="checkbox" id="deliveryLocationActive" checked> Active (visible to customers)</label></div>
+          <div class="inline-flex">
+            <button class="btn btn-primary" onclick="saveDeliveryLocation()">Save Address</button>
+            <button class="btn" onclick="resetDeliveryLocationForm()">Cancel</button>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Saved Places</h4>
+          <div id="deliveryLocationList"></div>
         </div>
       </div>
 
@@ -896,7 +920,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     item.classList.add('active');
     document.getElementById('tab-' + item.dataset.tab).classList.add('active');
-    const fns = { analytics: loadAnalytics, hero: loadHero, about: loadAbout, categories: loadCategories, testimonials: loadTestimonials, contact: loadContact, reviews: loadReviews, returns: loadReturns, coupons: loadCoupons };
+    const fns = { analytics: loadAnalytics, hero: loadHero, about: loadAbout, categories: loadCategories, testimonials: loadTestimonials, contact: loadContact, delivery: loadDeliveryLocations, reviews: loadReviews, returns: loadReturns, coupons: loadCoupons };
     if (fns[item.dataset.tab]) fns[item.dataset.tab]();
     if (item.dataset.tab === 'orders') {
       unseenOrders = 0;
@@ -946,7 +970,7 @@ if (location.search.includes('reset=')) {
 
 async function loadAllTabs() {
   try {
-    await Promise.all([loadHero(), loadAbout(), loadProducts(), loadTestimonials(), loadContact(), loadOrders(), loadSettings(), loadAnalytics(), loadCategories(), loadReviews(), loadReturns(), loadCoupons()]);
+    await Promise.all([loadHero(), loadAbout(), loadProducts(), loadTestimonials(), loadContact(), loadDeliveryLocations(), loadOrders(), loadSettings(), loadAnalytics(), loadCategories(), loadReviews(), loadReturns(), loadCoupons()]);
   } finally {
     updateAlertButton();
     startOrderPolling();
@@ -991,6 +1015,83 @@ async function loadContact() {
 async function saveContact() {
   await api('/contact', { method: 'PUT', body: JSON.stringify({ id: 1, address: document.getElementById('contactAddress').value, phone: document.getElementById('contactPhone').value, email: document.getElementById('contactEmail').value, hours: document.getElementById('contactHours').value, whatsapp: document.getElementById('contactWhatsapp').value, lat: document.getElementById('mapLat').value, lng: document.getElementById('mapLng').value }) });
   showMsg('Contact saved!', 'success');
+}
+
+// DELIVERY ADDRESSES
+let deliveryLocationCache = [];
+
+async function loadDeliveryLocations() {
+  try {
+    deliveryLocationCache = await api('/admin/delivery-locations');
+    renderDeliveryLocations();
+  } catch (e) {}
+}
+
+function renderDeliveryLocations() {
+  const list = document.getElementById('deliveryLocationList');
+  if (!list) return;
+  if (!deliveryLocationCache.length) {
+    list.innerHTML = '<p class="tag-hint">No delivery addresses yet. Add the first place customers can choose.</p>';
+    return;
+  }
+  list.innerHTML = deliveryLocationCache.map(function (loc) {
+    const active = loc.is_active === true || loc.is_active === 1 || loc.is_active === '1';
+    return '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #eee;">' +
+      '<div><strong>' + escape(loc.label || '') + '</strong> ' +
+      '<span style="font-size:0.72rem;padding:2px 7px;border-radius:50px;background:' + (active ? '#e8f7ee;color:#1e8449' : '#f1f1f1;color:#777') + ';">' + (active ? 'Active' : 'Hidden') + '</span>' +
+      '<div style="color:#555;font-size:0.85rem;margin-top:3px;">' + escape(loc.address || '') + '</div>' +
+      '<div class="tag-hint">Sort order: ' + Number(loc.sort_order || 0) + '</div></div>' +
+      '<div class="inline-flex">' +
+      '<button class="btn btn-sm" onclick="editDeliveryLocation(\'' + escape(String(loc.id)) + '\')">Edit</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteDeliveryLocation(\'' + escape(String(loc.id)) + '\')">Delete</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function resetDeliveryLocationForm() {
+  document.getElementById('deliveryLocationId').value = '';
+  document.getElementById('deliveryLocationLabel').value = '';
+  document.getElementById('deliveryLocationAddress').value = '';
+  document.getElementById('deliveryLocationSort').value = '0';
+  document.getElementById('deliveryLocationActive').checked = true;
+}
+
+function editDeliveryLocation(id) {
+  const loc = deliveryLocationCache.find(function (row) { return String(row.id) === String(id); });
+  if (!loc) return;
+  document.getElementById('deliveryLocationId').value = loc.id;
+  document.getElementById('deliveryLocationLabel').value = loc.label || '';
+  document.getElementById('deliveryLocationAddress').value = loc.address || '';
+  document.getElementById('deliveryLocationSort').value = Number(loc.sort_order || 0);
+  document.getElementById('deliveryLocationActive').checked = loc.is_active === true || loc.is_active === 1 || loc.is_active === '1';
+  document.getElementById('tab-delivery').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function saveDeliveryLocation() {
+  const id = document.getElementById('deliveryLocationId').value;
+  const label = document.getElementById('deliveryLocationLabel').value.trim();
+  const address = document.getElementById('deliveryLocationAddress').value.trim();
+  const sortOrder = Number(document.getElementById('deliveryLocationSort').value) || 0;
+  const isActive = document.getElementById('deliveryLocationActive').checked;
+  if (!label || !address) { showMsg('Place name and full address are required.', 'error'); return; }
+  const body = JSON.stringify({ label: label, address: address, sort_order: sortOrder, is_active: isActive });
+  if (id) {
+    await api('/admin/delivery-locations/' + encodeURIComponent(id), { method: 'PUT', body: body });
+    showMsg('Delivery address updated. Saved customer addresses were checked.', 'success');
+  } else {
+    await api('/admin/delivery-locations', { method: 'POST', body: body });
+    showMsg('Delivery address added.', 'success');
+  }
+  resetDeliveryLocationForm();
+  await loadDeliveryLocations();
+}
+
+async function deleteDeliveryLocation(id) {
+  if (!confirm('Delete this delivery address? Customers will no longer be able to choose it.')) return;
+  await api('/admin/delivery-locations/' + encodeURIComponent(id), { method: 'DELETE' });
+  if (String(document.getElementById('deliveryLocationId').value) === String(id)) resetDeliveryLocationForm();
+  showMsg('Delivery address deleted. Unmatched customer addresses were removed.', 'success');
+  await loadDeliveryLocations();
 }
 
 // PRODUCTS

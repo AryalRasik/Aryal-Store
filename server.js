@@ -15,6 +15,7 @@ const { supabase, supabaseAdmin, from, initDb, isSupabaseTable } = require('./db
 const authRoutes = require('./server/routes/auth');
 const payment = require('./server/payment');
 const orderWorkflow = require('./server/orderWorkflow');
+const deliveryLocations = require('./server/deliveryLocations');
 
 const UPLOADS_DIR = process.env.VERCEL
   ? '/tmp/uploads'
@@ -1092,10 +1093,9 @@ app.post('/api/orders', async (req, res) => {
     const customer_name = String(body.customer_name || '').trim();
     const customer_phone = String(body.customer_phone || '').trim();
     const customer_email = String(body.customer_email || '').trim();
-    const customer_address = String(body.customer_address || '').trim();
 
-    if (!customer_name || !customer_phone || !customer_address) {
-      return res.status(400).json({ error: 'Please provide your name, phone number and delivery address.' });
+    if (!customer_name || !customer_phone) {
+      return res.status(400).json({ error: 'Please provide your name and phone number.' });
     }
     if (!Array.isArray(body.items) || !body.items.length) {
       return res.status(400).json({ error: 'Your cart is empty.' });
@@ -1125,11 +1125,23 @@ app.post('/api/orders', async (req, res) => {
       }
     }
 
+    const deliveryLocation = await deliveryLocations.getActiveById(body.delivery_location_id);
+    if (!deliveryLocation) {
+      return res.status(400).json({ error: 'Please select a delivery address from the list.' });
+    }
+    const customer_address = deliveryLocations.composeAddress(deliveryLocation, {
+      address_details: body.customer_address_details || body.address_details,
+      ward: body.customer_ward || body.address_ward,
+      tole: body.customer_tole,
+      landmark: body.customer_landmark
+    });
+
     const result = await createOrderFromRequest({
       customer_name: customer_name,
       customer_phone: customer_phone,
       customer_email: customer_email,
       customer_address: customer_address,
+      delivery_location_id: deliveryLocation.id,
       customer_city: body.customer_city || body.customer_district || '',
       customer_state: body.customer_state || body.customer_province || '',
       customer_landmark: body.customer_landmark || '',
@@ -1382,6 +1394,7 @@ async function createOrderFromRequest(input) {
     customer_phone: String(input.customer_phone || '').trim(),
     customer_email: String(input.customer_email || '').trim(),
     customer_address: String(input.customer_address || '').trim(),
+    delivery_location_id: input.delivery_location_id || null,
     customer_city: String(input.customer_city || '').trim(),
     customer_state: String(input.customer_state || '').trim(),
     customer_landmark: String(input.customer_landmark || '').trim(),
@@ -2670,13 +2683,93 @@ app.delete('/api/notifications/:id', async (req, res) => {
   }
 });
 
+// ========== DELIVERY LOCATIONS ==========
+app.get('/api/delivery-locations', async (req, res) => {
+  try {
+    res.json(await deliveryLocations.listActive());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/delivery-locations', adminMiddleware, async (req, res) => {
+  try {
+    res.json(await deliveryLocations.listAll());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/delivery-locations', adminMiddleware, async (req, res) => {
+  try {
+    const label = String(req.body.label || '').trim();
+    const address = String(req.body.address || '').trim();
+    if (!label || !address) return res.status(400).json({ error: 'Place name and address are required.' });
+    const sortOrder = Number(req.body.sort_order);
+    const payload = {
+      label,
+      address,
+      is_active: req.body.is_active === false || req.body.is_active === 0 || req.body.is_active === '0' ? 0 : 1,
+      sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+      updated_at: new Date().toISOString()
+    };
+    const { data, error } = await from('delivery_locations').insert(payload).select().single();
+    if (error) throw error;
+    const cleanup = await deliveryLocations.cleanupUnmatchedAddresses();
+    res.status(201).json({ ...data, cleanup });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/delivery-locations/:id', adminMiddleware, async (req, res) => {
+  try {
+    const label = String(req.body.label || '').trim();
+    const address = String(req.body.address || '').trim();
+    if (!label || !address) return res.status(400).json({ error: 'Place name and address are required.' });
+    const sortOrder = Number(req.body.sort_order);
+    const payload = {
+      label,
+      address,
+      is_active: req.body.is_active === false || req.body.is_active === 0 || req.body.is_active === '0' ? 0 : 1,
+      sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+      updated_at: new Date().toISOString()
+    };
+    const { data, error } = await from('delivery_locations')
+      .update(payload)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    const cleanup = await deliveryLocations.cleanupUnmatchedAddresses();
+    res.json({ ...data, cleanup });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/delivery-locations/:id', adminMiddleware, async (req, res) => {
+  try {
+    const { error } = await from('delivery_locations').delete().eq('id', req.params.id);
+    if (error) throw error;
+    const cleanup = await deliveryLocations.cleanupUnmatchedAddresses();
+    res.json({ success: true, cleanup });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========== SAVED ADDRESSES ==========
 app.get('/api/addresses', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
     const { data: addresses, error } = await supabase.from('saved_addresses').select('*').eq('session_id', sessionId).order('is_default', { ascending: false }).order('created_at', { ascending: false });
     if (error) throw error;
-    res.json(addresses || []);
+    const active = await deliveryLocations.listActive();
+    const activeIds = new Set(active.map(function (row) { return String(row.id); }));
+    res.json((addresses || []).filter(function (row) {
+      return row.delivery_location_id && activeIds.has(String(row.delivery_location_id));
+    }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2685,8 +2778,11 @@ app.get('/api/addresses', async (req, res) => {
 app.post('/api/addresses', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
-    const { label, full_name, phone, address, city, state, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default } = req.body;
-    if (!full_name || !phone || !address) return res.status(400).json({ error: 'Name, phone and address required' });
+    const { label, full_name, phone, city, state, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default, delivery_location_id, address_details, ward, tole, landmark } = req.body;
+    const location = await deliveryLocations.getActiveById(delivery_location_id);
+    if (!location) return res.status(400).json({ error: 'Please select a delivery address from the list.' });
+    const address = deliveryLocations.composeAddress(location, { address_details, ward, tole, landmark });
+    if (!full_name || !phone) return res.status(400).json({ error: 'Name and phone required' });
     const isDefault = is_default ? 1 : 0;
     if (isDefault) {
       await supabase.from('saved_addresses').update({ is_default: 0 }).eq('session_id', sessionId);
@@ -2698,7 +2794,8 @@ app.post('/api/addresses', async (req, res) => {
       longitude: parseCoordinate(longitude, -180, 180),
       location_accuracy: parseCoordinate(location_accuracy, 0, 1000000),
       zip_code: zip_code || '',
-      country: country || 'Nepal', is_default: isDefault
+      country: country || 'Nepal', is_default: isDefault,
+      delivery_location_id: location.id
     });
     if (error) throw error;
     res.json({ success: true });
@@ -2710,7 +2807,10 @@ app.post('/api/addresses', async (req, res) => {
 app.put('/api/addresses/:id', async (req, res) => {
   try {
     const sessionId = getSessionId(req);
-    const { label, full_name, phone, address, city, state, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default } = req.body;
+    const { label, full_name, phone, city, state, instructions, latitude, longitude, location_accuracy, zip_code, country, is_default, delivery_location_id, address_details, ward, tole, landmark } = req.body;
+    const location = await deliveryLocations.getActiveById(delivery_location_id);
+    if (!location) return res.status(400).json({ error: 'Please select a delivery address from the list.' });
+    const address = deliveryLocations.composeAddress(location, { address_details, ward, tole, landmark });
     const isDefault = is_default ? 1 : 0;
     if (isDefault) {
       await supabase.from('saved_addresses').update({ is_default: 0 }).eq('session_id', sessionId);
@@ -2720,7 +2820,8 @@ app.put('/api/addresses/:id', async (req, res) => {
       latitude: parseCoordinate(latitude, -90, 90),
       longitude: parseCoordinate(longitude, -180, 180),
       location_accuracy: parseCoordinate(location_accuracy, 0, 1000000),
-      zip_code, country, is_default: isDefault
+      zip_code, country, is_default: isDefault,
+      delivery_location_id: location.id
     }).eq('id', req.params.id).eq('session_id', sessionId);
     if (error) throw error;
     res.json({ success: true });
@@ -3094,6 +3195,10 @@ app.post('/api/orders/:id/reorder', async (req, res) => {
   try {
     const order = await getOrderRow(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
+    const deliveryLocation = await deliveryLocations.getActiveById(order.delivery_location_id);
+    if (!deliveryLocation) {
+      return res.status(400).json({ error: 'This order\'s delivery address is no longer available. Please place a new order and select a current delivery address.' });
+    }
     const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
     if (!items || !items.length) return res.status(400).json({ error: 'This order has no items to reorder.' });
     const result = await createOrderFromRequest({
@@ -3101,6 +3206,7 @@ app.post('/api/orders/:id/reorder', async (req, res) => {
       customer_phone: order.customer_phone,
       customer_email: order.customer_email,
       customer_address: order.customer_address,
+      delivery_location_id: order.delivery_location_id,
       customer_city: order.customer_city,
       customer_state: order.customer_state,
       customer_landmark: order.customer_landmark,

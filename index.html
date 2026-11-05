@@ -18,6 +18,13 @@
   <meta name="twitter:description" content="Your trusted store in Gulmi, Nepal.">
   <link rel="canonical" href="https://aryalstore.com.np">
   <title>Aryal Store – Clothes, Stationery, Cosmetics & Cylinder Refills | Gulmi, Nepal</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#135E59">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Aryal Store">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     
@@ -1356,6 +1363,142 @@
         max-width: 120px;
       }
     }
+
+    /* ===== FULL-PAGE PRODUCT VIEW + SWIPEABLE GALLERY ===== */
+    #productModal { padding: 0; align-items: flex-start; overflow-y: auto; }
+    #productModal .modal-box {
+      width: 100%;
+      max-width: 100%;
+      min-height: 100vh;
+      min-height: 100dvh;
+      max-height: none;
+      border-radius: 0;
+      box-shadow: none;
+      transform: none;
+    }
+    #productModal .modal-body { display: block; }
+    #productModal .modal-images {
+      width: 100%;
+      display: block;
+      border-radius: 0;
+      background: #111111;
+    }
+    #productModal .modal-images .main-image {
+      width: 100%;
+      height: min(72vh, 760px);
+      min-height: 320px;
+      max-height: none;
+      padding: 0;
+      display: block;
+      overflow: hidden;
+      cursor: default;
+      background: #111111;
+    }
+    .product-gallery-track {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+    }
+    .product-gallery-track::-webkit-scrollbar { display: none; }
+    .product-gallery-track .gallery-slide {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      scroll-snap-align: center;
+      scroll-snap-stop: always;
+    }
+    .product-gallery-track .gallery-slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .product-gallery-track .gallery-slide.gallery-empty { background: #F7F7F7; }
+    #productModal .modal-images .main-image .play-btn { z-index: 4; }
+    #productModal .gallery-dots {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      display: none;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.32);
+      backdrop-filter: blur(6px);
+      z-index: 3;
+    }
+    #productModal .gallery-dot {
+      width: 8px;
+      height: 8px;
+      border: none;
+      border-radius: 999px;
+      padding: 0;
+      background: rgba(255,255,255,0.5);
+      cursor: pointer;
+      transition: width 0.2s, background 0.2s;
+    }
+    #productModal .gallery-dot.active { width: 22px; background: #fff; }
+    #productModal .modal-images .thumb-row {
+      justify-content: center;
+      padding: 12px 16px;
+      background: #fff;
+      border-bottom: 1px solid #ececec;
+    }
+    #productModal .modal-images .thumb-row .thumb {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+    }
+    #productModal .modal-info {
+      width: 100%;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+      overflow: visible;
+    }
+    #productModal .recommendations-row {
+      width: 100%;
+      max-width: 980px;
+      margin: 0 auto;
+      border-radius: 0;
+    }
+    #productModal .modal-close-btn {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      width: 42px;
+      height: 42px;
+      background: rgba(255,255,255,0.94);
+      color: #111111;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.24);
+      z-index: 3001;
+    }
+    @media (max-width: 768px) {
+      #productModal .modal-images .main-image {
+        height: 70vh;
+        height: 70dvh;
+        min-height: 300px;
+      }
+      #productModal .modal-info { padding: 20px 16px 40px; }
+      #productModal .modal-images .thumb-row {
+        justify-content: flex-start;
+        padding: 10px 12px;
+      }
+    }
   </style>
   <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
   <script>
@@ -1940,7 +2083,10 @@
       </div>
       <div class="form-group"><label>Full Name *</label><input type="text" id="cmName" placeholder="Your full name"></div>
       <div class="form-row"><div class="form-group"><label>Phone *</label><input type="text" id="cmPhone" placeholder="Phone number"></div><div class="form-group"><label>Email</label><input type="email" id="cmEmail" placeholder="your@email.com"></div></div>
-      <div class="form-group"><label>Delivery Address *</label><textarea id="cmAddress" placeholder="Full delivery address" rows="2"></textarea></div>
+      <div class="form-group"><label>Delivery Location *</label><select id="cmDeliveryLocation"><option value="">Select a delivery address</option></select></div>
+      <div class="form-group"><label>House / Tole / Landmark</label><textarea id="cmAddress" placeholder="House no., tole, nearby landmark" rows="2"></textarea></div>
+      <input type="hidden" id="cmLandmark">
+      <input type="hidden" id="cmWard">
       <div class="form-group"><label>Delivery Instructions</label><textarea id="cmNotes" placeholder="Call before delivery, leave at the gate, nearby landmark..." rows="2"></textarea><div style="font-size:0.68rem;color:#888;margin-top:3px;">Important: include ward, tole and a nearby landmark.</div></div>
       <div class="cm-actions"><button class="btn btn-outline" onclick="cmPrevStep()"><i class="fas fa-arrow-left"></i> Back</button><button class="btn btn-primary" onclick="cmNextStep()">Continue <i class="fas fa-arrow-right"></i></button></div>
     </div>
@@ -2041,7 +2187,10 @@
       <div class="form-group"><label>Full Name *</label><input type="text" id="ordName" placeholder="Your full name"></div>
       <div class="form-group"><label>Phone *</label><input type="text" id="ordPhone" placeholder="e.g. 9867135403"></div>
       <div class="form-group"><label>Email</label><input type="email" id="ordEmail" placeholder="your@email.com"></div>
-      <div class="form-group"><label>Delivery Address *</label><textarea id="ordAddress" placeholder="Full delivery address"></textarea></div>
+      <div class="form-group"><label>Delivery Location *</label><select id="ordDeliveryLocation"><option value="">Select a delivery address</option></select></div>
+      <div class="form-group"><label>House / Tole / Landmark</label><textarea id="ordAddress" placeholder="House no., tole, nearby landmark"></textarea></div>
+      <input type="hidden" id="ordLandmark">
+      <input type="hidden" id="ordWard">
       <div class="form-group"><label>Shipping Method *</label>
         <div class="shipping-options" id="shippingOptions">
           <div class="shipping-option selected" data-value="standard" data-cost="0" onclick="selectShipping(this)">
@@ -2103,8 +2252,11 @@
     <button class="modal-close-btn" onclick="closeProductModal()"><i class="fas fa-times"></i></button>
     <div class="modal-body">
       <div class="modal-images" id="modalImages">
-        <div class="main-image" id="mainImage" onclick="toggleZoom(this)">
-          <i class="fas fa-image" style="font-size:3rem;color:#ddd;"></i>
+        <div class="main-image" id="mainImage">
+          <div class="product-gallery-track" id="galleryTrack">
+            <div class="gallery-slide gallery-empty"><i class="fas fa-image" style="font-size:3rem;color:#ddd;"></i></div>
+          </div>
+          <div class="gallery-dots" id="galleryDots"></div>
         </div>
         <div class="thumb-row" id="thumbRow"></div>
       </div>
@@ -2262,11 +2414,10 @@
           </div>
           <div class="addr-form-row">
             <div class="addr-field"><label><i class="fas fa-phone"></i> Phone *</label><input type="text" id="addrPhone" placeholder="+977 98XXXXXXXX"></div>
-            <div class="addr-field"><label><i class="fas fa-city"></i> City</label><input type="text" id="addrCity" placeholder="Kathmandu"></div>
+            <div class="addr-field"><label><i class="fas fa-map-marker-alt"></i> Delivery Location *</label><div class="addr-select-wrap"><select id="addrDeliveryLocation"><option value="">Select a delivery address</option></select><i class="fas fa-chevron-down"></i></div></div>
           </div>
-          <div class="addr-field addr-field-full"><label><i class="fas fa-home"></i> Address *</label><textarea id="addrAddress" placeholder="Street, building, area details" rows="2"></textarea></div>
+          <div class="addr-field addr-field-full"><label><i class="fas fa-home"></i> House / Tole / Landmark</label><textarea id="addrAddress" placeholder="House no., tole, nearby landmark" rows="2"></textarea></div>
           <div class="addr-form-row">
-            <div class="addr-field"><label><i class="fas fa-map"></i> State</label><input type="text" id="addrState" placeholder="Bagmati"></div>
             <div class="addr-field"><label><i class="fas fa-mailbox"></i> Zip Code</label><input type="text" id="addrZip" placeholder="44600"></div>
           </div>
           <div class="addr-field addr-field-full" style="padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
@@ -2389,12 +2540,9 @@
               </div>
               <div class="form-row">
                 <div class="form-group"><label>Phone *</label><input type="tel" id="profAddrPhone" placeholder="Phone number"></div>
-                <div class="form-group"><label>Address *</label><input type="text" id="profAddrAddress" placeholder="Street, area"></div>
+                <div class="form-group"><label>Delivery Location *</label><select id="profAddrDeliveryLocation"><option value="">Select a delivery address</option></select></div>
               </div>
-              <div class="form-row">
-                <div class="form-group"><label>City</label><input type="text" id="profAddrCity" placeholder="City"></div>
-                <div class="form-group"><label>State</label><input type="text" id="profAddrState" placeholder="State"></div>
-              </div>
+              <div class="form-group"><label>House / Tole / Landmark</label><input type="text" id="profAddrAddress" placeholder="House no., tole, nearby landmark"></div>
               <div class="form-row">
                 <div class="form-group"><label>Zip Code</label><input type="text" id="profAddrZip" placeholder="Zip code"></div>
                 <div class="form-group"><label>Country</label><input type="text" id="profAddrCountry" value="Nepal"></div>
@@ -2515,6 +2663,52 @@ const SESSION_ID = (function() {
   }
   return id;
 })();
+
+var deliveryLocationsCache = [];
+
+function escapeDeliveryHtml(value) {
+  return String(value === undefined || value === null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function fillDeliveryLocationSelect(id, selectedId) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (selectedId !== undefined && selectedId !== null && String(selectedId) === '') {
+    el.removeAttribute('data-pending-selection');
+  }
+  var current = selectedId !== undefined && selectedId !== null
+    ? String(selectedId)
+    : (el.getAttribute('data-pending-selection') || el.value);
+  var options = deliveryLocationsCache.map(function (loc) {
+    return '<option value="' + escapeDeliveryHtml(loc.id) + '">' + escapeDeliveryHtml(loc.label || '') + ' — ' + escapeDeliveryHtml(loc.address || '') + '</option>';
+  }).join('');
+  el.innerHTML = '<option value="">Select a delivery address</option>' + options;
+  if (current) {
+    el.value = current;
+    if (el.value === current) el.removeAttribute('data-pending-selection');
+    else el.setAttribute('data-pending-selection', current);
+  }
+}
+
+function renderDeliveryLocationSelects() {
+  ['addrDeliveryLocation', 'profAddrDeliveryLocation', 'ordDeliveryLocation', 'cmDeliveryLocation'].forEach(function (id) {
+    fillDeliveryLocationSelect(id);
+  });
+}
+
+async function loadDeliveryLocations() {
+  try {
+    var res = await fetch('/api/delivery-locations');
+    deliveryLocationsCache = res.ok ? await res.json() : [];
+  } catch {
+    deliveryLocationsCache = [];
+  }
+  renderDeliveryLocationSelects();
+}
+
+loadDeliveryLocations();
 
 async function supaFetch(table, params) {
   let url = SUPABASE_URL + '/rest/v1/' + table + '?select=*';
@@ -2679,6 +2873,7 @@ let selectedPayment = '';
 let currentReviewRating = 0;
 let currentModalProduct = null;
 let currentModalImage = '';
+let currentGalleryImages = [];
 let selectedSize = '';
 let selectedColor = '';
 let appliedCoupon = null;
@@ -2912,7 +3107,6 @@ function prefillCheckoutForm() {
   if (user.name) document.getElementById('ordName').value = user.name;
   if (user.email) document.getElementById('ordEmail').value = user.email;
   if (user.phone) document.getElementById('ordPhone').value = user.phone;
-  if (user.address) document.getElementById('ordAddress').value = user.address;
   // Prefer saved address (default) over profile address
   fetch('/api/addresses', { headers: { 'x-session-id': SESSION_ID } })
     .then(r => r.json())
@@ -2921,7 +3115,10 @@ function prefillCheckoutForm() {
       if (def) {
         document.getElementById('ordName').value = def.full_name || user.name || '';
         document.getElementById('ordPhone').value = def.phone || user.phone || '';
-        document.getElementById('ordAddress').value = def.address + (def.city ? ', ' + def.city : '') + (def.state ? ', ' + def.state : '');
+        fillDeliveryLocationSelect('ordDeliveryLocation', def.delivery_location_id);
+        document.getElementById('ordAddress').value = def.tole || '';
+        document.getElementById('ordWard').value = def.ward || '';
+        document.getElementById('ordLandmark').value = def.landmark || '';
         if (def.instructions && !document.getElementById('ordNotes').value.trim()) document.getElementById('ordNotes').value = def.instructions;
         setPickedLocation('ord', def.latitude, def.longitude, def.location_accuracy);
       }
@@ -2931,11 +3128,10 @@ function prefillCheckoutForm() {
 function ordFillAddress(a) {
   document.getElementById('ordName').value = a.full_name || '';
   document.getElementById('ordPhone').value = a.phone || '';
-  var addr = a.address || '';
-  if (a.city) addr += (addr ? ', ' : '') + a.city;
-  if (a.state) addr += ', ' + a.state;
-  if (a.zip_code) addr += ' - ' + a.zip_code;
-  document.getElementById('ordAddress').value = addr;
+  fillDeliveryLocationSelect('ordDeliveryLocation', a.delivery_location_id);
+  document.getElementById('ordAddress').value = a.tole || '';
+  document.getElementById('ordWard').value = a.ward || '';
+  document.getElementById('ordLandmark').value = a.landmark || '';
   if (a.instructions && !document.getElementById('ordNotes').value.trim()) document.getElementById('ordNotes').value = a.instructions;
   setPickedLocation('ord', a.latitude, a.longitude, a.location_accuracy);
   document.getElementById('ordSavedAddressList').style.display = 'none';
@@ -2982,14 +3178,17 @@ async function placeOrder() {
   const name = document.getElementById('ordName').value.trim();
   const phone = document.getElementById('ordPhone').value.trim();
   const email = document.getElementById('ordEmail').value.trim();
+  const deliveryLocationId = document.getElementById('ordDeliveryLocation').value;
   const address = document.getElementById('ordAddress').value.trim();
+  const landmark = document.getElementById('ordLandmark').value.trim();
+  const ward = document.getElementById('ordWard').value.trim();
   const notes = document.getElementById('ordNotes').value.trim();
   const location = getPickedLocation('ord');
   const errEl = document.getElementById('checkoutError');
   errEl.style.display = 'none';
 
-  if (!name || !phone || !address) {
-    errEl.textContent = 'Please fill in name, phone, and address.';
+  if (!name || !phone || !deliveryLocationId) {
+    errEl.textContent = 'Please fill in name, phone, and select a delivery location.';
     errEl.style.display = 'block';
     return;
   }
@@ -3011,6 +3210,11 @@ async function placeOrder() {
       customer_phone: phone,
       customer_email: email,
       customer_address: address,
+      delivery_location_id: deliveryLocationId,
+      customer_address_details: address,
+      customer_landmark: landmark,
+      customer_ward: ward,
+      customer_tole: address,
       customer_latitude: location.latitude,
       customer_longitude: location.longitude,
       customer_location_accuracy: location.location_accuracy,
@@ -3067,6 +3271,11 @@ async function submitOnlineOrder(fields) {
     customer_phone: fields.customer_phone,
     customer_email: fields.customer_email || '',
     customer_address: fields.customer_address,
+    delivery_location_id: fields.delivery_location_id,
+    customer_address_details: fields.customer_address_details || '',
+    customer_landmark: fields.customer_landmark || '',
+    customer_ward: fields.customer_ward || '',
+    customer_tole: fields.customer_tole || '',
     customer_latitude: fields.customer_latitude || null,
     customer_longitude: fields.customer_longitude || null,
     customer_location_accuracy: fields.customer_location_accuracy || null,
@@ -3491,14 +3700,30 @@ async function viewProduct(id, options) {
 function showProductModal(p) {
   selectedSize = ''; selectedColor = '';
   const imgs = p.images_list && p.images_list.length ? p.images_list : (p.image ? [{ image_url: p.image, is_primary: 1 }] : []);
-  const mainImg = imgs.length ? imgs[0].image_url : '';
+  const galleryImages = imgs.filter(img => img && img.image_url);
+  currentGalleryImages = galleryImages.map(img => img.image_url);
+  const mainImg = currentGalleryImages.length ? currentGalleryImages[0] : '';
   currentModalImage = mainImg;
 
-  document.getElementById('mainImage').innerHTML = mainImg ? '<img src="' + imgUrl(mainImg) + '" alt="' + p.name + '" loading="lazy">' : '<i class="' + (p.icon || 'fas fa-box') + '" style="font-size:4rem;color:#ccc;"></i>';
-  document.getElementById('mainImage').className = 'main-image';
+  const mainImageEl = document.getElementById('mainImage');
+  mainImageEl.className = 'main-image';
+  mainImageEl.innerHTML = '<div class="product-gallery-track" id="galleryTrack"></div><div class="gallery-dots" id="galleryDots"></div>';
 
-  if (imgs.length > 1) {
-    document.getElementById('thumbRow').innerHTML = imgs.map((img, i) => '<div class="thumb ' + (i === 0 ? 'active' : '') + '" onclick="switchImage(this,\'' + img.image_url + '\')"><img src="' + imgUrl(img.image_url) + '" loading="lazy"></div>').join('');
+  const galleryTrack = document.getElementById('galleryTrack');
+  if (mainImg) {
+    galleryTrack.innerHTML = galleryImages.map((img, i) => '<div class="gallery-slide"><img src="' + imgUrl(img.image_url) + '" alt="' + String(p.name || '').replace(/"/g, '&quot;') + '" ' + (i === 0 ? '' : 'loading="lazy"') + ' draggable="false"></div>').join('');
+  } else {
+    galleryTrack.innerHTML = '<div class="gallery-slide gallery-empty"><i class="' + (p.icon || 'fas fa-box') + '" style="font-size:4rem;color:#ccc;"></i></div>';
+  }
+  galleryTrack.scrollLeft = 0;
+  galleryTrack.onscroll = updateProductGalleryState;
+
+  const galleryDots = document.getElementById('galleryDots');
+  galleryDots.innerHTML = currentGalleryImages.length > 1 ? currentGalleryImages.map((_, i) => '<button class="gallery-dot ' + (i === 0 ? 'active' : '') + '" type="button" onclick="goToProductImage(' + i + ')" aria-label="View image ' + (i + 1) + '"></button>').join('') : '';
+  galleryDots.style.display = currentGalleryImages.length > 1 ? 'flex' : 'none';
+
+  if (galleryImages.length > 1) {
+    document.getElementById('thumbRow').innerHTML = galleryImages.map((img, i) => '<div class="thumb ' + (i === 0 ? 'active' : '') + '" onclick="goToProductImage(' + i + ')"><img src="' + imgUrl(img.image_url) + '" loading="lazy" alt=""></div>').join('');
   } else {
     document.getElementById('thumbRow').innerHTML = '';
   }
@@ -3568,7 +3793,12 @@ function showProductModal(p) {
   wlBtn.className = 'btn-wishlist' + (inWishlist ? ' active' : '');
 
   if (p.video_url) {
-    document.getElementById('mainImage').innerHTML += '<button class="play-btn" onclick="playVideo(\'' + p.video_url + '\')"><i class="fas fa-play"></i></button>';
+    const playBtn = document.createElement('button');
+    playBtn.className = 'play-btn';
+    playBtn.type = 'button';
+    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    playBtn.onclick = function() { playVideo(p.video_url); };
+    document.getElementById('mainImage').appendChild(playBtn);
   }
 
   if (p.reviews && p.reviews.length) {
@@ -3583,22 +3813,44 @@ function showProductModal(p) {
     document.getElementById('reviewsList').innerHTML = '<p style="color:#565959;font-size:0.85rem;">No reviews yet. Be the first to review!</p>';
   }
 
+  const productModal = document.getElementById('productModal');
   const productModalBox = document.querySelector('#productModal .modal-box');
   if (productModalBox) productModalBox.scrollTop = 0;
-  document.getElementById('productModal').classList.add('open');
+  productModal.scrollTop = 0;
+  productModal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
-function switchImage(el, url) {
-  document.querySelectorAll('.thumb-row .thumb').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  currentModalImage = url;
-  document.getElementById('mainImage').innerHTML = '<img src="' + imgUrl(url) + '" alt="" loading="lazy">';
-  document.getElementById('mainImage').className = 'main-image';
+function updateProductGalleryState(index) {
+  const track = document.getElementById('galleryTrack');
+  if (!track) return;
+  const slides = track.querySelectorAll('.gallery-slide');
+  if (!slides.length) return;
+
+  let activeIndex = index;
+  if (typeof activeIndex !== 'number') {
+    activeIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+  }
+  activeIndex = Math.max(0, Math.min(activeIndex, slides.length - 1));
+  currentModalImage = currentGalleryImages[activeIndex] || currentModalImage;
+
+  document.querySelectorAll('#galleryDots .gallery-dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === activeIndex);
+  });
+  document.querySelectorAll('#thumbRow .thumb').forEach((thumb, i) => {
+    thumb.classList.toggle('active', i === activeIndex);
+  });
 }
 
-function toggleZoom(el) {
-  el.classList.toggle('zoomed');
+function goToProductImage(index) {
+  const track = document.getElementById('galleryTrack');
+  if (!track) return;
+  const slides = track.querySelectorAll('.gallery-slide');
+  if (!slides.length) return;
+
+  index = Math.max(0, Math.min(Number(index) || 0, slides.length - 1));
+  track.scrollTo({ left: track.clientWidth * index, behavior: 'smooth' });
+  updateProductGalleryState(index);
 }
 
 function playVideo(url) {
@@ -4884,9 +5136,8 @@ function showAddressForm() {
   document.getElementById('profAddrLabel').value = 'Home';
   document.getElementById('profAddrName').value = '';
   document.getElementById('profAddrPhone').value = '';
+  fillDeliveryLocationSelect('profAddrDeliveryLocation', '');
   document.getElementById('profAddrAddress').value = '';
-  document.getElementById('profAddrCity').value = '';
-  document.getElementById('profAddrState').value = '';
   document.getElementById('profAddrZip').value = '';
   document.getElementById('profAddrInstructions').value = '';
   document.getElementById('profAddrCountry').value = 'Nepal';
@@ -4909,9 +5160,8 @@ async function editProfileAddress(id) {
   document.getElementById('profAddrLabel').value = a.label || 'Home';
   document.getElementById('profAddrName').value = a.full_name || '';
   document.getElementById('profAddrPhone').value = a.phone || '';
-  document.getElementById('profAddrAddress').value = a.address || '';
-  document.getElementById('profAddrCity').value = a.city || '';
-  document.getElementById('profAddrState').value = a.state || '';
+  fillDeliveryLocationSelect('profAddrDeliveryLocation', a.delivery_location_id);
+  document.getElementById('profAddrAddress').value = a.tole || '';
   document.getElementById('profAddrZip').value = a.zip_code || '';
   document.getElementById('profAddrInstructions').value = a.instructions || '';
   document.getElementById('profAddrCountry').value = a.country || 'Nepal';
@@ -4921,20 +5171,22 @@ async function editProfileAddress(id) {
 }
 
 async function handleSaveAddress() {
+  const addressDetails = document.getElementById('profAddrAddress').value.trim();
   const data = {
     label: document.getElementById('profAddrLabel').value,
     full_name: document.getElementById('profAddrName').value.trim(),
     phone: document.getElementById('profAddrPhone').value.trim(),
-    address: document.getElementById('profAddrAddress').value.trim(),
-    city: document.getElementById('profAddrCity').value.trim(),
-    state: document.getElementById('profAddrState').value.trim(),
+    delivery_location_id: document.getElementById('profAddrDeliveryLocation').value,
+    address_details: addressDetails,
+    tole: addressDetails,
     instructions: document.getElementById('profAddrInstructions').value.trim(),
     ...locationPayload('profAddr'),
     zip_code: document.getElementById('profAddrZip').value.trim(),
     country: document.getElementById('profAddrCountry').value.trim(),
     is_default: document.getElementById('profAddrDefault').checked
   };
-  if (!data.full_name || !data.phone || !data.address) { toast('Name, phone and address are required', 'error'); return; }
+  if (!data.full_name || !data.phone) { toast('Name and phone are required', 'error'); return; }
+  if (!data.delivery_location_id) { toast('Please select a delivery location', 'error'); return; }
   const editId = document.getElementById('profileEditAddressId').value;
   if (editId) {
     const res = await authFetch(USERS_API + '/addresses/' + editId, { method: 'PUT', body: JSON.stringify(data) });
@@ -5222,9 +5474,8 @@ function showAddAddressForm() {
   document.getElementById('addrLabel').value = 'Home';
   document.getElementById('addrName').value = '';
   document.getElementById('addrPhone').value = '';
-  document.getElementById('addrCity').value = '';
+  fillDeliveryLocationSelect('addrDeliveryLocation', '');
   document.getElementById('addrAddress').value = '';
-  document.getElementById('addrState').value = '';
   document.getElementById('addrZip').value = '';
   document.getElementById('addrInstructions').value = '';
   document.getElementById('addrDefault').checked = false;
@@ -5247,9 +5498,8 @@ function editGuestAddress(id) {
       document.getElementById('addrLabel').value = a.label || 'Home';
       document.getElementById('addrName').value = a.full_name || '';
       document.getElementById('addrPhone').value = a.phone || '';
-      document.getElementById('addrCity').value = a.city || '';
-      document.getElementById('addrAddress').value = a.address || '';
-      document.getElementById('addrState').value = a.state || '';
+      fillDeliveryLocationSelect('addrDeliveryLocation', a.delivery_location_id);
+      document.getElementById('addrAddress').value = a.tole || '';
       document.getElementById('addrZip').value = a.zip_code || '';
       document.getElementById('addrInstructions').value = a.instructions || '';
       document.getElementById('addrDefault').checked = !!a.is_default;
@@ -5260,20 +5510,25 @@ function editGuestAddress(id) {
 
 async function saveGuestAddress() {
   const editId = document.getElementById('editAddressId').value;
+  const addressDetails = document.getElementById('addrAddress').value.trim();
   const payload = {
     label: document.getElementById('addrLabel').value,
     full_name: document.getElementById('addrName').value.trim(),
     phone: document.getElementById('addrPhone').value.trim(),
-    address: document.getElementById('addrAddress').value.trim(),
-    city: document.getElementById('addrCity').value.trim(),
-    state: document.getElementById('addrState').value.trim(),
+    delivery_location_id: document.getElementById('addrDeliveryLocation').value,
+    address_details: addressDetails,
+    tole: addressDetails,
     instructions: document.getElementById('addrInstructions').value.trim(),
     ...locationPayload('addr'),
     zip_code: document.getElementById('addrZip').value.trim(),
     is_default: document.getElementById('addrDefault').checked
   };
-  if (!payload.full_name || !payload.phone || !payload.address) {
-    toast('Please fill in name, phone, and address', 'error');
+  if (!payload.full_name || !payload.phone) {
+    toast('Please fill in name and phone', 'error');
+    return;
+  }
+  if (!payload.delivery_location_id) {
+    toast('Please select a delivery location', 'error');
     return;
   }
   try {
@@ -5307,7 +5562,10 @@ function useGuestAddress(id) {
       if (!a) return;
       document.getElementById('ordName').value = a.full_name || '';
       document.getElementById('ordPhone').value = a.phone || '';
-      document.getElementById('ordAddress').value = a.address + (a.city ? ', ' + a.city : '') + (a.state ? ', ' + a.state : '');
+      fillDeliveryLocationSelect('ordDeliveryLocation', a.delivery_location_id);
+      document.getElementById('ordAddress').value = a.tole || '';
+      document.getElementById('ordWard').value = a.ward || '';
+      document.getElementById('ordLandmark').value = a.landmark || '';
       if (a.instructions && !document.getElementById('ordNotes').value.trim()) document.getElementById('ordNotes').value = a.instructions;
       setPickedLocation('ord', a.latitude, a.longitude, a.location_accuracy);
       closeAddresses();
@@ -6128,8 +6386,8 @@ function initCarousel() {
     if (cmCurrentStep === 2) {
       var name = document.getElementById('cmName').value.trim();
       var phone = document.getElementById('cmPhone').value.trim();
-      var address = document.getElementById('cmAddress').value.trim();
-      if (!name || !phone || !address) { toast('Please fill in name, phone, and address', 'error'); return; }
+      var deliveryLocationId = document.getElementById('cmDeliveryLocation').value;
+      if (!name || !phone || !deliveryLocationId) { toast('Please fill in name, phone, and select a delivery location', 'error'); return; }
       cmShowStep(3);
       return;
     }
@@ -6180,11 +6438,10 @@ function initCarousel() {
   function cmFillAddress(a) {
     document.getElementById('cmName').value = a.full_name || '';
     document.getElementById('cmPhone').value = a.phone || '';
-    var addr = a.address || '';
-    if (a.city) addr += (addr ? ', ' : '') + a.city;
-    if (a.state) addr += ', ' + a.state;
-    if (a.zip_code) addr += ' - ' + a.zip_code;
-    document.getElementById('cmAddress').value = addr;
+    fillDeliveryLocationSelect('cmDeliveryLocation', a.delivery_location_id);
+    document.getElementById('cmAddress').value = a.tole || '';
+    document.getElementById('cmWard').value = a.ward || '';
+    document.getElementById('cmLandmark').value = a.landmark || '';
     if (a.instructions && !document.getElementById('cmNotes').value.trim()) document.getElementById('cmNotes').value = a.instructions;
     setPickedLocation('cm', a.latitude, a.longitude, a.location_accuracy);
     document.getElementById('cmSavedAddressList').style.display = 'none';
@@ -6210,6 +6467,9 @@ function initCarousel() {
     var phone = document.getElementById('cmPhone').value.trim();
     var email = document.getElementById('cmEmail').value.trim();
     var address = document.getElementById('cmAddress').value.trim();
+    var deliverySelect = document.getElementById('cmDeliveryLocation');
+    var deliveryLabel = deliverySelect && deliverySelect.selectedIndex >= 0 ? deliverySelect.options[deliverySelect.selectedIndex].textContent : '';
+    address = [address, deliveryLabel].filter(Boolean).join(', ');
     var notes = document.getElementById('cmNotes').value.trim();
     var paymentEl = document.querySelector('.cm-payment-option.selected');
     var shippingEl = document.querySelector('.cm-shipping-option.selected');
@@ -6234,10 +6494,13 @@ function initCarousel() {
     var name = document.getElementById('cmName').value.trim();
     var phone = document.getElementById('cmPhone').value.trim();
     var email = document.getElementById('cmEmail').value.trim();
+    var deliveryLocationId = document.getElementById('cmDeliveryLocation').value;
     var address = document.getElementById('cmAddress').value.trim();
+    var landmark = document.getElementById('cmLandmark').value.trim();
+    var ward = document.getElementById('cmWard').value.trim();
     var notes = document.getElementById('cmNotes').value.trim();
     var location = getPickedLocation('cm');
-    if (!name || !phone || !address) { toast('Please fill in all required fields', 'error'); return; }
+    if (!name || !phone || !deliveryLocationId) { toast('Please fill in all required fields', 'error'); return; }
     var paymentEl = document.querySelector('.cm-payment-option.selected');
     if (!paymentEl || paymentEl.dataset.value !== 'online') { toast('Please select Online Payment to continue', 'error'); cmShowStep(3); return; }
     var shippingEl = document.querySelector('.cm-shipping-option.selected');
@@ -6246,7 +6509,10 @@ function initCarousel() {
     try {
       var result = await submitOnlineOrder({
         customer_name: name, customer_phone: phone, customer_email: email,
-        customer_address: address, notes: notes, delivery_instructions: notes,
+        customer_address: address, delivery_location_id: deliveryLocationId,
+        customer_address_details: address, customer_landmark: landmark,
+        customer_ward: ward, customer_tole: address,
+        notes: notes, delivery_instructions: notes,
         customer_latitude: location.latitude, customer_longitude: location.longitude,
         customer_location_accuracy: location.location_accuracy,
         shipping_method: shippingEl ? shippingEl.dataset.value : 'standard'
@@ -6350,13 +6616,9 @@ function fillFreeAddressFromGeocode(prefix, data) {
     if (ord && !ord.value.trim()) ord.value = display;
   } else if (prefix === 'addr') {
     AryalLocation.fillInput('addrAddress', a.house_number ? (a.house_number + ' ' + (a.road || '')) : (a.road || a.neighbourhood || display));
-    AryalLocation.fillInput('addrCity', a.city || a.municipality || a.town || a.village || '');
-    AryalLocation.fillInput('addrState', a.state || '');
     AryalLocation.fillInput('addrZip', a.postcode || '');
   } else if (prefix === 'profAddr') {
     AryalLocation.fillInput('profAddrAddress', a.house_number ? (a.house_number + ' ' + (a.road || '')) : (a.road || a.neighbourhood || display));
-    AryalLocation.fillInput('profAddrCity', a.city || a.municipality || a.town || a.village || '');
-    AryalLocation.fillInput('profAddrState', a.state || '');
     AryalLocation.fillInput('profAddrZip', a.postcode || '');
   }
 }
@@ -6383,5 +6645,6 @@ if (document.readyState === 'loading') {
 }
 </script>
 <script src="theme.js" defer></script>
+<script src="pwa.js" defer></script>
 </body>
 </html>

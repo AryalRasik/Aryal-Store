@@ -60,6 +60,7 @@ function migrate() {
       latitude REAL,
       longitude REAL,
       location_accuracy REAL,
+      delivery_location_id INTEGER,
       zip_code TEXT DEFAULT '',
       country TEXT DEFAULT 'Nepal',
       is_default INTEGER DEFAULT 0,
@@ -128,7 +129,8 @@ function migrate() {
     { name: 'instructions', def: "TEXT DEFAULT ''" },
     { name: 'latitude', def: 'REAL' },
     { name: 'longitude', def: 'REAL' },
-    { name: 'location_accuracy', def: 'REAL' }
+    { name: 'location_accuracy', def: 'REAL' },
+    { name: 'delivery_location_id', def: 'INTEGER' }
   ];
   for (const col of addressAdds) {
     if (!addressCols.includes(col.name)) {
@@ -162,6 +164,7 @@ function migrateOrderTables() {
       customer_latitude REAL,
       customer_longitude REAL,
       customer_location_accuracy REAL,
+      delivery_location_id INTEGER,
       delivery_instructions TEXT DEFAULT '',
       subtotal REAL DEFAULT 0,
       discount REAL DEFAULT 0,
@@ -261,6 +264,7 @@ function migrateOrderTables() {
     { name: 'customer_latitude', def: 'REAL' },
     { name: 'customer_longitude', def: 'REAL' },
     { name: 'customer_location_accuracy', def: 'REAL' },
+    { name: 'delivery_location_id', def: 'INTEGER' },
     { name: 'delivery_instructions', def: "TEXT DEFAULT ''" },
     { name: 'subtotal', def: 'REAL DEFAULT 0' },
     { name: 'discount', def: 'REAL DEFAULT 0' },
