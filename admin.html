@@ -315,7 +315,7 @@
           <div class="form-group">
             <label>Product Photos (up to 10)</label>
             <input type="file" id="prodImageFile" accept="image/*" multiple onchange="previewProdImage(event)">
-            <div class="tag-hint">The first photo is used as the main image. Click a photo to remove it before saving.</div>
+            <div class="tag-hint">Click "Set cover" on a photo to choose the card image. The first photo is used by default.</div>
             <div id="prodImagePreview" style="margin-top:8px;display:none;"></div>
           </div>
           <div class="form-group"><label>Or Main Image URL</label><input type="text" id="prodImage" placeholder="https://..."></div>
@@ -348,6 +348,10 @@
             <button class="filter-btn" onclick="filterProducts('stationery')">Stationery</button>
             <button class="filter-btn" onclick="filterProducts('cosmetics')">Cosmetics</button>
             <button class="filter-btn" onclick="filterProducts('cylinder')">Cylinder</button>
+          </div>
+          <div class="inline-flex" style="margin-bottom:10px;gap:8px;align-items:center;">
+            <button class="btn btn-outline btn-sm" id="prodSelectAllBtn" onclick="toggleSelectAllProducts()">Select All</button>
+            <button class="btn btn-danger btn-sm" id="prodBulkDeleteBtn" onclick="deleteSelectedProducts()" disabled>Delete Selected (<span id="prodSelectedCount">0</span>)</button>
           </div>
           <div id="productList"><p style="color:#888;">Loading...</p></div>
         </div>
@@ -541,6 +545,8 @@ let currentOrderFilter = 'all';
 let prodImageUrls = [];
 let prodPendingFiles = [];
 let prodPreviewObjectUrls = [];
+let prodCover = null;
+let selectedProductIds = new Set();
 let knownOrderIds = new Set();
 let alertedOrderIds = new Set();
 let ordersInitialized = false;
@@ -1127,21 +1133,48 @@ function renderProdImagePreview() {
   prodPendingFiles.forEach((file, index) => {
     const url = URL.createObjectURL(file);
     prodPreviewObjectUrls.push(url);
-    items.push({ url, index, pending: true, name: file.name });
+    items.push({ url, index, pending: true, name: file.name, file });
   });
+  if (prodCover) {
+    if (prodCover.type === 'existing' && prodImageUrls.indexOf(prodCover.url) === -1) prodCover = null;
+    if (prodCover.type === 'pending' && prodPendingFiles.indexOf(prodCover.file) === -1) prodCover = null;
+  }
   if (!items.length) {
     div.innerHTML = '';
     div.style.display = 'none';
     return;
   }
-  div.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;">' + items.map(item =>
-    '<div style="position:relative;border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#fafafa;">' +
+  const cover = prodCover || (items[0].pending
+    ? { type: 'pending', file: items[0].file }
+    : { type: 'existing', url: items[0].url });
+  div.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;">' + items.map(item => {
+    const isCover = item.pending
+      ? (cover.type === 'pending' && cover.file === item.file)
+      : (cover.type === 'existing' && cover.url === item.url);
+    const coverAction = item.pending
+      ? 'setProdCoverPending(' + item.index + ')'
+      : 'setProdCoverExisting(' + item.index + ')';
+    return '<div style="position:relative;border:2px solid ' + (isCover ? '#e94560' : '#ddd') + ';border-radius:8px;overflow:hidden;background:#fafafa;">' +
       '<img src="' + item.url + '" alt="' + escape(item.name || 'Product photo') + '" style="width:100%;height:92px;object-fit:cover;display:block;">' +
+      (isCover ? '<span style="position:absolute;left:4px;top:4px;background:#e94560;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;">Cover</span>' : '') +
       '<button type="button" onclick="removeProdImage(' + item.index + ',' + item.pending + ')" title="Remove photo" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border:0;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;cursor:pointer;line-height:24px;padding:0;font-size:16px;">&times;</button>' +
-      (item.pending ? '<span style="position:absolute;left:4px;bottom:4px;background:#e94560;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px;">NEW</span>' : '') +
-    '</div>'
-  ).join('') + '</div>';
+      (isCover ? '' : '<button type="button" onclick="' + coverAction + '" title="Use as card cover" style="position:absolute;left:4px;bottom:4px;border:0;border-radius:4px;background:rgba(0,0,0,.7);color:#fff;cursor:pointer;padding:2px 6px;font-size:10px;">Set cover</button>') +
+      (item.pending ? '<span style="position:absolute;right:4px;bottom:4px;background:#e94560;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px;">NEW</span>' : '') +
+    '</div>';
+  }).join('') + '</div>';
   div.style.display = 'block';
+}
+
+function setProdCoverExisting(index) {
+  if (!prodImageUrls[index]) return;
+  prodCover = { type: 'existing', url: prodImageUrls[index] };
+  renderProdImagePreview();
+}
+
+function setProdCoverPending(index) {
+  if (!prodPendingFiles[index]) return;
+  prodCover = { type: 'pending', file: prodPendingFiles[index] };
+  renderProdImagePreview();
 }
 
 function previewProdImage(e) {
@@ -1361,7 +1394,20 @@ async function saveProduct() {
   addImage(manualImageUrl);
   prodImageUrls.forEach(addImage);
   uploadedUrls.forEach(addImage);
-  const primaryImage = manualImageUrl || allImages[0] || '';
+
+  let primaryImage = '';
+  if (prodCover && prodCover.type === 'existing') {
+    primaryImage = prodCover.url;
+  } else if (prodCover && prodCover.type === 'pending') {
+    const coverIndex = prodPendingFiles.indexOf(prodCover.file);
+    if (coverIndex !== -1) primaryImage = uploadedUrls[coverIndex] || '';
+  }
+  if (!primaryImage) primaryImage = manualImageUrl || allImages[0] || '';
+  if (primaryImage) {
+    const existingIndex = allImages.indexOf(primaryImage);
+    if (existingIndex > 0) allImages.splice(existingIndex, 1);
+    if (existingIndex !== 0) allImages.unshift(primaryImage);
+  }
 
   const payload = {
     name, category: document.getElementById('prodCategory').value,
@@ -1419,6 +1465,7 @@ function resetForm() {
   document.getElementById('prodImageFile').value = '';
   prodImageUrls = [];
   prodPendingFiles = [];
+  prodCover = null;
   renderProdImagePreview();
   updateProductProfitPreview();
   document.getElementById('formTitle').textContent = 'Add Product';
@@ -1453,6 +1500,7 @@ function editProduct(id) {
   document.getElementById('prodImageFile').value = '';
   prodImageUrls = parseProductImageUrls(p);
   prodPendingFiles = [];
+  prodCover = prodImageUrls[0] ? { type: 'existing', url: prodImageUrls[0] } : null;
   renderProdImagePreview();
   document.getElementById('formTitle').textContent = 'Edit Product';
   document.getElementById('cancelBtn').style.display = '';
@@ -1473,15 +1521,77 @@ async function loadProducts() {
 }
 
 function renderFilteredProducts() {
+  pruneProductSelection();
   const filtered = currentProdFilter === 'all' ? allProducts : allProducts.filter(p => p.category === currentProdFilter);
   const list = document.getElementById('productList');
-  if (!filtered.length) { list.innerHTML = '<p style="color:#888;">No products.</p>'; return; }
+  if (!filtered.length) { list.innerHTML = '<p style="color:#888;">No products.</p>'; updateProductSelectionUI(); return; }
   list.innerHTML = filtered.map(p => {
     const price = moneyValue(p.price);
     const cost = moneyValue(p.cost_price);
     const profit = price - cost;
-    return '<div class="list-item">' + (p.image_url ? '<img src="' + p.image_url + '" class="preview-img" onerror="this.style.display=\'none\'">' : '') + '<div class="info"><h5>' + escape(p.name) + '</h5><p>' + (p.category || '') + ' | Price: Rs. ' + price + ' | Cost: Rs. ' + cost + ' | <span style="color:' + (profit < 0 ? '#e74c3c' : '#27ae60') + ';font-weight:600;">Profit: Rs. ' + profit + '</span> | Stock: ' + (p.stock || 0) + '</p></div><div class="actions"><button class="btn btn-primary btn-sm" onclick="editProduct(\'' + p.id + '\')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.id + '\')"><i class="fas fa-trash"></i></button></div></div>';
+    const id = String(p.id);
+    const checked = selectedProductIds.has(id) ? ' checked' : '';
+    return '<div class="list-item"><label style="display:flex;align-items:center;margin-right:8px;cursor:pointer;" title="Select product"><input type="checkbox" style="width:auto;accent-color:#e94560;"' + checked + ' onchange="toggleProductSelection(\'' + id + '\', this.checked)"></label>' + (p.image_url ? '<img src="' + p.image_url + '" class="preview-img" onerror="this.style.display=\'none\'">' : '') + '<div class="info"><h5>' + escape(p.name) + '</h5><p>' + (p.category || '') + ' | Price: Rs. ' + price + ' | Cost: Rs. ' + cost + ' | <span style="color:' + (profit < 0 ? '#e74c3c' : '#27ae60') + ';font-weight:600;">Profit: Rs. ' + profit + '</span> | Stock: ' + (p.stock || 0) + '</p></div><div class="actions"><button class="btn btn-primary btn-sm" onclick="editProduct(\'' + p.id + '\')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.id + '\')"><i class="fas fa-trash"></i></button></div></div>';
   }).join('');
+  updateProductSelectionUI();
+}
+
+function pruneProductSelection() {
+  const valid = new Set(allProducts.map(p => String(p.id)));
+  Array.from(selectedProductIds).forEach(id => { if (!valid.has(id)) selectedProductIds.delete(id); });
+}
+
+function toggleProductSelection(id, checked) {
+  id = String(id);
+  if (checked) selectedProductIds.add(id);
+  else selectedProductIds.delete(id);
+  updateProductSelectionUI();
+}
+
+function toggleSelectAllProducts() {
+  const filtered = currentProdFilter === 'all' ? allProducts : allProducts.filter(p => p.category === currentProdFilter);
+  const allSelected = filtered.length && filtered.every(p => selectedProductIds.has(String(p.id)));
+  filtered.forEach(p => {
+    const id = String(p.id);
+    if (allSelected) selectedProductIds.delete(id);
+    else selectedProductIds.add(id);
+  });
+  renderFilteredProducts();
+}
+
+function updateProductSelectionUI() {
+  const countEl = document.getElementById('prodSelectedCount');
+  const delBtn = document.getElementById('prodBulkDeleteBtn');
+  const allBtn = document.getElementById('prodSelectAllBtn');
+  if (countEl) countEl.textContent = selectedProductIds.size;
+  if (delBtn) delBtn.disabled = selectedProductIds.size === 0;
+  if (allBtn) {
+    const filtered = currentProdFilter === 'all' ? allProducts : allProducts.filter(p => p.category === currentProdFilter);
+    const allSelected = filtered.length && filtered.every(p => selectedProductIds.has(String(p.id)));
+    allBtn.textContent = allSelected ? 'Clear Selection' : 'Select All';
+  }
+}
+
+async function deleteSelectedProducts() {
+  const ids = Array.from(selectedProductIds);
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' selected product(s)? This cannot be undone.')) return;
+  let deleted = 0;
+  let failed = 0;
+  for (let i = 0; i < ids.length; i += 5) {
+    const chunk = ids.slice(i, i + 5);
+    const results = await Promise.all(chunk.map(async id => {
+      try { await api('/products/' + id, { method: 'DELETE' }); return true; }
+      catch {
+        try { await supaDelete('products', id); return true; }
+        catch { return false; }
+      }
+    }));
+    results.forEach(ok => { if (ok) deleted++; else failed++; });
+  }
+  selectedProductIds.clear();
+  showMsg('Deleted ' + deleted + ' product(s)' + (failed ? ', ' + failed + ' failed.' : '.'), failed ? 'error' : 'success');
+  await loadProducts();
 }
 
 function filterProducts(filter) {

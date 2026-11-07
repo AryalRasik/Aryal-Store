@@ -2075,12 +2075,6 @@
       <h4>Shipping Information</h4>
       <div style="margin-bottom:12px;"><button class="btn btn-sm" style="background:#E5E5E5;color:#555;font-size:0.75rem;" onclick="cmLoadSavedAddresses()"><i class="fas fa-map-marker-alt"></i> Use Saved Address</button></div>
       <div id="cmSavedAddressList" style="display:none;margin-bottom:10px;"></div>
-      <div style="margin-bottom:12px;padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
-        <button type="button" class="btn btn-sm" style="background:#111111;color:#fff;font-size:0.72rem;" id="cmUseLocationBtn"><i class="fas fa-crosshairs"></i> Use My Current Location</button>
-        <a id="cmLocationMap" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;font-size:0.72rem;color:#111111;text-decoration:underline;">View map</a>
-        <div id="cmLocationStatus" style="font-size:0.7rem;color:#666666;margin-top:6px;"></div>
-        <input type="hidden" id="cmLatitude"><input type="hidden" id="cmLongitude"><input type="hidden" id="cmLocationAccuracy">
-      </div>
       <div class="form-group"><label>Full Name *</label><input type="text" id="cmName" placeholder="Your full name"></div>
       <div class="form-row"><div class="form-group"><label>Phone *</label><input type="text" id="cmPhone" placeholder="Phone number"></div><div class="form-group"><label>Email</label><input type="email" id="cmEmail" placeholder="your@email.com"></div></div>
       <div class="form-group"><label>Delivery Location *</label><select id="cmDeliveryLocation"><option value="">Select a delivery address</option></select></div>
@@ -2178,12 +2172,6 @@
       <div class="checkout-summary" id="checkoutSummary"></div>
       <div style="margin-bottom:8px;"><button class="btn btn-sm" style="background:#E5E5E5;color:#555;font-size:0.7rem;" onclick="loadCheckoutSavedAddresses()"><i class="fas fa-map-marker-alt"></i> Use Saved Address</button></div>
       <div id="ordSavedAddressList" style="display:none;margin-bottom:8px;"></div>
-      <div style="margin-bottom:10px;padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
-        <button type="button" class="btn btn-sm" style="background:#111111;color:#fff;font-size:0.72rem;" id="ordUseLocationBtn"><i class="fas fa-crosshairs"></i> Use My Current Location</button>
-        <a id="ordLocationMap" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;font-size:0.72rem;color:#111111;text-decoration:underline;">View map</a>
-        <div id="ordLocationStatus" style="font-size:0.7rem;color:#666666;margin-top:6px;"></div>
-        <input type="hidden" id="ordLatitude"><input type="hidden" id="ordLongitude"><input type="hidden" id="ordLocationAccuracy">
-      </div>
       <div class="form-group"><label>Full Name *</label><input type="text" id="ordName" placeholder="Your full name"></div>
       <div class="form-group"><label>Phone *</label><input type="text" id="ordPhone" placeholder="e.g. 9867135403"></div>
       <div class="form-group"><label>Email</label><input type="email" id="ordEmail" placeholder="your@email.com"></div>
@@ -2420,12 +2408,6 @@
           <div class="addr-form-row">
             <div class="addr-field"><label><i class="fas fa-mailbox"></i> Zip Code</label><input type="text" id="addrZip" placeholder="44600"></div>
           </div>
-          <div class="addr-field addr-field-full" style="padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
-            <button type="button" class="btn btn-sm" style="background:#111111;color:#fff;font-size:0.72rem;" id="addrUseLocationBtn"><i class="fas fa-crosshairs"></i> Use My Current Location</button>
-            <a id="addrLocationMap" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;font-size:0.72rem;color:#111111;text-decoration:underline;">View map</a>
-            <div id="addrLocationStatus" style="font-size:0.7rem;color:#666666;margin-top:6px;"></div>
-            <input type="hidden" id="addrLatitude"><input type="hidden" id="addrLongitude"><input type="hidden" id="addrLocationAccuracy">
-          </div>
           <div class="addr-field addr-field-full"><label><i class="fas fa-comment-dots"></i> Delivery Instructions</label><textarea id="addrInstructions" placeholder="Call before delivery, leave at the gate..." rows="2"></textarea></div>
           <div class="addr-field addr-field-full"><label class="addr-checkbox"><input type="checkbox" id="addrDefault"><span class="addr-checkmark"></span> Set as default address</label></div>
         </div>
@@ -2546,12 +2528,6 @@
               <div class="form-row">
                 <div class="form-group"><label>Zip Code</label><input type="text" id="profAddrZip" placeholder="Zip code"></div>
                 <div class="form-group"><label>Country</label><input type="text" id="profAddrCountry" value="Nepal"></div>
-              </div>
-              <div class="form-group" style="padding:10px;border:1px solid #e5e5e5;border-radius:8px;background:#fafafa;">
-                <button type="button" class="btn btn-sm" style="background:#111111;color:#fff;font-size:0.72rem;" id="profAddrUseLocationBtn"><i class="fas fa-crosshairs"></i> Use My Current Location</button>
-                <a id="profAddrLocationMap" href="#" target="_blank" rel="noopener" style="display:none;margin-left:8px;font-size:0.72rem;color:#111111;text-decoration:underline;">View map</a>
-                <div id="profAddrLocationStatus" style="font-size:0.7rem;color:#666666;margin-top:6px;"></div>
-                <input type="hidden" id="profAddrLatitude"><input type="hidden" id="profAddrLongitude"><input type="hidden" id="profAddrLocationAccuracy">
               </div>
               <div class="form-group"><label>Delivery Instructions</label><textarea id="profAddrInstructions" placeholder="Call before delivery, leave at the gate..." rows="2"></textarea></div>
               <div class="form-group"><label><input type="checkbox" id="profAddrDefault" style="width:auto;accent-color:#111111;"> Set as default address</label></div>

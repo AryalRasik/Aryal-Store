@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
+const zlib = require('zlib');
 const crypto = require('crypto');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
@@ -85,6 +86,28 @@ async function saveUploadedFile(file) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'aryal-store-jwt-secret-2026';
+
+// Gzip JSON responses. The product catalogue is roughly 800 KB of JSON, which
+// shrinks to ~100 KB gzipped — a big win when loading the store on slow links.
+app.use(function (req, res, next) {
+  if (!/\bgzip\b/.test(String(req.headers['accept-encoding'] || ''))) return next();
+  const sendJson = res.json.bind(res);
+  res.json = function (body) {
+    let json;
+    try { json = JSON.stringify(body); } catch (e) { return sendJson(body); }
+    const buf = Buffer.from(json);
+    if (buf.length < 1024) return sendJson(body);
+    zlib.gzip(buf, function (err, zipped) {
+      if (err) return sendJson(body);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      res.setHeader('Content-Length', zipped.length);
+      res.end(zipped);
+    });
+  };
+  next();
+});
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 const ALLOWED_ORIGINS = [
@@ -1253,18 +1276,75 @@ async function getLatestOffer(orderId) {
 
 async function getOrderBundle(order) {
   if (!order) return null;
-  const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
-  const { data: tracking } = await from('order_tracking').select('*').eq('order_id', order.id).order('created_at');
-  const { data: offers } = await from('order_offers').select('*').eq('order_id', order.id).order('revision');
-  const { data: refunds } = await from('order_refunds').select('*').eq('order_id', order.id).order('created_at');
+  const [itemsRes, trackingRes, offersRes, refundsRes] = await Promise.all([
+    from('order_items').select('*').eq('order_id', order.id),
+    from('order_tracking').select('*').eq('order_id', order.id).order('created_at'),
+    from('order_offers').select('*').eq('order_id', order.id).order('revision'),
+    from('order_refunds').select('*').eq('order_id', order.id).order('created_at')
+  ]);
+  const offers = offersRes.data || [];
   const bundle = Object.assign({}, order, {
-    items: items || [],
-    tracking: tracking || [],
-    offers: offers || [],
-    refunds: refunds || []
+    items: itemsRes.data || [],
+    tracking: trackingRes.data || [],
+    offers: offers,
+    refunds: refundsRes.data || []
   });
-  bundle.current_offer = (offers && offers.length) ? offers[offers.length - 1] : null;
+  bundle.current_offer = offers.length ? offers[offers.length - 1] : null;
   return bundle;
+}
+
+// Fetch many order bundles with a fixed number of queries instead of four
+// queries per order. The admin order list (and its 15s poll) would otherwise
+// do 1 + 4N round-trips to Supabase and appear to hang with a few orders.
+async function getOrderBundles(orders) {
+  const list = (orders || []).filter(Boolean);
+  if (!list.length) return [];
+  const ids = list.map(function (o) { return o.id; });
+
+  // PostgREST puts the `in` list in the URL, so fetch in chunks for large lists.
+  async function fetchRows(table, orderColumn) {
+    const rows = [];
+    const chunkSize = 100;
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      let q = from(table).select('*').in('order_id', ids.slice(i, i + chunkSize));
+      if (orderColumn) q = q.order(orderColumn);
+      const { data } = await q;
+      if (data) rows.push.apply(rows, data);
+    }
+    return rows;
+  }
+
+  const [itemRows, trackingRows, offerRows, refundRows] = await Promise.all([
+    fetchRows('order_items'),
+    fetchRows('order_tracking', 'created_at'),
+    fetchRows('order_offers', 'revision'),
+    fetchRows('order_refunds', 'created_at')
+  ]);
+  function groupByOrder(rows) {
+    const map = {};
+    for (const row of rows || []) {
+      const key = String(row.order_id);
+      if (!map[key]) map[key] = [];
+      map[key].push(row);
+    }
+    return map;
+  }
+  const itemsMap = groupByOrder(itemRows);
+  const trackingMap = groupByOrder(trackingRows);
+  const offersMap = groupByOrder(offerRows);
+  const refundsMap = groupByOrder(refundRows);
+  return list.map(function (order) {
+    const key = String(order.id);
+    const offers = offersMap[key] || [];
+    const bundle = Object.assign({}, order, {
+      items: itemsMap[key] || [],
+      tracking: trackingMap[key] || [],
+      offers: offers,
+      refunds: refundsMap[key] || []
+    });
+    bundle.current_offer = offers.length ? offers[offers.length - 1] : null;
+    return bundle;
+  });
 }
 
 function customerOrderView(bundle) {
@@ -1503,11 +1583,7 @@ app.get('/api/orders', adminMiddleware, async (req, res) => {
     if (phone) query = query.eq('customer_phone', phone);
     const { data: orders, error } = await query;
     if (error) throw error;
-    const result = [];
-    for (const order of orders || []) {
-      result.push(await getOrderBundle(order));
-    }
-    res.json(result);
+    res.json(await getOrderBundles(orders));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -3082,14 +3158,44 @@ app.post('/api/analytics', async (req, res) => {
 
 app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
   try {
-    const { count: totalViews } = await supabase.from('site_analytics').select('*', { count: 'exact', head: true });
     const todayStr = new Date().toISOString().split('T')[0];
-    const { count: todayViews } = await supabase.from('site_analytics').select('*', { count: 'exact', head: true }).gte('created_at', todayStr);
-    const { count: totalOrders } = await from('orders').select('*', { count: 'exact', head: true });
-    const { count: todayOrders } = await from('orders').select('*', { count: 'exact', head: true }).gte('created_at', todayStr);
 
-    const { data: allOrders } = await from('orders').select('total_amount, status, created_at');
-    const nonCancelled = (allOrders || []).filter(function(o) { return o.status !== 'cancelled' && o.status !== 'CANCELLED' && o.status !== 'REFUNDED' && o.status !== 'REFUND_PENDING'; });
+    // Run every independent query at once. Sequentially awaiting them added a
+    // full network round-trip per query, which made the admin dashboard slow.
+    const [
+      { count: totalViews },
+      { count: todayViews },
+      { count: totalOrders },
+      { count: todayOrders },
+      { data: allOrders },
+      { count: totalProducts },
+      { count: totalCustomers },
+      { count: totalSubscribers },
+      { count: totalMessages },
+      { data: topProducts },
+      { data: recentOrders },
+      { data: lowStock },
+      { data: allOrderItems },
+      { data: allProducts }
+    ] = await Promise.all([
+      supabase.from('site_analytics').select('*', { count: 'exact', head: true }),
+      supabase.from('site_analytics').select('*', { count: 'exact', head: true }).gte('created_at', todayStr),
+      from('orders').select('*', { count: 'exact', head: true }),
+      from('orders').select('*', { count: 'exact', head: true }).gte('created_at', todayStr),
+      from('orders').select('total_amount, status, created_at'),
+      supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('customers').select('*', { count: 'exact', head: true }),
+      supabase.from('subscribers').select('*', { count: 'exact', head: true }),
+      supabase.from('messages').select('*', { count: 'exact', head: true }),
+      supabase.from('products').select('id, name, sold_count, price, rating').eq('status', 'active').order('sold_count', { ascending: false }).limit(10),
+      from('orders').select('id, order_code, customer_name, total_amount, status, created_at').order('created_at', { ascending: false }).limit(5),
+      supabase.from('products').select('id, name, stock').eq('status', 'active').lt('stock', 10).order('stock').limit(10),
+      from('order_items').select('order_id, product_id, quantity, unit_price'),
+      supabase.from('products').select('id, category, cost_price')
+    ]);
+
+    const orderList = allOrders || [];
+    const nonCancelled = orderList.filter(function(o) { return o.status !== 'cancelled' && o.status !== 'CANCELLED' && o.status !== 'REFUNDED' && o.status !== 'REFUND_PENDING'; });
     const nonCancelledOrderIds = new Set(nonCancelled.map(function(o) { return String(o.id); }));
     const totalRevenue = nonCancelled.reduce(function(sum, o) {
       return sum + (parseFloat(String(o.total_amount || '0').replace(/[^0-9.]/g, '')) || 0);
@@ -3101,27 +3207,14 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
       return sum + (parseFloat(String(o.total_amount || '0').replace(/[^0-9.]/g, '')) || 0);
     }, 0);
 
-    const { count: totalProducts } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'active');
-    const { count: totalCustomers } = await supabase.from('customers').select('*', { count: 'exact', head: true });
-    const { count: totalSubscribers } = await supabase.from('subscribers').select('*', { count: 'exact', head: true });
-    const { count: totalMessages } = await supabase.from('messages').select('*', { count: 'exact', head: true });
-
-    const { data: ordersByStatusData } = await from('orders').select('status');
     const statusCounts = {};
-    for (const o of ordersByStatusData || []) {
+    for (const o of orderList) {
       statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
     }
     const ordersByStatus = Object.entries(statusCounts).map(function(e) { return { status: e[0], count: e[1] }; });
 
-    const { data: topProducts } = await supabase.from('products').select('id, name, sold_count, price, rating').eq('status', 'active').order('sold_count', { ascending: false }).limit(10);
-
-    const { data: recentOrders } = await from('orders').select('id, order_code, customer_name, total_amount, status, created_at').order('created_at', { ascending: false }).limit(5);
-
-    const { data: lowStock } = await supabase.from('products').select('id, name, stock').eq('status', 'active').lt('stock', 10).order('stock').limit(10);
     const lowStockCount = (lowStock || []).length;
 
-    const { data: allOrderItems } = await from('order_items').select('order_id, product_id, quantity, unit_price');
-    const { data: allProducts } = await supabase.from('products').select('id, category, cost_price');
     const prodCategory = {};
     const prodCost = {};
     if (allProducts) allProducts.forEach(function(p) {
