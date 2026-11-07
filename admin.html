@@ -1578,20 +1578,27 @@ async function deleteSelectedProducts() {
   if (!confirm('Delete ' + ids.length + ' selected product(s)? This cannot be undone.')) return;
   let deleted = 0;
   let failed = 0;
+  const deletedIds = new Set();
   for (let i = 0; i < ids.length; i += 5) {
     const chunk = ids.slice(i, i + 5);
     const results = await Promise.all(chunk.map(async id => {
-      try { await api('/products/' + id, { method: 'DELETE' }); return true; }
+      try { await api('/products/' + id, { method: 'DELETE' }); return id; }
       catch {
-        try { await supaDelete('products', id); return true; }
-        catch { return false; }
+        try { await supaDelete('products', id); return id; }
+        catch { return null; }
       }
     }));
-    results.forEach(ok => { if (ok) deleted++; else failed++; });
+    results.forEach(id => {
+      if (id) { deleted++; deletedIds.add(String(id)); }
+      else failed++;
+    });
   }
   selectedProductIds.clear();
+  if (deletedIds.size) {
+    allProducts = allProducts.filter(p => !deletedIds.has(String(p.id)));
+    renderFilteredProducts();
+  }
   showMsg('Deleted ' + deleted + ' product(s)' + (failed ? ', ' + failed + ' failed.' : '.'), failed ? 'error' : 'success');
-  await loadProducts();
 }
 
 function filterProducts(filter) {
@@ -1602,9 +1609,16 @@ function filterProducts(filter) {
 
 async function deleteProduct(id) {
   if (!confirm('Delete product?')) return;
-  try { await api('/products/' + id, { method: 'DELETE' }); showMsg('Deleted.', 'success'); await loadProducts(); return; } catch {}
-  try { await supaDelete('products', id); showMsg('Deleted.', 'success'); } catch { showMsg('Delete failed.', 'error'); }
-  await loadProducts();
+  try {
+    await api('/products/' + id, { method: 'DELETE' });
+  } catch {
+    try { await supaDelete('products', id); }
+    catch { showMsg('Delete failed.', 'error'); return; }
+  }
+  allProducts = allProducts.filter(p => String(p.id) !== String(id));
+  selectedProductIds.delete(String(id));
+  renderFilteredProducts();
+  showMsg('Deleted.', 'success');
 }
 
 // BULK IMPORT
@@ -2185,5 +2199,6 @@ async function loadAnalytics() {
   } catch {}
 }
 </script>
+<script src="/native.js" defer></script>
 </body>
 </html>

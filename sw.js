@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'aryal-store-v3';
+const CACHE_VERSION = 'aryal-store-v4';
 const STATIC_CACHE = CACHE_VERSION + '-static';
 const PAGES_CACHE = CACHE_VERSION + '-pages';
 const API_CACHE = CACHE_VERSION + '-api';
@@ -23,6 +23,7 @@ const PRECACHE_URLS = [
   '/nepal-locations.js',
   '/location-address.js',
   '/pwa.js',
+  '/native.js',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable-512.png',

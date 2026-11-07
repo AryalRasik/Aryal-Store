@@ -2817,6 +2817,7 @@ function mapProduct(p) {
     icon: p.icon || catIcons[p.category] || 'fas fa-box',
     gradient: p.gradient || catGrads[p.category] || 'linear-gradient(135deg, #111111, #111111)',
     rating: p.rating || 0, review_count: p.review_count || 0,
+    sold_count: p.sold_count || 0, created_at: p.created_at || '',
     stock_count: p.stock != null ? p.stock : (p.stock_count != null ? p.stock_count : 100),
     is_new: p.is_new || 0, is_featured: p.is_featured || 0,
     is_best_seller: p.is_best_seller || 0, is_trending: p.is_trending || 0,
@@ -3667,6 +3668,7 @@ async function viewProduct(id, options) {
   const rv = JSON.parse(localStorage.getItem('aryal_recently_viewed') || '[]');
   const upd = [id, ...rv.filter(x => x !== id)].slice(0, 10);
   localStorage.setItem('aryal_recently_viewed', JSON.stringify(upd));
+  loadRecentlyViewed();
   fetch('/api/product-views', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-id': getSessionId() }, body: JSON.stringify({ product_id: id }) }).catch(() => {});
   loadRecommendations(id);
 
@@ -4274,11 +4276,35 @@ async function loadDynamicContent() {
   await Promise.all([aboutP, contactP, settingsP]);
 }
 
-async function loadShowcaseSections() {
-  const endpoints = [
-    { url: '/api/products/featured', id: 'featuredRow', flag: 'is_featured' },
-    { url: '/api/products/best-sellers', id: 'bestSellerRow', flag: 'is_best_seller' },
-    { url: '/api/products/new-arrivals', id: 'newArrivalsRow', flag: 'is_new' }
+var productCataloguePromise = null;
+function loadProductCatalogue() {
+  if (productCataloguePromise) return productCataloguePromise;
+  productCataloguePromise = fetch('/api/products')
+    .then(function(r) { if (!r.ok) throw new Error('products ' + r.status); return r.json(); })
+    .then(function(products) {
+      if (!products || !products.length) throw new Error('empty');
+      return products.map(mapProduct);
+    })
+    .catch(function() {
+      return supaFetch('products', { order: 'created_at.desc' })
+        .then(function(products) { return (products || []).map(mapProduct); })
+        .catch(function() { return []; });
+    })
+    .then(function(mapped) {
+      if (mapped && mapped.length) {
+        allProducts = mapped;
+        try { localStorage.setItem('aryal_products_cache', JSON.stringify(mapped)); } catch (e) {}
+      }
+      return allProducts || [];
+    });
+  return productCataloguePromise;
+}
+
+async function loadShowcaseSections(poolInput) {
+  const sections = [
+    { id: 'featuredRow', flag: 'is_featured' },
+    { id: 'bestSellerRow', flag: 'is_best_seller', sortSold: true },
+    { id: 'newArrivalsRow', flag: 'is_new', sortNew: true }
   ];
   const skeletonCards = function() {
     var one = '<div class="skel-card"><div class="skel skel-img"></div><div class="skel-body"><div class="skel skel-line"></div><div class="skel skel-line"></div></div></div>';
@@ -4301,19 +4327,12 @@ async function loadShowcaseSections() {
       '</div></div>';
     }).join('');
   };
-  var fetchFallbackProducts = function() {
-    if (allProducts && allProducts.length) return Promise.resolve(allProducts);
-    return fetch('/api/products').then(function(r) { return r.ok ? r.json() : null; }).then(function(prods) {
-      if (prods && prods.length) return prods.map(mapProduct);
-      return supaFetch('products', { order: 'created_at.desc' }).then(function(s) {
-        return (s || []).map(mapProduct);
-      }).catch(function() { return []; });
-    }).catch(function() { return []; });
-  };
-  var pickDiverse = function(pool, flag) {
+  const pickDiverse = function(pool, flag, sortSold, sortNew) {
     if (!pool || !pool.length) return [];
     var flagged = pool.filter(function(p) { return p[flag]; });
-    var base = flagged.length ? flagged : pool;
+    var base = (flagged.length ? flagged : pool).slice();
+    if (sortSold) base.sort(function(a, b) { return (b.sold_count || 0) - (a.sold_count || 0); });
+    if (sortNew) base.sort(function(a, b) { return new Date(b.created_at || 0) - new Date(a.created_at || 0); });
     var seen = {}, out = [];
     for (var i = 0; i < base.length && out.length < 8; i++) {
       var p = base[i];
@@ -4324,30 +4343,38 @@ async function loadShowcaseSections() {
     }
     return out;
   };
-  var containers = endpoints.map(function(s) { return document.getElementById(s.id); });
-  endpoints.forEach(function(ep, i) {
+  var containers = sections.map(function(s) { return document.getElementById(s.id); });
+  sections.forEach(function(s, i) {
     if (containers[i]) containers[i].innerHTML = skeletonCards();
   });
-  var results = await Promise.all(endpoints.map(function(ep) {
-    return fetch(ep.url).then(function(r) { return r.ok ? r.json() : null; }).then(function(prods) {
-      return { ep: ep, prods: prods };
-    }).catch(function() {
-      return { ep: ep, prods: null };
-    });
-  }));
-  var needFallback = results.filter(function(r) { return !r.prods || !r.prods.length; });
-  var fallbackPool = null;
-  if (needFallback.length) {
-    fallbackPool = await fetchFallbackProducts();
+
+  var pool = [];
+  try {
+    var resolved = await Promise.resolve(poolInput);
+    pool = (resolved && resolved.length) ? resolved : (allProducts || []);
+  } catch (e) {
+    pool = allProducts || [];
   }
-  results.forEach(function(r) {
-    var container = document.getElementById(r.ep.id);
-    if (!container) return;
-    if (r.prods && r.prods.length) {
-      renderCards(container, r.prods.slice(0, 8).map(mapProduct));
-    } else {
-      renderCards(container, pickDiverse(fallbackPool, r.ep.flag));
-    }
+
+  // Everything is already in the product list, so render instantly with no
+  // extra API requests. Only hit the dedicated endpoints if that list failed.
+  if (!pool.length) {
+    var endpointBySection = { featuredRow: 'featured', bestSellerRow: 'best-sellers', newArrivalsRow: 'new-arrivals' };
+    var results = await Promise.all(sections.map(function(s) {
+      return fetch('/api/products/' + endpointBySection[s.id])
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .catch(function() { return null; });
+    }));
+    sections.forEach(function(s, i) {
+      var container = document.getElementById(s.id);
+      if (container) renderCards(container, (results[i] || []).slice(0, 8).map(mapProduct));
+    });
+    return;
+  }
+
+  sections.forEach(function(s) {
+    var container = document.getElementById(s.id);
+    if (container) renderCards(container, pickDiverse(pool, s.flag, s.sortSold, s.sortNew));
   });
 }
 
@@ -4486,12 +4513,17 @@ function clearAllFilters() {
 
 // ==================== RECENTLY VIEWED ====================
 function loadRecentlyViewed() {
+  const section = document.getElementById('recentlyViewedSection');
+  if (!section) return;
   const ids = JSON.parse(localStorage.getItem('aryal_recently_viewed') || '[]');
-  if (!ids.length) { document.getElementById('recentlyViewedSection').style.display = 'none'; return; }
-  const products = ids.map(id => findProduct(id)).filter(Boolean);
-  if (!products.length) { document.getElementById('recentlyViewedSection').style.display = 'none'; return; }
-  document.getElementById('recentlyViewedSection').style.display = '';
+  if (!ids.length) { section.style.display = 'none'; return; }
+  const byId = {};
+  for (let i = 0; i < allProducts.length; i++) byId[String(allProducts[i].id)] = allProducts[i];
+  const products = ids.map(id => byId[String(id)]).filter(Boolean);
+  if (!products.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
   const container = document.getElementById('recentlyViewedRow');
+  if (!container) return;
   container.innerHTML = products.slice(0, 8).map(p =>
     '<div class="product-card" style="min-width:200px;max-width:200px;cursor:pointer;">' +
     '<div class="product-img" style="height:160px;" onclick="viewProduct(\'' + p.id + '\')">' +
@@ -6005,16 +6037,6 @@ function showSkeleton(containerId, count) {
   }
 }
 
-// Close mobile menu on nav link click
-document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('.bottom-nav-item').forEach(function(item) {
-    item.addEventListener('click', function() {
-      document.querySelectorAll('.bottom-nav-item').forEach(function(n) { n.classList.remove('active'); });
-      this.classList.add('active');
-    });
-  });
-});
-
 // ==================== CAROUSEL ====================
 var carouselState = { current: 0, total: 0, timer: null, progressTimer: null, paused: false };
 function nextSlide() { goToSlide(carouselState.current + 1); }
@@ -6089,6 +6111,7 @@ function initCarousel() {
       if (parsed && parsed.length) {
         allProducts = parsed;
         renderProducts(allProducts);
+        loadRecentlyViewed();
       }
     } catch {}
   }
@@ -6100,26 +6123,22 @@ function initCarousel() {
     }
   }
 
+  // Fetch the catalogue once and share it with the grid, showcase rows and
+  // recently viewed. This replaces four separate product requests with one.
+  var productsPromise = loadProductCatalogue().then(function(products) {
+    if (products && products.length) {
+      renderProducts(products);
+      loadRecentlyViewed();
+    }
+    return products;
+  });
+
   // Start all data fetches in parallel immediately (don't wait for auth)
   var fetches = Promise.all([
     loadDynamicContent(),
-    loadShowcaseSections(),
+    loadShowcaseSections(productsPromise),
     loadFlashSales(),
-    fetch('/api/products').then(function(r) { return r.ok ? r.json() : Promise.reject(); }).then(function(products) {
-      if (products && products.length) {
-        allProducts = products.map(mapProduct);
-        renderProducts(allProducts);
-        try { localStorage.setItem('aryal_products_cache', JSON.stringify(allProducts)); } catch {}
-      }
-    }).catch(function() {
-      return supaFetch('products', { order: 'created_at.desc' }).then(function(products) {
-        if (products && products.length) {
-          allProducts = products.map(mapProduct);
-          renderProducts(allProducts);
-          try { localStorage.setItem('aryal_products_cache', JSON.stringify(allProducts)); } catch {}
-        }
-      }).catch(function() {});
-    }),
+    productsPromise,
     fetch('/api/testimonials').then(function(r) { return r.ok ? r.json() : Promise.reject(); }).then(function(tests) {
       if (tests && tests.length) renderTestimonials(tests);
     }).catch(function() {
@@ -6622,5 +6641,6 @@ if (document.readyState === 'loading') {
 </script>
 <script src="theme.js" defer></script>
 <script src="pwa.js" defer></script>
+<script src="/native.js" defer></script>
 </body>
 </html>

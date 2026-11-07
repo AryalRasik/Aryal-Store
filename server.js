@@ -17,6 +17,7 @@ const authRoutes = require('./server/routes/auth');
 const payment = require('./server/payment');
 const orderWorkflow = require('./server/orderWorkflow');
 const deliveryLocations = require('./server/deliveryLocations');
+const push = require('./server/push');
 
 const UPLOADS_DIR = process.env.VERCEL
   ? '/tmp/uploads'
@@ -577,6 +578,11 @@ app.get('/api/products', async (req, res) => {
     else if (sort === 'rating') products.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     else products.sort(byCreated);
 
+    // The unfiltered catalogue is identical for every visitor, so let the CDN
+    // serve it (briefly) instead of rebuilding it on every page load.
+    if (!category && !brand && !material && !search && !color && !size && !min_price && !max_price && !sort) {
+      res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+    }
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -619,8 +625,9 @@ app.get('/api/products/search', async (req, res) => {
 
 app.get('/api/products/featured', async (req, res) => {
   try {
-    const { data: products, error } = await supabase.from('products').select('*').eq('is_featured', true).order('id');
+    const { data: products, error } = await supabase.from('products').select('*').eq('is_featured', true).order('created_at', { ascending: false }).limit(12);
     if (error) throw error;
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(products || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -631,6 +638,7 @@ app.get('/api/products/best-sellers', async (req, res) => {
   try {
     const { data: products, error } = await supabase.from('products').select('*').order('sold_count', { ascending: false }).limit(8);
     if (error) throw error;
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(products || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -642,6 +650,7 @@ app.get('/api/products/new-arrivals', async (req, res) => {
     // Hosted products use a uuid primary key, so `id` is not chronological.
     const { data: products, error } = await supabase.from('products').select('*').order('created_at', { ascending: false }).limit(8);
     if (error) throw error;
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(products || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -652,6 +661,7 @@ app.get('/api/products/trending', async (req, res) => {
   try {
     const { data: products, error } = await supabase.from('products').select('*').eq('is_trending', true).order('sold_count', { ascending: false }).limit(8);
     if (error) throw error;
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(products || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -762,19 +772,29 @@ app.put('/api/products/:id', adminMiddleware, async (req, res) => {
 
 app.delete('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
-    const { data: prod } = await supabase.from('products').select('image_url,image').eq('id', req.params.id).maybeSingle();
-    const img = (prod && (prod.image_url || prod.image)) || '';
-    if (img) {
-      const imgPath = path.join(__dirname, img.replace(/^\/|^https?:\/\/[^/]+\//, ''));
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-    }
-    await supabase.from('product_images').delete().eq('product_id', req.params.id);
-    await supabase.from('wishlist').delete().eq('product_id', req.params.id);
-    await supabase.from('recently_viewed').delete().eq('product_id', req.params.id);
-    await supabase.from('reviews').delete().eq('product_id', req.params.id);
-    const { error } = await supabase.from('products').delete().eq('id', req.params.id);
+    const id = req.params.id;
+    // Look up the image and clear dependent rows at the same time. Running
+    // these in parallel removes four extra sequential round-trips, which is
+    // what made deletes feel slow.
+    const [productResult] = await Promise.all([
+      supabase.from('products').select('image_url,image').eq('id', id).maybeSingle(),
+      Promise.allSettled([
+        supabase.from('product_images').delete().eq('product_id', id),
+        supabase.from('wishlist').delete().eq('product_id', id),
+        supabase.from('recently_viewed').delete().eq('product_id', id),
+        supabase.from('reviews').delete().eq('product_id', id),
+        supabase.from('flash_sale_products').delete().eq('product_id', id)
+      ])
+    ]);
+    const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
     res.json({ success: true });
+
+    // Only local /uploads files need cleaning up; hosted URLs are untouched.
+    const img = (productResult && productResult.data && (productResult.data.image_url || productResult.data.image)) || '';
+    if (img.indexOf('/uploads/') === 0) {
+      fs.promises.unlink(path.join(__dirname, img)).catch(function() {});
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1257,6 +1277,11 @@ async function appendOrderTracking(orderId, opts) {
   return entry;
 }
 
+function orderTrackingLink(order) {
+  if (!order || !order.order_code || !order.tracking_token) return '/track.html';
+  return '/track.html?code=' + encodeURIComponent(order.order_code) + '&token=' + encodeURIComponent(order.tracking_token);
+}
+
 async function getOrderRow(idOrCode) {
   const raw = String(idOrCode || '');
   // Hosted orders use a uuid primary key; local SQLite uses an integer one.
@@ -1553,6 +1578,12 @@ async function createOrderFromRequest(input) {
     }
   } catch (e) {}
 
+  await push.notifyAdmins({
+    title: 'New order request',
+    body: order.order_code + ' · ' + order.customer_name + ' · Rs. ' + orderWorkflow.money(order.total_amount),
+    data: { type: 'admin_new_order', order_id: order.id, link: '/admin' }
+  });
+
   return { order: order, orderItems: orderItems, totals: totals, coupon: coupon };
 }
 
@@ -1635,6 +1666,12 @@ app.put('/api/orders/:id/status', adminMiddleware, async (req, res) => {
       actor: 'admin',
       note: body.note || ('Status updated to ' + orderWorkflow.statusMeta(target).staffLabel)
     });
+    const meta = orderWorkflow.statusMeta(target);
+    await push.notifyCustomer(order, {
+      title: meta.customerLabel,
+      body: 'Order ' + order.order_code + ': ' + (body.note || meta.description),
+      data: { type: 'order_status', order_id: order.id, status: target, link: orderTrackingLink(order) }
+    });
     res.json({ success: true, status: target });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1709,6 +1746,12 @@ app.put('/api/orders/:id/offer', adminMiddleware, async (req, res) => {
       note: message || ('Final offer sent: Rs. ' + total + ' including delivery. Awaiting customer approval.')
     });
 
+    await push.notifyCustomer(order, {
+      title: 'Final offer ready',
+      body: 'Order ' + order.order_code + ': Rs. ' + total + ' including delivery. Tap to review and approve.',
+      data: { type: 'order_offer', order_id: order.id, link: orderTrackingLink(order) }
+    });
+
     res.json({ success: true, offer: patch });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1767,6 +1810,12 @@ app.post('/api/orders/:id/approve', async (req, res) => {
       }
     } catch (e) {}
 
+    await push.notifyAdmins({
+      title: 'Customer approved order',
+      body: order.order_code + ' · Rs. ' + orderWorkflow.money(order.total_amount) + '. Start preparing the order.',
+      data: { type: 'admin_order_approved', order_id: order.id, link: '/admin' }
+    });
+
     res.json({ success: true, status: 'CONFIRMED', message: orderWorkflow.notificationMessage('approved', order) });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1793,6 +1842,11 @@ app.post('/api/orders/:id/decline', async (req, res) => {
     if (latest) await from('order_offers').update({ status: 'declined', responded_at: now }).eq('id', latest.id);
     if (order.coupon_code) await adjustCouponUsage(order.coupon_code, -1);
     await appendOrderTracking(order.id, { status: 'CANCELLED', actor: 'customer', note: reason ? 'Customer declined: ' + reason : 'Customer declined the offer.' });
+    await push.notifyAdmins({
+      title: 'Customer declined order',
+      body: order.order_code + (reason ? ' · ' + reason : ' · The offer was declined.'),
+      data: { type: 'admin_order_declined', order_id: order.id, link: '/admin' }
+    });
     res.json({ success: true, status: 'CANCELLED', message: orderWorkflow.notificationMessage('declined', order) });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1817,6 +1871,11 @@ app.post('/api/orders/:id/request-change', async (req, res) => {
     const { error } = await from('orders').update({ status: 'UNDER_REVIEW', offer_status: 'change_requested', admin_notes: message, updated_at: now }).eq('id', order.id);
     if (error) throw error;
     await appendOrderTracking(order.id, { status: 'UNDER_REVIEW', type: 'message', actor: 'customer', note: message });
+    await push.notifyAdmins({
+      title: 'Customer requested a change',
+      body: order.order_code + ' · ' + message,
+      data: { type: 'admin_order_change', order_id: order.id, link: '/admin' }
+    });
     res.json({ success: true, status: 'UNDER_REVIEW' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1855,6 +1914,11 @@ app.post('/api/orders/:id/payment-submit', async (req, res) => {
       actor: 'customer',
       note: 'Customer says they have paid' + (reference ? ' (ref ' + reference + ')' : '') + '. Awaiting verification.'
     });
+    await push.notifyAdmins({
+      title: 'Payment submitted',
+      body: order.order_code + ' · Rs. ' + orderWorkflow.money(order.total_amount) + (reference ? ' · ref ' + reference : '') + '. Please verify.',
+      data: { type: 'admin_payment_submitted', order_id: order.id, link: '/admin' }
+    });
     res.json({
       success: true,
       payment_status: 'PAYMENT_PENDING',
@@ -1887,6 +1951,16 @@ app.put('/api/orders/:id/payment-status', adminMiddleware, async (req, res) => {
     const { error } = await from('orders').update(patch).eq('id', order.id);
     if (error) throw error;
     await appendOrderTracking(order.id, { status: order.status, type: 'payment', actor: 'admin', note: note || ('Payment marked as ' + orderWorkflow.paymentLabel(status)) });
+    const paymentTitle = status === 'PAID' ? 'Payment verified'
+      : status === 'UNPAID' ? 'Payment not verified'
+      : status === 'REFUND_PENDING' ? 'Refund in progress'
+      : (status === 'REFUNDED' || status === 'PARTIALLY_REFUNDED') ? 'Refund update'
+      : 'Payment update';
+    await push.notifyCustomer(order, {
+      title: paymentTitle,
+      body: 'Order ' + order.order_code + ' · ' + (note || orderWorkflow.paymentLabel(status)),
+      data: { type: 'payment_status', order_id: order.id, status: status, link: orderTrackingLink(order) }
+    });
     res.json({ success: true, payment_status: status });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1914,6 +1988,11 @@ app.post('/api/orders/:id/refund', adminMiddleware, async (req, res) => {
     if (orderWorkflow.canTransition(order.status, 'REFUND_PENDING')) patch.status = 'REFUND_PENDING';
     await from('orders').update(patch).eq('id', order.id);
     await appendOrderTracking(order.id, { status: patch.status || order.status, type: 'payment', actor: 'admin', note: 'Refund of Rs. ' + amount + ' initiated.' + (body.reason ? ' Reason: ' + body.reason : '') });
+    await push.notifyCustomer(order, {
+      title: 'Refund started',
+      body: 'Order ' + order.order_code + ' · Rs. ' + amount + ' refund initiated.',
+      data: { type: 'refund', order_id: order.id, link: orderTrackingLink(order) }
+    });
     res.json({ success: true, refund: (refundRow && refundRow[0]) || null });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1937,6 +2016,11 @@ app.put('/api/orders/:id/refund/:refundId/complete', adminMiddleware, async (req
     if (patch.payment_status === 'REFUNDED' && orderWorkflow.canTransition(order.status, 'REFUNDED')) patch.status = 'REFUNDED';
     await from('orders').update(patch).eq('id', order.id);
     await appendOrderTracking(order.id, { status: patch.status || order.status, type: 'payment', actor: 'admin', note: 'Refund completed. Total refunded: Rs. ' + orderWorkflow.round2(totalRefunded) + '.' });
+    await push.notifyCustomer(order, {
+      title: 'Refund completed',
+      body: 'Order ' + order.order_code + ' · Total refunded: Rs. ' + orderWorkflow.round2(totalRefunded) + '.',
+      data: { type: 'refund', order_id: order.id, link: orderTrackingLink(order) }
+    });
     res.json({ success: true, refunded: orderWorkflow.round2(totalRefunded) });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2756,6 +2840,54 @@ app.delete('/api/notifications/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== PUSH NOTIFICATIONS ==========
+// Called by the mobile app (native.js) after it receives an FCM token.
+app.post('/api/push/register', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const token = String(body.token || '').trim();
+    if (!token) return res.status(400).json({ error: 'Missing device token.' });
+
+    const role = String(body.role || 'customer').toLowerCase() === 'admin' ? 'admin' : 'customer';
+    const adminRequest = isAdminRequest(req);
+    if (role === 'admin' && !adminRequest) {
+      return res.status(403).json({ error: 'Admin login required.' });
+    }
+
+    let userId = '';
+    const header = req.headers.authorization;
+    if (!adminRequest && header && header.startsWith('Bearer ')) {
+      try {
+        const user = jwt.verify(header.split(' ')[1], JWT_SECRET);
+        if (user && user.role !== 'admin' && user.id) userId = String(user.id);
+      } catch (e) {}
+    }
+
+    await push.saveToken({
+      token: token,
+      platform: body.platform,
+      role: role,
+      userId: userId,
+      phone: role === 'admin' ? '' : body.phone,
+      sessionId: body.sessionId || req.headers['x-session-id'] || ''
+    });
+    res.json({ success: true, configured: push.isConfigured() });
+  } catch (err) {
+    console.error('Push register failed:', err.message);
+    res.status(500).json({ error: 'Could not save this device for notifications.' });
+  }
+});
+
+app.post('/api/push/unregister', async (req, res) => {
+  try {
+    await push.removeToken((req.body && req.body.token) || '');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Push unregister failed:', err.message);
+    res.status(500).json({ error: 'Could not remove this device.' });
   }
 });
 
