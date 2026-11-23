@@ -18,6 +18,7 @@ const payment = require('./server/payment');
 const orderWorkflow = require('./server/orderWorkflow');
 const deliveryLocations = require('./server/deliveryLocations');
 const push = require('./server/push');
+const variantService = require('./server/variants');
 
 const UPLOADS_DIR = process.env.VERCEL
   ? '/tmp/uploads'
@@ -523,139 +524,149 @@ function parsePrice(priceStr) {
   return parseFloat(String(priceStr).replace(/[^0-9.]/g, ''));
 }
 
-app.get('/api/products', async (req, res) => {
-  try {
-    const { category, sort, search, min_price, max_price, brand, color, size, material, page, limit } = req.query;
+  const PRODUCT_LIST_SELECT = 'id,name,description,price,cost_price,compare_price,image_url,image,images,category,subcategory,sizes,colors,material,brand,sku,icon,gradient,video_url,care_instructions,fit_info,stock,stock_count,sold_count,rating,review_count,is_featured,is_new,is_best_seller,is_trending,status,created_at';
 
-    async function fetchProducts(filterStatus) {
-      let q = supabase.from('products').select('*');
-      if (filterStatus) q = q.eq('status', 'active');
-      if (category && category !== 'all') {
-        const cats = String(category).split(',').map(c => c.trim()).filter(Boolean);
-        q = cats.length > 1 ? q.in('category', cats) : q.eq('category', category);
-      }
-      if (brand) q = q.eq('brand', brand);
-      if (material) q = q.ilike('material', '%' + material + '%');
-      if (search) q = q.or('name.ilike.%' + search + '%,description.ilike.%' + search + '%');
-      return await q;
-    }
-
-    let { data: products, error } = await fetchProducts(true);
-    if (error && error.message && error.message.includes('does not exist')) {
-      // status column doesn't exist — retry without it
-      const fallback = await fetchProducts(false);
-      if (fallback.error) throw fallback.error;
-      products = fallback.data;
-    } else if (error && error.message && error.message.includes('Could not find') && search) {
-      const q2 = supabase.from('products').select('*');
-      if (category && category !== 'all') {
-        const cats2 = String(category).split(',').map(c => c.trim()).filter(Boolean);
-        if (cats2.length > 1) q2.in('category', cats2); else q2.eq('category', category);
-      }
-      if (brand) q2.eq('brand', brand);
-      if (material) q2.ilike('material', '%' + material + '%');
-      if (search) q2.or('name.ilike.%' + search + '%');
-      const fb2 = await q2;
-      if (fb2.error) throw fb2.error;
-      products = fb2.data;
-    } else if (error) {
-      throw error;
-    }
-    if (!products) products = [];
-
-    if (color) products = products.filter(p => p.colors && p.colors.toLowerCase().includes(color.toLowerCase()));
-    if (size) products = products.filter(p => p.sizes && p.sizes.split(',').map(s => s.trim().toLowerCase()).includes(size.toLowerCase()));
-    if (min_price) products = products.filter(p => { const v = parsePrice(p.price); return !isNaN(v) && v >= parseFloat(min_price); });
-    if (max_price) products = products.filter(p => { const v = parsePrice(p.price); return !isNaN(v) && v <= parseFloat(max_price); });
-
-    // Hosted products use a uuid primary key, so ids are not comparable
-    // numerically and are not chronological either - sort on created_at.
-    const byCreated = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
-    if (sort === 'price_asc') products.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
-    else if (sort === 'price_desc') products.sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
-    else if (sort === 'newest') products.sort(byCreated);
-    else if (sort === 'popular') products.sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0));
-    else if (sort === 'rating') products.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    else products.sort(byCreated);
-
-    // The unfiltered catalogue is identical for every visitor, so let the CDN
-    // serve it (briefly) instead of rebuilding it on every page load.
-    if (!category && !brand && !material && !search && !color && !size && !min_price && !max_price && !sort) {
-      res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
-    }
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/products/search', async (req, res) => {
-  try {
-    const qs = (req.query.q || '').trim();
-    if (!qs) return res.json([]);
-    let products;
+  app.get('/api/products', async (req, res) => {
     try {
-      const result = await supabase
-        .from('products')
-        .select('id, name, price, image_url, category')
-        .or('name.ilike.%' + qs + '%,description.ilike.%' + qs + '%,category.ilike.%' + qs + '%')
-        .order('sold_count', { ascending: false })
-        .limit(10);
-      if (result.error) throw result.error;
-      products = result.data;
-    } catch {
+      const { category, sort, search, min_price, max_price, brand, color, size, material, page, limit } = req.query;
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(48, Math.max(1, parseInt(limit, 10) || 0));
+      const wantsPagination = limitNum > 0;
+
+      async function fetchProducts(filterStatus) {
+        let q = supabase.from('products').select(PRODUCT_LIST_SELECT);
+        if (filterStatus) q = q.eq('status', 'active');
+        if (category && category !== 'all') {
+          const cats = String(category).split(',').map(c => c.trim()).filter(Boolean);
+          q = cats.length > 1 ? q.in('category', cats) : q.eq('category', category);
+        }
+        if (brand) q = q.eq('brand', brand);
+        if (material) q = q.ilike('material', '%' + material + '%');
+        if (search) q = q.or('name.ilike.%' + search + '%,description.ilike.%' + search + '%');
+        return await q;
+      }
+
+      let { data: products, error } = await fetchProducts(true);
+      if (error && error.message && error.message.includes('does not exist')) {
+        const fallback = await fetchProducts(false);
+        if (fallback.error) throw fallback.error;
+        products = fallback.data;
+      } else if (error && error.message && error.message.includes('Could not find') && search) {
+        let q2 = supabase.from('products').select(PRODUCT_LIST_SELECT);
+        if (category && category !== 'all') {
+          const cats2 = String(category).split(',').map(c => c.trim()).filter(Boolean);
+          q2 = cats2.length > 1 ? q2.in('category', cats2) : q2.eq('category', category);
+        }
+        if (brand) q2 = q2.eq('brand', brand);
+        if (material) q2 = q2.ilike('material', '%' + material + '%');
+        if (search) q2 = q2.or('name.ilike.%' + search + '%');
+        const fb2 = await q2;
+        if (fb2.error) throw fb2.error;
+        products = fb2.data;
+      } else if (error) {
+        throw error;
+      }
+      if (!products) products = [];
+
+      if (color) products = products.filter(p => p.colors && p.colors.toLowerCase().includes(color.toLowerCase()));
+      if (size) products = products.filter(p => p.sizes && p.sizes.split(',').map(s => s.trim().toLowerCase()).includes(size.toLowerCase()));
+      if (min_price) products = products.filter(p => { const v = parsePrice(p.price); return !isNaN(v) && v >= parseFloat(min_price); });
+      if (max_price) products = products.filter(p => { const v = parsePrice(p.price); return !isNaN(v) && v <= parseFloat(max_price); });
+
+      const byCreated = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
+      if (sort === 'price_asc') products.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+      else if (sort === 'price_desc') products.sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
+      else if (sort === 'newest') products.sort(byCreated);
+      else if (sort === 'popular') products.sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0));
+      else if (sort === 'rating') products.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      else products.sort(byCreated);
+
+      const total = products.length;
+      if (wantsPagination) {
+        const start = (pageNum - 1) * limitNum;
+        const paged = products.slice(start, start + limitNum);
+        res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+        return res.json({ items: paged, total, page: pageNum, limit: limitNum, hasMore: start + paged.length < total });
+      }
+
+      if (!category && !brand && !material && !search && !color && !size && !min_price && !max_price && !sort) {
+        res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+      }
+      res.json(products);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/products/search', async (req, res) => {
+    try {
+      const qs = (req.query.q || '').trim();
+      if (!qs) return res.json([]);
+      let products;
       try {
         const result = await supabase
           .from('products')
           .select('id, name, price, image_url, category')
-          .or('name.ilike.%' + qs + '%,category.ilike.%' + qs + '%')
+          .eq('status', 'active')
+          .or('name.ilike.%' + qs + '%,description.ilike.%' + qs + '%,category.ilike.%' + qs + '%')
           .order('sold_count', { ascending: false })
           .limit(10);
         if (result.error) throw result.error;
         products = result.data;
       } catch {
-        products = [];
+        try {
+          const result = await supabase
+            .from('products')
+            .select('id, name, price, image_url, category')
+            .eq('status', 'active')
+            .or('name.ilike.%' + qs + '%,category.ilike.%' + qs + '%')
+            .order('sold_count', { ascending: false })
+            .limit(10);
+          if (result.error) throw result.error;
+          products = result.data;
+        } catch {
+          products = [];
+        }
       }
+      res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+      res.json(products || []);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    res.json(products || []);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  });
 
-app.get('/api/products/featured', async (req, res) => {
-  try {
-    const { data: products, error } = await supabase.from('products').select('*').eq('is_featured', true).order('created_at', { ascending: false }).limit(12);
-    if (error) throw error;
-    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json(products || []);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  app.get('/api/products/featured', async (req, res) => {
+    try {
+      const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').eq('is_featured', true).order('created_at', { ascending: false }).limit(12);
+      if (error) throw error;
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      res.json(products || []);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
-app.get('/api/products/best-sellers', async (req, res) => {
-  try {
-    const { data: products, error } = await supabase.from('products').select('*').order('sold_count', { ascending: false }).limit(8);
-    if (error) throw error;
-    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json(products || []);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  app.get('/api/products/best-sellers', async (req, res) => {
+    try {
+      const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('sold_count', { ascending: false }).limit(8);
+      if (error) throw error;
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      res.json(products || []);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
-app.get('/api/products/new-arrivals', async (req, res) => {
-  try {
-    // Hosted products use a uuid primary key, so `id` is not chronological.
-    const { data: products, error } = await supabase.from('products').select('*').order('created_at', { ascending: false }).limit(8);
-    if (error) throw error;
-    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json(products || []);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  app.get('/api/products/new-arrivals', async (req, res) => {
+    try {
+      const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('created_at', { ascending: false }).limit(8);
+      if (error) throw error;
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      res.json(products || []);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
 app.get('/api/products/trending', async (req, res) => {
   try {
@@ -713,6 +724,14 @@ app.get('/api/products/:id', async (req, res) => {
     product.images_list = imageUrls.map((url, index) => ({ image_url: url, is_primary: index === 0 ? 1 : 0 }));
     const { data: reviews } = await supabase.from('reviews').select('*').eq('product_id', product.id).eq('status', 'approved').order('created_at', { ascending: false }).limit(10);
     product.reviews = reviews || [];
+    try {
+      product.variants = await variantService.fetchProductVariants(product.id, { includeInactive: isAdminRequest(req) });
+      product.variant_managed = product.variants.length > 0;
+    } catch (variantErr) {
+      console.warn('Could not load product variants:', variantErr.message);
+      product.variants = [];
+      product.variant_managed = false;
+    }
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -721,7 +740,10 @@ app.get('/api/products/:id', async (req, res) => {
 
 app.post('/api/products', adminMiddleware, async (req, res) => {
   try {
-    const { name, category, subcategory, description, desc, price, cost_price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
+    const { name, category, subcategory, description, desc, price, cost_price, compare_price, icon, gradient, image_url, image, images, video_url, sizes_legacy, colors_legacy, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status, manage_variants } = req.body;
+    const sizes = req.body.sizes !== undefined ? req.body.sizes : sizes_legacy;
+    const colors = req.body.colors !== undefined ? req.body.colors : colors_legacy;
+    const variantRows = variantService.normalizeVariants(req.body.variants);
     if (!name || !category) return res.status(400).json({ error: 'Name and category are required' });
     const imageList = parseImageList(images);
     const primaryImage = image_url || image || imageList[0] || '';
@@ -742,7 +764,27 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
       is_best_seller: is_best_seller ? 1 : 0, is_trending: is_trending ? 1 : 0
     });
     if (error) throw error;
-    res.json(data && data[0] ? data[0] : { success: true });
+    const product = data && data[0] ? data[0] : null;
+
+    if (product && variantRows.length && manage_variants !== false) {
+      try {
+        await variantService.syncProductVariants(product, variantRows, {
+          colors: colors || variantRows.map(v => v.color).join(','),
+          sizes: sizes || variantRows.map(v => v.size).join(',')
+        });
+        const refreshed = await supabase.from('products').select('*').eq('id', product.id).maybeSingle();
+        if (refreshed.data) Object.assign(product, refreshed.data);
+        product.variants = await variantService.fetchProductVariants(product.id, { includeInactive: true });
+      } catch (variantErr) {
+        await supabase.from('products').delete().eq('id', product.id);
+        if (variantService.isMissingVariantsTable(variantErr)) {
+          return res.status(500).json({ error: 'Product variants are not set up yet. Run supabase-migration-product-variants.sql in Supabase, then try again.' });
+        }
+        throw variantErr;
+      }
+    }
+
+    res.json(product || { success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -750,7 +792,16 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
 
 app.put('/api/products/:id', adminMiddleware, async (req, res) => {
   try {
-    const { name, category, subcategory, description, desc, price, cost_price, compare_price, icon, gradient, image_url, image, images, video_url, sizes, colors, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status } = req.body;
+    const { name, category, subcategory, description, desc, price, cost_price, compare_price, icon, gradient, image_url, image, images, video_url, sizes_legacy, colors_legacy, material, care_instructions, fit_info, brand, sku, stock, stock_count, is_featured, is_new, is_best_seller, is_trending, status, manage_variants } = req.body;
+    const sizes = req.body.sizes !== undefined ? req.body.sizes : sizes_legacy;
+    const colors = req.body.colors !== undefined ? req.body.colors : colors_legacy;
+    const variantRows = variantService.normalizeVariants(req.body.variants);
+    const manageVariants = variantRows.length > 0 && manage_variants !== false;
+
+    const { data: currentProduct, error: currentError } = await supabase.from('products').select('*').eq('id', req.params.id).maybeSingle();
+    if (currentError) throw currentError;
+    if (!currentProduct) return res.status(404).json({ error: 'Product not found' });
+
     const updateData = {
       name, category, subcategory, price, cost_price, compare_price, icon, gradient,
       video_url, sizes, colors, material, care_instructions,
@@ -761,10 +812,27 @@ app.put('/api/products/:id', adminMiddleware, async (req, res) => {
       image_url: image_url || image,
       stock: stock ?? stock_count
     };
+    if (manageVariants) delete updateData.stock;
     if (images !== undefined) updateData.images = parseImageList(images);
     const { error } = await supabaseUpdate('products', req.params.id, updateData);
     if (error) throw error;
-    res.json({ success: true });
+
+    let savedVariants = [];
+    if (manageVariants) {
+      try {
+        savedVariants = await variantService.syncProductVariants(currentProduct, variantRows, {
+          colors: colors || variantRows.map(v => v.color).join(','),
+          sizes: sizes || variantRows.map(v => v.size).join(',')
+        });
+      } catch (variantErr) {
+        if (variantService.isMissingVariantsTable(variantErr)) {
+          return res.status(500).json({ error: 'Product variants are not set up yet. Run supabase-migration-product-variants.sql in Supabase, then try again.' });
+        }
+        throw variantErr;
+      }
+    }
+
+    res.json({ success: true, variants: savedVariants });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -783,7 +851,8 @@ app.delete('/api/products/:id', adminMiddleware, async (req, res) => {
         supabase.from('wishlist').delete().eq('product_id', id),
         supabase.from('recently_viewed').delete().eq('product_id', id),
         supabase.from('reviews').delete().eq('product_id', id),
-        supabase.from('flash_sale_products').delete().eq('product_id', id)
+        supabase.from('flash_sale_products').delete().eq('product_id', id),
+        supabase.from('product_variants').delete().eq('product_id', String(id))
       ])
     ]);
     const { error } = await supabase.from('products').delete().eq('id', id);
@@ -1465,11 +1534,18 @@ async function createOrderFromRequest(input) {
   if (productsError) throw productsError;
   const productsById = new Map((products || []).map(function (p) { return [String(p.id), p]; }));
 
+  let variantsByProduct = new Map();
+  try {
+    variantsByProduct = await variantService.getVariantsForProducts(productIds);
+  } catch (variantErr) {
+    console.warn('Could not load variants while creating order:', variantErr.message);
+  }
+
   let orderItems;
   try {
-    orderItems = payment.buildOrderItems(productsById, input.items);
+    orderItems = payment.buildOrderItems(productsById, input.items, variantsByProduct);
   } catch (itemErr) {
-    throw httpError(itemErr.message);
+    throw httpError(itemErr.message, itemErr.statusCode || 400);
   }
 
   const requestedDelivery = mapDeliveryToWorkflow(input.shipping_method) || { method: 'standard', label: 'Standard Delivery', fee: 0 };
@@ -1657,10 +1733,33 @@ app.put('/api/orders/:id/status', adminMiddleware, async (req, res) => {
     if (!orderWorkflow.canTransition(order.status, target)) {
       return res.status(400).json({ error: 'Cannot change status from ' + order.status + ' to ' + target + '.' });
     }
+
+    let reserved = false;
+    if (target === 'CONFIRMED') {
+      try {
+        await variantService.reserveOrderStock(order);
+        reserved = true;
+      } catch (stockErr) {
+        return res.status(stockErr.statusCode || 409).json({ error: stockErr.message });
+      }
+    }
+
     const patch = { status: target, updated_at: new Date().toISOString() };
     if (target === 'CONFIRMED' && !order.approved_at) patch.approved_at = new Date().toISOString();
     const { error } = await from('orders').update(patch).eq('id', order.id);
-    if (error) throw error;
+    if (error) {
+      if (reserved) await variantService.releaseOrderStock(order).catch(function () {});
+      throw error;
+    }
+
+    if (target === 'CANCELLED' || target === 'REFUNDED') {
+      try {
+        await variantService.releaseOrderStock(order);
+      } catch (stockErr) {
+        console.warn('Could not release stock for order ' + order.order_code + ':', stockErr.message);
+      }
+    }
+
     await appendOrderTracking(order.id, {
       status: target,
       actor: 'admin',
@@ -1789,26 +1888,23 @@ app.post('/api/orders/:id/approve', async (req, res) => {
     if (!orderWorkflow.canTransition(order.status, 'CONFIRMED')) return res.status(400).json({ error: 'This order cannot be approved right now.' });
 
     const now = new Date().toISOString();
+    let reserved = false;
+    try {
+      await variantService.reserveOrderStock(order);
+      reserved = true;
+    } catch (stockErr) {
+      return res.status(stockErr.statusCode || 409).json({ error: stockErr.message });
+    }
+
     const { error } = await from('orders').update({ status: 'CONFIRMED', offer_status: 'approved', approved_at: now, updated_at: now }).eq('id', order.id);
-    if (error) throw error;
+    if (error) {
+      if (reserved) await variantService.releaseOrderStock(order).catch(function () {});
+      throw error;
+    }
     const latest = await getLatestOffer(order.id);
     if (latest) await from('order_offers').update({ status: 'approved', responded_at: now }).eq('id', latest.id);
     await appendOrderTracking(order.id, { status: 'CONFIRMED', actor: 'customer', note: 'Customer approved the final offer. Order confirmed.' });
     await recordCustomer(order);
-
-    try {
-      const { data: items } = await from('order_items').select('*').eq('order_id', order.id);
-      for (const it of items || []) {
-        const { data: p } = await supabase.from('products').select('id, sold_count, stock').eq('id', it.product_id).maybeSingle();
-        if (p) {
-          const qty = payment.toNumber(it.quantity) || 0;
-          await supabase.from('products').update({
-            sold_count: (payment.toNumber(p.sold_count) || 0) + qty,
-            stock: Math.max(0, (payment.toNumber(p.stock) || 0) - qty)
-          }).eq('id', it.product_id);
-        }
-      }
-    } catch (e) {}
 
     await push.notifyAdmins({
       title: 'Customer approved order',
@@ -2015,6 +2111,13 @@ app.put('/api/orders/:id/refund/:refundId/complete', adminMiddleware, async (req
     patch.payment_status = (paid > 0 && totalRefunded >= paid) ? 'REFUNDED' : (totalRefunded > 0 ? 'PARTIALLY_REFUNDED' : order.payment_status);
     if (patch.payment_status === 'REFUNDED' && orderWorkflow.canTransition(order.status, 'REFUNDED')) patch.status = 'REFUNDED';
     await from('orders').update(patch).eq('id', order.id);
+    if (patch.status === 'REFUNDED') {
+      try {
+        await variantService.releaseOrderStock(order);
+      } catch (stockErr) {
+        console.warn('Could not release stock for refunded order ' + order.order_code + ':', stockErr.message);
+      }
+    }
     await appendOrderTracking(order.id, { status: patch.status || order.status, type: 'payment', actor: 'admin', note: 'Refund completed. Total refunded: Rs. ' + orderWorkflow.round2(totalRefunded) + '.' });
     await push.notifyCustomer(order, {
       title: 'Refund completed',
@@ -2029,6 +2132,14 @@ app.put('/api/orders/:id/refund/:refundId/complete', adminMiddleware, async (req
 
 app.delete('/api/orders/:id', adminMiddleware, async (req, res) => {
   try {
+    const order = await getOrderRow(req.params.id);
+    if (order && (order.stock_reserved === 1 || order.stock_reserved === true)) {
+      try {
+        await variantService.releaseOrderStock(order);
+      } catch (stockErr) {
+        console.warn('Could not release stock before deleting order ' + order.order_code + ':', stockErr.message);
+      }
+    }
     await from('order_tracking').delete().eq('order_id', req.params.id);
     await from('order_items').delete().eq('order_id', req.params.id);
     await from('order_offers').delete().eq('order_id', req.params.id);
