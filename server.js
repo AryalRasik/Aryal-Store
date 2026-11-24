@@ -524,7 +524,46 @@ function parsePrice(priceStr) {
   return parseFloat(String(priceStr).replace(/[^0-9.]/g, ''));
 }
 
-  const PRODUCT_LIST_SELECT = 'id,name,description,price,cost_price,compare_price,image_url,image,images,category,subcategory,sizes,colors,material,brand,sku,icon,gradient,video_url,care_instructions,fit_info,stock,stock_count,sold_count,rating,review_count,is_featured,is_new,is_best_seller,is_trending,status,created_at';
+// The hosted products table has review_count but no rating column. Derive the
+// rating from approved reviews so the storefront can still show star ratings.
+async function attachProductRatings(products) {
+  const list = Array.isArray(products) ? products : [];
+  if (!list.length) return list;
+  const ids = [...new Set(list.map(p => p && p.id).filter(Boolean))].map(String);
+  const stats = new Map();
+  for (let i = 0; i < ids.length; i += 80) {
+    const { data: rows } = await supabase.from('reviews')
+      .select('product_id,rating')
+      .eq('status', 'approved')
+      .in('product_id', ids.slice(i, i + 80));
+    (rows || []).forEach(function(r) {
+      const key = String(r.product_id);
+      const entry = stats.get(key) || { sum: 0, count: 0 };
+      entry.sum += Number(r.rating) || 0;
+      entry.count += 1;
+      stats.set(key, entry);
+    });
+  }
+  list.forEach(function(p) {
+    const entry = stats.get(String(p.id));
+    const count = entry ? entry.count : 0;
+    p.rating = count ? Math.round((entry.sum / count) * 10) / 10 : 0;
+    p.review_count = count;
+  });
+  return list;
+}
+
+async function syncProductReviewStats(productId) {
+  if (!productId) return;
+  const { data: rows } = await supabase.from('reviews')
+    .select('rating')
+    .eq('product_id', productId)
+    .eq('status', 'approved');
+  const count = rows ? rows.length : 0;
+  await supabase.from('products').update({ review_count: count }).eq('id', productId);
+}
+
+  const PRODUCT_LIST_SELECT = 'id,name,description,price,cost_price,compare_price,image_url,image,images,category,subcategory,sizes,colors,material,brand,sku,icon,gradient,video_url,care_instructions,fit_info,stock,stock_count,sold_count,review_count,is_featured,is_new,is_best_seller,is_trending,status,created_at';
 
   app.get('/api/products', async (req, res) => {
     try {
@@ -567,6 +606,7 @@ function parsePrice(priceStr) {
         throw error;
       }
       if (!products) products = [];
+      await attachProductRatings(products);
 
       if (color) products = products.filter(p => p.colors && p.colors.toLowerCase().includes(color.toLowerCase()));
       if (size) products = products.filter(p => p.sizes && p.sizes.split(',').map(s => s.trim().toLowerCase()).includes(size.toLowerCase()));
@@ -637,10 +677,10 @@ function parsePrice(priceStr) {
 
   app.get('/api/products/featured', async (req, res) => {
     try {
-      const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').eq('is_featured', true).order('created_at', { ascending: false }).limit(12);
+      const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').eq('is_featured', 1).order('created_at', { ascending: false }).limit(12);
       if (error) throw error;
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-      res.json(products || []);
+      res.json(await attachProductRatings(products));
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -651,7 +691,7 @@ function parsePrice(priceStr) {
       const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('sold_count', { ascending: false }).limit(8);
       if (error) throw error;
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-      res.json(products || []);
+      res.json(await attachProductRatings(products));
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -662,7 +702,7 @@ function parsePrice(priceStr) {
       const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('created_at', { ascending: false }).limit(8);
       if (error) throw error;
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-      res.json(products || []);
+      res.json(await attachProductRatings(products));
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -670,10 +710,10 @@ function parsePrice(priceStr) {
 
 app.get('/api/products/trending', async (req, res) => {
   try {
-    const { data: products, error } = await supabase.from('products').select('*').eq('is_trending', true).order('sold_count', { ascending: false }).limit(8);
+    const { data: products, error } = await supabase.from('products').select('*').eq('is_trending', 1).order('sold_count', { ascending: false }).limit(8);
     if (error) throw error;
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json(products || []);
+    res.json(await attachProductRatings(products));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -724,6 +764,9 @@ app.get('/api/products/:id', async (req, res) => {
     product.images_list = imageUrls.map((url, index) => ({ image_url: url, is_primary: index === 0 ? 1 : 0 }));
     const { data: reviews } = await supabase.from('reviews').select('*').eq('product_id', product.id).eq('status', 'approved').order('created_at', { ascending: false }).limit(10);
     product.reviews = reviews || [];
+    const rated = product.reviews.filter(function(r) { return Number(r.rating) > 0; });
+    product.rating = rated.length ? Math.round((rated.reduce(function(s, r) { return s + Number(r.rating); }, 0) / rated.length) * 10) / 10 : 0;
+    product.review_count = rated.length;
     try {
       product.variants = await variantService.fetchProductVariants(product.id, { includeInactive: isAdminRequest(req) });
       product.variant_managed = product.variants.length > 0;
@@ -1186,7 +1229,7 @@ async function loadCouponForOrder(code, subtotal) {
     .from('coupons')
     .select('*')
     .eq('code', couponCode)
-    .eq('is_active', true)
+    .eq('is_active', 1)
     .maybeSingle();
   if (!coupon) throw new Error('That coupon code is not valid.');
   if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) throw new Error('That coupon has expired.');
@@ -2336,14 +2379,7 @@ app.post('/api/reviews', async (req, res) => {
       size: size || '', color: color || '', status: 'pending'
     });
 
-    const { data: approved } = await supabase.from('reviews').select('rating').eq('product_id', product_id).eq('status', 'approved');
-    if (approved && approved.length > 0) {
-      const avg = approved.reduce(function(sum, r) { return sum + r.rating; }, 0) / approved.length;
-      await supabase.from('products').update({
-        rating: Math.round(avg * 10) / 10,
-        review_count: approved.length
-      }).eq('id', product_id);
-    }
+    await syncProductReviewStats(product_id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2382,16 +2418,7 @@ app.delete('/api/reviews/:id/remove', async (req, res) => {
     if (findError) throw findError;
     if (!review) return res.status(404).json({ error: 'Review not found' });
     await supabase.from('reviews').delete().eq('id', req.params.id);
-    const { data: approved } = await supabase.from('reviews').select('rating').eq('product_id', review.product_id).eq('status', 'approved');
-    if (approved && approved.length > 0) {
-      const avg = approved.reduce(function(sum, r) { return sum + r.rating; }, 0) / approved.length;
-      await supabase.from('products').update({
-        rating: Math.round(avg * 10) / 10,
-        review_count: approved.length
-      }).eq('id', review.product_id);
-    } else {
-      await supabase.from('products').update({ rating: 0, review_count: 0 }).eq('id', review.product_id);
-    }
+    await syncProductReviewStats(review.product_id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2423,14 +2450,7 @@ app.put('/api/reviews/:id/status', adminMiddleware, async (req, res) => {
     await supabase.from('reviews').update({ status }).eq('id', req.params.id);
     const { data: review } = await supabase.from('reviews').select('*').eq('id', req.params.id).maybeSingle();
     if (review) {
-      const { data: approved } = await supabase.from('reviews').select('rating').eq('product_id', review.product_id).eq('status', 'approved');
-      if (approved && approved.length > 0) {
-        const avg = approved.reduce(function(sum, r) { return sum + r.rating; }, 0) / approved.length;
-        await supabase.from('products').update({
-          rating: Math.round(avg * 10) / 10,
-          review_count: approved.length
-        }).eq('id', review.product_id);
-      }
+      await syncProductReviewStats(review.product_id);
     }
     res.json({ success: true });
   } catch (err) {
@@ -2443,16 +2463,7 @@ app.delete('/api/reviews/:id', adminMiddleware, async (req, res) => {
     const { data: review } = await supabase.from('reviews').select('*').eq('id', req.params.id).maybeSingle();
     await supabase.from('reviews').delete().eq('id', req.params.id);
     if (review) {
-      const { data: approved } = await supabase.from('reviews').select('rating').eq('product_id', review.product_id).eq('status', 'approved');
-      if (approved && approved.length > 0) {
-        const avg = approved.reduce(function(sum, r) { return sum + r.rating; }, 0) / approved.length;
-        await supabase.from('products').update({
-          rating: Math.round(avg * 10) / 10,
-          review_count: approved.length
-        }).eq('id', review.product_id);
-      } else {
-        await supabase.from('products').update({ rating: 0, review_count: 0 }).eq('id', review.product_id);
-      }
+      await syncProductReviewStats(review.product_id);
     }
     res.json({ success: true });
   } catch (err) {
@@ -2522,7 +2533,7 @@ app.post('/api/coupons/validate', async (req, res) => {
   try {
     const { code, order_total } = req.body;
     if (!code) return res.status(400).json({ error: 'Coupon code is required' });
-    const { data: coupon } = await supabase.from('coupons').select('*').eq('code', code.toUpperCase()).eq('is_active', true).maybeSingle();
+    const { data: coupon } = await supabase.from('coupons').select('*').eq('code', code.toUpperCase()).eq('is_active', 1).maybeSingle();
     if (!coupon) return res.status(404).json({ error: 'Invalid coupon code' });
     if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
       return res.status(400).json({ error: 'Coupon has expired' });
@@ -2597,10 +2608,18 @@ app.get('/api/cart', async (req, res) => {
     }
     const { data: items, error } = await query;
     if (error) throw error;
-    const mapped = (items || []).map(function(item) {
-      const p = item.products || {};
-      return { id: item.id, product_id: item.product_id, quantity: item.quantity, size: item.size || '', color: item.color || '', product: p };
-    });
+    const mapped = [];
+    for (const item of items || []) {
+      let product = item.products || {};
+      if (!product || !product.id) {
+        const { data: found } = await supabase.from('products')
+          .select('id,name,price,compare_price,image_url,image,category,stock,stock_count,status')
+          .eq('id', item.product_id)
+          .maybeSingle();
+        product = found || {};
+      }
+      mapped.push({ id: item.id, product_id: item.product_id, quantity: item.quantity, size: item.size || '', color: item.color || '', product: product });
+    }
     res.json(mapped);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2791,7 +2810,7 @@ app.get('/api/flash-sales/active', async (req, res) => {
     const { data: sales, error } = await supabase
       .from('flash_sales')
       .select('*')
-      .eq('is_active', true)
+      .eq('is_active', 1)
       .lte('start_time', now)
       .gte('end_time', now)
       .order('end_time');
@@ -3229,7 +3248,7 @@ app.get('/api/products/recommended', async (req, res) => {
         .select('*')
         .eq('category', cat)
         .eq('status', 'active')
-        .order('rating', { ascending: false })
+        .order('review_count', { ascending: false })
         .order('sold_count', { ascending: false })
         .limit(8);
       for (const p of catProducts || []) {
@@ -3430,7 +3449,7 @@ app.get('/api/analytics/summary', adminMiddleware, async (req, res) => {
       supabase.from('customers').select('*', { count: 'exact', head: true }),
       supabase.from('subscribers').select('*', { count: 'exact', head: true }),
       supabase.from('messages').select('*', { count: 'exact', head: true }),
-      supabase.from('products').select('id, name, sold_count, price, rating').eq('status', 'active').order('sold_count', { ascending: false }).limit(10),
+      supabase.from('products').select('id, name, sold_count, price, review_count').eq('status', 'active').order('sold_count', { ascending: false }).limit(10),
       from('orders').select('id, order_code, customer_name, total_amount, status, created_at').order('created_at', { ascending: false }).limit(5),
       supabase.from('products').select('id, name, stock').eq('status', 'active').lt('stock', 10).order('stock').limit(10),
       from('order_items').select('order_id, product_id, quantity, unit_price'),

@@ -87,6 +87,39 @@
     .tag-preset { border: 1px solid #ddd; background: #f8f9fa; border-radius: 50px; padding: 3px 11px; font-size: 0.72rem; font-weight: 600; color: #555; cursor: pointer; transition: all 0.2s; }
     .tag-preset:hover { border-color: #e94560; background: #e94560; color: #fff; }
     .tag-hint { font-size: 0.7rem; color: #999; margin-top: 5px; }
+    .color-preset { display: inline-flex; align-items: center; gap: 5px; }
+    .color-dot { width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); display: inline-block; flex: none; }
+    .color-custom-row { display: flex; gap: 6px; align-items: center; margin-top: 7px; flex-wrap: wrap; }
+    .color-custom-row input[type="color"] { width: 38px; height: 30px; padding: 2px; border: 1px solid var(--adm-line); border-radius: 7px; background: #fff; cursor: pointer; flex: none; }
+    .color-custom-row input[type="text"] { flex: 1; min-width: 120px; padding: 5px 8px; border: 1px solid var(--adm-line); border-radius: 7px; font-size: 0.78rem; }
+    .variant-panel { display: none; margin: 16px 0 6px; padding: 14px; border: 1px solid var(--adm-line); border-radius: 10px; background: rgba(247,241,227,0.45); }
+    .variant-panel h4 { margin: 0 0 4px; display: flex; align-items: center; gap: 7px; }
+    .variant-panel .tag-hint { margin-bottom: 10px; }
+    .variant-note { font-size: 0.78rem; color: #7a5a18; background: #fdf6e3; border: 1px solid #e8d49a; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+    .variant-table { min-width: 520px; }
+    .variant-table th, .variant-table td { padding: 7px 8px; vertical-align: middle; }
+    .variant-table th.size-head { text-align: center; min-width: 74px; }
+    .variant-table td.size-cell { text-align: center; }
+    .variant-table input[type="number"], .variant-table input[type="text"] { width: 68px; padding: 6px 7px; border: 1px solid var(--adm-line); border-radius: 6px; font-size: 0.8rem; text-align: center; }
+    .variant-table input.variant-price { width: 92px; text-align: left; }
+    .variant-table input.variant-out { border-color: #e74c3c; background: #fdecea; }
+    .variant-colour { font-weight: 700; white-space: nowrap; }
+    .variant-sku { font-size: 0.58rem; color: #999; margin-top: 2px; word-break: break-all; max-width: 86px; }
+    .variant-row-total { font-weight: 700; color: var(--adm-teal); }
+    .variant-summary { margin-top: 10px; font-size: 0.82rem; color: var(--adm-text-2); display: flex; gap: 14px; flex-wrap: wrap; }
+    .variant-summary strong { color: var(--adm-teal); }
+    .variant-colour-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 14px; }
+    .variant-colour-card { background: var(--adm-surface); border: 1px solid var(--adm-line); border-radius: 8px; padding: 8px; }
+    .variant-colour-card .vcc-head { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.78rem; margin-bottom: 6px; }
+    .variant-colour-card img { width: 100%; height: 72px; object-fit: cover; border-radius: 6px; background: #eee; display: block; margin-bottom: 5px; }
+    .variant-colour-card input[type="file"] { font-size: 0.65rem; width: 100%; }
+    .variant-colour-card input[type="text"] { width: 100%; font-size: 0.72rem; padding: 4px 6px; border: 1px solid var(--adm-line); border-radius: 5px; margin-top: 4px; }
+    @media (max-width: 768px) {
+      .variant-panel { padding: 10px; }
+      .variant-table th, .variant-table td { padding: 5px; }
+      .variant-table input[type="number"] { width: 54px; }
+      .variant-table input.variant-price { width: 72px; }
+    }
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .stat-card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
     .stat-card .num { font-size: 1.8rem; font-weight: 800; color: #e94560; }
@@ -267,7 +300,7 @@
           <div class="form-row-3">
             <div class="form-group"><label>Price (Rs.)</label><input type="text" id="prodPrice" placeholder="e.g. 899" oninput="updateProductProfitPreview()"></div>
             <div class="form-group"><label>Compare Price</label><input type="text" id="prodCompare" placeholder="Original price"></div>
-            <div class="form-group"><label>Stock</label><input type="number" id="prodStock" value="100"></div>
+            <div class="form-group"><label>Stock</label><input type="number" id="prodStock" value="100"><div class="tag-hint" id="prodStockHint">Used only when no colours/sizes are selected.</div></div>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -304,7 +337,12 @@
                 <input type="text" id="prodColorsInput" placeholder="Type a color and press Enter">
               </div>
               <div class="tag-presets" id="prodColorsPresets"></div>
-              <div class="tag-hint">Click a suggestion or type a custom color, then press Enter</div>
+              <div class="tag-hint">Click a swatch or type a custom colour, then press Enter</div>
+              <div class="color-custom-row">
+                <input type="color" id="prodColorPicker" value="#135E59" title="Pick a colour">
+                <input type="text" id="prodColorCustomName" placeholder="Custom colour name, e.g. Olive">
+                <button type="button" class="btn btn-primary btn-sm" onclick="addCustomColorFromPicker()"><i class="fas fa-plus"></i> Add</button>
+              </div>
             </div>
           </div>
           <div class="form-row">
@@ -319,6 +357,14 @@
             <div id="prodImagePreview" style="margin-top:8px;display:none;"></div>
           </div>
           <div class="form-group"><label>Or Main Image URL</label><input type="text" id="prodImage" placeholder="https://..."></div>
+          <div class="variant-panel" id="variantCard">
+            <h4><i class="fas fa-table-cells"></i> Colour &amp; Size Stock</h4>
+            <div class="tag-hint">Every colour/size combination is generated automatically. Enter the quantity for each one; unique SKUs are generated on save.</div>
+            <div id="variantAllocationNote"></div>
+            <div id="variantTableWrap"></div>
+            <div class="variant-summary" id="variantSummary"></div>
+            <div id="variantColorImages"></div>
+          </div>
           <div class="checkbox-group">
             <label><input type="checkbox" id="prodFeatured"> Featured</label>
             <label><input type="checkbox" id="prodNew"> New Arrival</label>
@@ -1273,6 +1319,49 @@ const TAG_PRESETS = {
   prodSizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Free Size'],
   prodColors: ['Black', 'White', 'Red', 'Blue', 'Green', 'Yellow', 'Pink', 'Grey', 'Navy', 'Beige', 'Maroon', 'Purple', 'Orange', 'Brown']
 };
+const COLOR_HEX = {
+  black: '#111111', white: '#ffffff', red: '#d62828', blue: '#1d4ed8', green: '#2f7d4f',
+  yellow: '#e6b800', pink: '#e88aa8', grey: '#777777', gray: '#777777', navy: '#1a2b4a',
+  beige: '#d8c3a5', maroon: '#6b1f2a', purple: '#6b2c91', orange: '#e07a2f', brown: '#6b4226',
+  olive: '#708238', teal: '#0f766e', cream: '#f3e5c3', gold: '#c7a04a', silver: '#c0c0c0',
+  'sky blue': '#87ceeb', 'light blue': '#9ec9e8', 'dark blue': '#173b6c', 'light pink': '#f4b6c2'
+};
+var prodColorMeta = {};
+var variantStockMap = {};
+var variantColorImages = {};
+var variantLegacyStock = 0;
+var variantAllocationDone = false;
+
+function colorHexFor(name) {
+  const key = String(name || '').trim().toLowerCase();
+  return prodColorMeta[key] || COLOR_HEX[key] || '';
+}
+
+function colorDotHtml(name) {
+  const hex = colorHexFor(name);
+  return '<span class="color-dot" style="background:' + (hex || '#ddd') + ';"></span>';
+}
+
+function addColorValue(name, hex) {
+  name = String(name || '').trim();
+  if (!name) return;
+  if (hex && /^#[0-9a-f]{3,8}$/i.test(hex)) prodColorMeta[name.toLowerCase()] = hex;
+  else if (!prodColorMeta[name.toLowerCase()] && COLOR_HEX[name.toLowerCase()]) prodColorMeta[name.toLowerCase()] = COLOR_HEX[name.toLowerCase()];
+  addTagValue('prodColors', name);
+}
+
+function addCustomColorFromPicker() {
+  const nameInput = document.getElementById('prodColorCustomName');
+  const picker = document.getElementById('prodColorPicker');
+  const name = nameInput.value.trim();
+  if (!name) { showMsg('Enter a colour name first.', 'error'); return; }
+  addColorValue(name, picker.value);
+  nameInput.value = '';
+}
+
+function onVariantOptionsChanged() {
+  renderVariantTable();
+}
 
 function tagValues(hiddenId) {
   const v = document.getElementById(hiddenId).value || '';
@@ -1282,6 +1371,7 @@ function tagValues(hiddenId) {
 function setTagValues(hiddenId, values) {
   document.getElementById(hiddenId).value = values.join(',');
   renderTagChips(hiddenId);
+  if (hiddenId === 'prodSizes' || hiddenId === 'prodColors') onVariantOptionsChanged();
 }
 
 function addTagValue(hiddenId, value) {
@@ -1304,16 +1394,21 @@ function renderTagChips(hiddenId) {
   const chips = document.getElementById(hiddenId + 'Chips');
   const values = tagValues(hiddenId);
   chips.innerHTML = values.map((v, i) =>
-    '<span class="tag-chip">' + escape(v) + ' <button type="button" onclick="removeTagValue(\'' + hiddenId + '\',' + i + ')" aria-label="Remove ' + escape(v) + '">&times;</button></span>'
+    '<span class="tag-chip">' + (hiddenId === 'prodColors' ? colorDotHtml(v) : '') + escape(v) + ' <button type="button" onclick="removeTagValue(\'' + hiddenId + '\',' + i + ')" aria-label="Remove ' + escape(v) + '">&times;</button></span>'
   ).join('');
 }
 
 function initTagField(hiddenId) {
   const presets = TAG_PRESETS[hiddenId] || [];
   const presetBox = document.getElementById(hiddenId + 'Presets');
-  presetBox.innerHTML = presets.map(p =>
-    '<button type="button" class="tag-preset" onclick="addTagValue(\'' + hiddenId + '\',\'' + p.replace(/'/g, "\\'") + '\')">' + escape(p) + '</button>'
-  ).join('');
+  presetBox.innerHTML = presets.map(p => {
+    const safe = p.replace(/'/g, "\\'");
+    if (hiddenId === 'prodColors') {
+      const hex = COLOR_HEX[p.toLowerCase()] || '#ddd';
+      return '<button type="button" class="tag-preset color-preset" onclick="addColorValue(\'' + safe + '\',\'' + hex + '\')"><span class="color-dot" style="background:' + hex + ';"></span>' + escape(p) + '</button>';
+    }
+    return '<button type="button" class="tag-preset" onclick="addTagValue(\'' + hiddenId + '\',\'' + safe + '\')">' + escape(p) + '</button>';
+  }).join('');
   const input = document.getElementById(hiddenId + 'Input');
   input.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
@@ -1340,6 +1435,260 @@ initTagField('prodColors');
 function moneyValue(value) {
   const n = parseFloat(String(value == null ? '' : value).replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? 0 : n;
+}
+
+// ========== VARIANT STOCK MATRIX ==========
+function variantKeyOf(color, size) {
+  return String(color || '').trim().toLowerCase() + '|' + String(size || '').trim().toLowerCase();
+}
+
+function attr(value) {
+  return escape(String(value == null ? '' : value)).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function storedVariant(color, size) {
+  return variantStockMap[variantKeyOf(color, size)] || null;
+}
+
+function clearVariantState() {
+  variantStockMap = {};
+  variantColorImages = {};
+  prodColorMeta = {};
+  variantLegacyStock = 0;
+  variantAllocationDone = false;
+}
+
+function setVariantState(product) {
+  clearVariantState();
+  const rows = Array.isArray(product && product.variants) ? product.variants : [];
+  rows.forEach(function (v) {
+    if (!v) return;
+    const color = String(v.color || '').trim();
+    const size = String(v.size || '').trim();
+    if (!color && !size) return;
+    variantStockMap[variantKeyOf(color, size)] = {
+      stock_quantity: parseInt(v.stock_quantity, 10) || 0,
+      price: v.price !== null && v.price !== undefined && v.price !== '' ? v.price : '',
+      sku: v.sku || '',
+      image_url: v.image_url || '',
+      color_hex: v.color_hex || '',
+      is_active: v.is_active !== false
+    };
+    if (color) {
+      if (v.image_url) variantColorImages[color.toLowerCase()] = v.image_url;
+      if (v.color_hex) prodColorMeta[color.toLowerCase()] = v.color_hex;
+    }
+  });
+  tagValues('prodColors').forEach(function (c) {
+    if (!prodColorMeta[c.toLowerCase()]) prodColorMeta[c.toLowerCase()] = COLOR_HEX[c.toLowerCase()] || '';
+  });
+  const hasOptions = tagValues('prodColors').length || tagValues('prodSizes').length;
+  if (!rows.length && hasOptions) {
+    variantLegacyStock = Math.max(0, parseInt(product && (product.stock != null ? product.stock : product.stock_count), 10) || 0);
+  }
+}
+
+function variantOptions() {
+  return { colors: tagValues('prodColors'), sizes: tagValues('prodSizes') };
+}
+
+function setProdStockMode(hasOptions) {
+  const stock = document.getElementById('prodStock');
+  const hint = document.getElementById('prodStockHint');
+  if (!stock || !hint) return;
+  stock.readOnly = !!hasOptions;
+  stock.style.background = hasOptions ? '#f2f2f2' : '';
+  hint.textContent = hasOptions ? 'Auto-calculated from the colour/size table below.' : 'Used only when no colours/sizes are selected.';
+}
+
+function syncVariantInputsToState() {
+  document.querySelectorAll('#variantTableWrap [data-variant-stock]').forEach(function (input) {
+    const color = input.getAttribute('data-color') || '';
+    const size = input.getAttribute('data-size') || '';
+    const key = variantKeyOf(color, size);
+    if (!variantStockMap[key]) {
+      variantStockMap[key] = { stock_quantity: 0, price: '', sku: '', image_url: '', color_hex: prodColorMeta[color.toLowerCase()] || '' };
+    }
+    variantStockMap[key].stock_quantity = Math.max(0, parseInt(input.value, 10) || 0);
+  });
+  document.querySelectorAll('#variantTableWrap [data-variant-price-color]').forEach(function (input) {
+    const color = (input.getAttribute('data-variant-price-color') || '').toLowerCase();
+    const value = input.value.trim();
+    if (value === '') return;
+    document.querySelectorAll('#variantTableWrap [data-variant-stock]').forEach(function (stockInput) {
+      if ((stockInput.getAttribute('data-color') || '').toLowerCase() !== color) return;
+      const size = stockInput.getAttribute('data-size') || '';
+      const key = variantKeyOf(color, size);
+      if (!variantStockMap[key]) {
+        variantStockMap[key] = { stock_quantity: 0, price: '', sku: '', image_url: '', color_hex: prodColorMeta[color] || '' };
+      }
+      variantStockMap[key].price = moneyValue(value);
+    });
+  });
+}
+
+function renderVariantTable() {
+  const card = document.getElementById('variantCard');
+  const wrap = document.getElementById('variantTableWrap');
+  const summary = document.getElementById('variantSummary');
+  const colorWrap = document.getElementById('variantColorImages');
+  if (!card || !wrap) return;
+
+  const options = variantOptions();
+  const colors = options.colors;
+  const sizes = options.sizes;
+  if (!colors.length && !sizes.length) {
+    card.style.display = 'none';
+    wrap.innerHTML = '';
+    summary.innerHTML = '';
+    colorWrap.innerHTML = '';
+    setProdStockMode(false);
+    return;
+  }
+
+  syncVariantInputsToState();
+  card.style.display = 'block';
+  setProdStockMode(true);
+  const rowColors = colors.length ? colors : [''];
+  const rowSizes = sizes.length ? sizes : [''];
+
+  let allocationNote = '';
+  const anyStored = Object.keys(variantStockMap).length > 0;
+  if (variantLegacyStock > 0 && !variantAllocationDone && !anyStored && rowColors.length && rowSizes.length) {
+    const key = variantKeyOf(rowColors[0], rowSizes[0]);
+    variantStockMap[key] = { stock_quantity: variantLegacyStock, price: '', sku: '', image_url: '', color_hex: prodColorMeta[(rowColors[0] || '').toLowerCase()] || '' };
+    variantAllocationDone = true;
+    allocationNote = '<div class="variant-note"><i class="fas fa-circle-info"></i> Existing stock (' + variantLegacyStock + ') was placed in the first combination. Adjust the table so the total matches your real stock.</div>';
+  }
+  document.getElementById('variantAllocationNote').innerHTML = allocationNote;
+
+  let html = '<div class="table-wrap"><table class="variant-table"><thead><tr><th>Colour</th><th>Price override</th>';
+  rowSizes.forEach(function (size) {
+    html += '<th class="size-head">' + escape(size || 'One size') + '</th>';
+  });
+  html += '<th>Total</th></tr></thead><tbody>';
+
+  rowColors.forEach(function (color) {
+    const colourVariants = rowSizes.map(function (size) { return storedVariant(color, size); }).filter(Boolean);
+    const prices = colourVariants.map(function (v) { return String(v.price == null ? '' : v.price); }).filter(Boolean);
+    const commonPrice = prices.length && prices.every(function (p) { return p === prices[0]; }) ? prices[0] : '';
+    html += '<tr><td class="variant-colour">' + (color ? colorDotHtml(color) + ' ' + escape(color) : '<span style="color:#999;">Default</span>') + '</td>';
+    html += '<td><input type="number" min="0" step="0.01" class="variant-price" data-variant-price-color="' + attr(color) + '" value="' + attr(commonPrice) + '" placeholder="Base price"></td>';
+    rowSizes.forEach(function (size) {
+      const stored = storedVariant(color, size);
+      const value = stored ? stored.stock_quantity : '';
+      html += '<td class="size-cell"><input type="number" min="0" step="1" data-variant-stock data-color="' + attr(color) + '" data-size="' + attr(size) + '" value="' + attr(value) + '" placeholder="0" oninput="updateVariantSummary()">'
+        + '<div class="variant-sku">' + escape(stored && stored.sku ? stored.sku : 'auto SKU') + '</div></td>';
+    });
+    html += '<td class="variant-row-total" data-row-total="' + attr(variantKeyOf(color, '')) + '">0</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+
+  colorWrap.innerHTML = colors.length ? ('<div class="variant-colour-cards">' + colors.map(function (color) {
+    const img = variantColorImages[color.toLowerCase()] || '';
+    return '<div class="variant-colour-card" data-color="' + attr(color) + '">'
+      + '<div class="vcc-head">' + colorDotHtml(color) + escape(color) + '</div>'
+      + '<img src="' + attr(img) + '" alt="' + attr(color) + '" style="' + (img ? '' : 'display:none;') + '" onerror="this.style.display=\'none\'">'
+      + '<input type="file" accept="image/*" onchange="uploadVariantColorImage(this)">'
+      + '<input type="text" value="' + attr(img) + '" placeholder="or paste image URL" onchange="setVariantColorImageUrl(this)">'
+      + '</div>';
+  }).join('') + '</div>') : '';
+
+  updateVariantSummary();
+}
+
+function updateVariantSummary() {
+  const inputs = Array.from(document.querySelectorAll('#variantTableWrap [data-variant-stock]'));
+  if (!inputs.length) return;
+  const totals = {};
+  let total = 0;
+  let outCount = 0;
+  inputs.forEach(function (input) {
+    const qty = parseInt(input.value, 10) || 0;
+    if (qty <= 0) outCount++;
+    input.classList.toggle('variant-out', qty <= 0);
+    total += qty;
+    const color = input.getAttribute('data-color') || '';
+    totals[color] = (totals[color] || 0) + qty;
+  });
+  document.querySelectorAll('#variantTableWrap [data-row-total]').forEach(function (cell) {
+    const key = cell.getAttribute('data-row-total') || '';
+    const color = key.split('|')[0];
+    cell.textContent = totals[color] || 0;
+  });
+  const summary = document.getElementById('variantSummary');
+  summary.innerHTML = '<span>Total stock: <strong>' + total + '</strong></span><span>Combinations: <strong>' + inputs.length + '</strong></span>'
+    + (outCount ? '<span style="color:#b23a2e;"><i class="fas fa-triangle-exclamation"></i> ' + outCount + ' out of stock</span>' : '<span style="color:#2f7d4f;"><i class="fas fa-check"></i> All combinations in stock</span>');
+  const stockInput = document.getElementById('prodStock');
+  if (stockInput) stockInput.value = total;
+}
+
+function collectVariantRows() {
+  const options = variantOptions();
+  const colors = options.colors.length ? options.colors : [''];
+  const sizes = options.sizes.length ? options.sizes : [''];
+  if (!options.colors.length && !options.sizes.length) return [];
+  const priceInputs = {};
+  document.querySelectorAll('#variantTableWrap [data-variant-price-color]').forEach(function (input) {
+    priceInputs[(input.getAttribute('data-variant-price-color') || '').toLowerCase()] = input.value.trim();
+  });
+  const stockInputs = {};
+  document.querySelectorAll('#variantTableWrap [data-variant-stock]').forEach(function (input) {
+    stockInputs[variantKeyOf(input.getAttribute('data-color') || '', input.getAttribute('data-size') || '')] = input;
+  });
+  const rows = [];
+  colors.forEach(function (color) {
+    sizes.forEach(function (size) {
+      const input = stockInputs[variantKeyOf(color, size)];
+      const stored = storedVariant(color, size);
+      const stock = input ? Math.max(0, parseInt(input.value, 10) || 0) : 0;
+      const rowPrice = priceInputs[(color || '').toLowerCase()];
+      let price = null;
+      if (rowPrice !== undefined && rowPrice !== '') price = moneyValue(rowPrice);
+      else if (stored && stored.price !== '' && stored.price !== null && stored.price !== undefined) price = moneyValue(stored.price);
+      rows.push({
+        color: color,
+        size: size,
+        stock_quantity: stock,
+        price: price,
+        sku: stored && stored.sku ? stored.sku : '',
+        image_url: variantColorImages[(color || '').toLowerCase()] || (stored && stored.image_url) || '',
+        color_hex: prodColorMeta[(color || '').toLowerCase()] || (stored && stored.color_hex) || '',
+        is_active: true
+      });
+    });
+  });
+  return rows;
+}
+
+async function uploadVariantColorImage(input) {
+  const card = input.closest('.variant-colour-card');
+  const color = card ? card.getAttribute('data-color') : '';
+  const file = input.files && input.files[0];
+  if (!color || !file) return;
+  input.value = '';
+  try {
+    showMsg('Uploading ' + color + ' photo...', 'info');
+    const urls = await uploadProductImages([file]);
+    if (urls && urls[0]) {
+      variantColorImages[color.toLowerCase()] = urls[0];
+      showMsg(color + ' photo added.', 'success');
+      renderVariantTable();
+    }
+  } catch (e) {
+    showMsg('Photo upload failed: ' + (e.message || 'error'), 'error');
+  }
+}
+
+function setVariantColorImageUrl(input) {
+  const card = input.closest('.variant-colour-card');
+  const color = card ? card.getAttribute('data-color') : '';
+  if (!color) return;
+  const url = input.value.trim();
+  if (url) variantColorImages[color.toLowerCase()] = url;
+  else delete variantColorImages[color.toLowerCase()];
+  renderVariantTable();
 }
 
 function updateProductProfitPreview() {
@@ -1409,6 +1758,10 @@ async function saveProduct() {
     if (existingIndex !== 0) allImages.unshift(primaryImage);
   }
 
+  const variantRows = collectVariantRows();
+  const hasVariants = variantRows.length > 0;
+  const variantTotal = variantRows.reduce((sum, row) => sum + (parseInt(row.stock_quantity, 10) || 0), 0);
+
   const payload = {
     name, category: document.getElementById('prodCategory').value,
     subcategory: document.getElementById('prodSubcategory').value,
@@ -1421,7 +1774,9 @@ async function saveProduct() {
     material: document.getElementById('prodMaterial').value,
     brand: document.getElementById('prodBrand').value,
     sku: document.getElementById('prodSku').value,
-    stock: parseInt(document.getElementById('prodStock').value) || 100,
+    stock: hasVariants ? variantTotal : (parseInt(document.getElementById('prodStock').value) || 100),
+    variants: variantRows,
+    manage_variants: hasVariants,
     icon: 'fas fa-box',
     gradient: 'linear-gradient(135deg, #e94560, #d63851)',
     is_featured: document.getElementById('prodFeatured').checked ? 1 : 0,
@@ -1436,7 +1791,11 @@ async function saveProduct() {
     showMsg(id ? 'Product updated!' : 'Product added!', 'success');
     resetForm(); await loadProducts();
     return;
-  } catch {
+  } catch (err) {
+    if (hasVariants) {
+      showMsg((err && err.message) || 'Could not save the variant product.', 'error');
+      return;
+    }
     try {
       if (id) await supaUpdate('products', id, payload);
       else await supaInsert('products', { ...payload, created_at: new Date().toISOString() });
@@ -1450,11 +1809,14 @@ async function saveProduct() {
 
 function resetForm() {
   document.getElementById('editProductId').value = '';
+  clearVariantState();
   ['prodName','prodDesc','prodPrice','prodCompare','prodCost','prodBrand','prodSku','prodSizes','prodColors','prodMaterial'].forEach(id => document.getElementById(id).value = '');
   renderTagChips('prodSizes');
   renderTagChips('prodColors');
   document.getElementById('prodSizesInput').value = '';
   document.getElementById('prodColorsInput').value = '';
+  document.getElementById('prodColorCustomName').value = '';
+  document.getElementById('prodColorPicker').value = '#135E59';
   document.getElementById('prodStock').value = '100';
   document.getElementById('prodSubcategory').value = '';
   document.getElementById('prodFeatured').checked = false;
@@ -1467,16 +1829,16 @@ function resetForm() {
   prodPendingFiles = [];
   prodCover = null;
   renderProdImagePreview();
+  renderVariantTable();
   updateProductProfitPreview();
   document.getElementById('formTitle').textContent = 'Add Product';
   document.getElementById('cancelBtn').style.display = 'none';
 }
 
-function editProduct(id) {
-  const p = allProducts.find(x => x.id === id);
-  if (!p) return;
-  document.getElementById('editProductId').value = p.id;
-  document.getElementById('prodName').value = p.name || '';
+function populateProductForm(p, duplicate) {
+  clearVariantState();
+  document.getElementById('editProductId').value = duplicate ? '' : p.id;
+  document.getElementById('prodName').value = duplicate ? ((p.name || '') + ' Copy') : (p.name || '');
   document.getElementById('prodCategory').value = p.category || '';
   document.getElementById('prodDesc').value = p.description || p.desc || '';
   document.getElementById('prodPrice').value = p.price || '';
@@ -1484,13 +1846,20 @@ function editProduct(id) {
   document.getElementById('prodCost').value = p.cost_price != null ? p.cost_price : '';
   updateProductProfitPreview();
   document.getElementById('prodBrand').value = p.brand || '';
-  document.getElementById('prodSku').value = p.sku || '';
-  document.getElementById('prodSizes').value = p.sizes || '';
-  document.getElementById('prodColors').value = p.colors || '';
+  document.getElementById('prodSku').value = duplicate ? '' : (p.sku || '');
+  const variantRows = Array.isArray(p.variants) ? p.variants : [];
+  const derivedColors = Array.from(new Set(variantRows.map(v => String(v.color || '').trim()).filter(Boolean)));
+  const derivedSizes = Array.from(new Set(variantRows.map(v => String(v.size || '').trim()).filter(Boolean)));
+  document.getElementById('prodSizes').value = p.sizes || derivedSizes.join(',');
+  document.getElementById('prodColors').value = p.colors || derivedColors.join(',');
+  setVariantState(p);
+  if (duplicate) {
+    Object.keys(variantStockMap).forEach(function (key) { variantStockMap[key].sku = ''; });
+  }
   renderTagChips('prodSizes');
   renderTagChips('prodColors');
   document.getElementById('prodMaterial').value = p.material || '';
-  document.getElementById('prodStock').value = p.stock || 100;
+  document.getElementById('prodStock').value = p.stock != null ? p.stock : 100;
   document.getElementById('prodSubcategory').value = p.subcategory || '';
   document.getElementById('prodFeatured').checked = !!p.is_featured;
   document.getElementById('prodNew').checked = !!p.is_new;
@@ -1502,9 +1871,32 @@ function editProduct(id) {
   prodPendingFiles = [];
   prodCover = prodImageUrls[0] ? { type: 'existing', url: prodImageUrls[0] } : null;
   renderProdImagePreview();
-  document.getElementById('formTitle').textContent = 'Edit Product';
+  renderVariantTable();
+  document.getElementById('formTitle').textContent = duplicate ? 'Duplicate Product' : 'Edit Product';
   document.getElementById('cancelBtn').style.display = '';
   document.querySelector('[data-tab="products"]').click();
+  document.getElementById('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function editProduct(id) {
+  let p = allProducts.find(x => String(x.id) === String(id));
+  try {
+    const full = await api('/products/' + id);
+    if (full && !full.error) p = full;
+  } catch (e) {}
+  if (!p) return;
+  populateProductForm(p, false);
+}
+
+async function duplicateProduct(id) {
+  let p = allProducts.find(x => String(x.id) === String(id));
+  try {
+    const full = await api('/products/' + id);
+    if (full && !full.error) p = full;
+  } catch (e) {}
+  if (!p) return;
+  populateProductForm(p, true);
+  showMsg('Loaded a copy. Change the name/SKU and save.', 'info');
 }
 
 async function adminSupa(table) {
@@ -1531,7 +1923,7 @@ function renderFilteredProducts() {
     const profit = price - cost;
     const id = String(p.id);
     const checked = selectedProductIds.has(id) ? ' checked' : '';
-    return '<div class="list-item"><label style="display:flex;align-items:center;margin-right:8px;cursor:pointer;" title="Select product"><input type="checkbox" style="width:auto;accent-color:#e94560;"' + checked + ' onchange="toggleProductSelection(\'' + id + '\', this.checked)"></label>' + (p.image_url ? '<img src="' + p.image_url + '" class="preview-img" onerror="this.style.display=\'none\'">' : '') + '<div class="info"><h5>' + escape(p.name) + '</h5><p>' + (p.category || '') + ' | Price: Rs. ' + price + ' | Cost: Rs. ' + cost + ' | <span style="color:' + (profit < 0 ? '#e74c3c' : '#27ae60') + ';font-weight:600;">Profit: Rs. ' + profit + '</span> | Stock: ' + (p.stock || 0) + '</p></div><div class="actions"><button class="btn btn-primary btn-sm" onclick="editProduct(\'' + p.id + '\')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.id + '\')"><i class="fas fa-trash"></i></button></div></div>';
+    return '<div class="list-item"><label style="display:flex;align-items:center;margin-right:8px;cursor:pointer;" title="Select product"><input type="checkbox" style="width:auto;accent-color:#e94560;"' + checked + ' onchange="toggleProductSelection(\'' + id + '\', this.checked)"></label>' + (p.image_url ? '<img src="' + p.image_url + '" class="preview-img" onerror="this.style.display=\'none\'">' : '') + '<div class="info"><h5>' + escape(p.name) + '</h5><p>' + (p.category || '') + ' | Price: Rs. ' + price + ' | Cost: Rs. ' + cost + ' | <span style="color:' + (profit < 0 ? '#e74c3c' : '#27ae60') + ';font-weight:600;">Profit: Rs. ' + profit + '</span> | Stock: ' + (p.stock || 0) + '</p></div><div class="actions"><button class="btn btn-outline btn-sm" style="background:#fff;border:1px solid var(--adm-line);color:var(--adm-teal);" title="Duplicate product" onclick="duplicateProduct(\'' + p.id + '\')"><i class="fas fa-copy"></i></button><button class="btn btn-primary btn-sm" onclick="editProduct(\'' + p.id + '\')"><i class="fas fa-edit"></i></button><button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.id + '\')"><i class="fas fa-trash"></i></button></div></div>';
   }).join('');
   updateProductSelectionUI();
 }

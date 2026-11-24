@@ -1,4 +1,20 @@
-const Database = require('better-sqlite3');
+let BetterSqlite3 = null;
+try {
+  BetterSqlite3 = require('better-sqlite3');
+} catch (err) {
+  BetterSqlite3 = null;
+}
+let NodeSqliteDatabase = null;
+try {
+  const { DatabaseSync } = require('node:sqlite');
+  NodeSqliteDatabase = class extends DatabaseSync {
+    pragma(statement) {
+      this.exec('PRAGMA ' + statement + ';');
+    }
+  };
+} catch (err) {
+  NodeSqliteDatabase = null;
+}
 const path = require('path');
 
 // On Vercel the deployment filesystem is read-only — SQLite must live in /tmp.
@@ -9,7 +25,17 @@ let db;
 
 function getDb() {
   if (!db) {
-    db = new Database(DB_PATH);
+    if (BetterSqlite3) {
+      try {
+        db = new BetterSqlite3(DB_PATH);
+      } catch (err) {
+        console.warn('better-sqlite3 unavailable, using node:sqlite:', err.message);
+      }
+    }
+    if (!db) {
+      if (!NodeSqliteDatabase) throw new Error('No SQLite driver available (install better-sqlite3 or use Node 22+)');
+      db = new NodeSqliteDatabase(DB_PATH);
+    }
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
     migrate();
@@ -417,6 +443,10 @@ function table(name) {
 
       const chain = {
         eq(field, value) { q.conditions.push({ field, op: 'eq', value }); return chain; },
+        match(values) {
+          Object.entries(values || {}).forEach(function(entry) { q.conditions.push({ field: entry[0], op: 'eq', value: entry[1] }); });
+          return chain;
+        },
         neq(field, value) { q.conditions.push({ field, op: 'neq', value }); return chain; },
         gt(field, value) { q.conditions.push({ field, op: 'gt', value }); return chain; },
         gte(field, value) { q.conditions.push({ field, op: 'gte', value }); return chain; },

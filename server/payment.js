@@ -151,8 +151,11 @@ function resolveItemImage(product, requested) {
 /**
  * Build authoritative order lines from database products.
  * Client supplied names/prices are never trusted.
+ * `variantsByProduct` is an optional Map(productId -> variant rows). When a
+ * product has variants, the selected colour/size must exist and its own stock
+ * and optional price are authoritative.
  */
-function buildOrderItems(productsById, requestedItems) {
+function buildOrderItems(productsById, requestedItems, variantsByProduct) {
   const merged = new Map();
 
   (requestedItems || []).forEach(raw => {
@@ -182,14 +185,41 @@ function buildOrderItems(productsById, requestedItems) {
     if (product.status && product.status !== 'active') {
       throw new Error('"' + (product.name || 'A product') + '" is no longer available.');
     }
-    const price = toNumber(product.price);
+
+    const rows = variantsByProduct && variantsByProduct.get(String(product.id));
+    const productVariants = (rows || []).filter(v => v && v.is_active !== false && v.is_active !== 0);
+    let variant = null;
+
+    if (productVariants.length) {
+      const wantedColor = entry.color.toLowerCase();
+      const wantedSize = entry.size.toLowerCase();
+      variant = productVariants.find(v => {
+        return text(v.color, 40).toLowerCase() === wantedColor
+          && text(v.size, 40).toLowerCase() === wantedSize;
+      }) || null;
+      if (!variant) {
+        throw new Error('The selected colour/size for "' + (product.name || 'a product') + '" is no longer available.');
+      }
+      const variantStock = toNumber(variant.stock_quantity);
+      if (variantStock !== null && entry.quantity > variantStock) {
+        throw new Error('Only ' + variantStock + ' left in stock for "' + (product.name || 'a product') + '" (' + [variant.color, variant.size].filter(Boolean).join(' / ') + ').');
+      }
+    } else {
+      const stock = toNumber(product.stock) !== null ? toNumber(product.stock) : toNumber(product.stock_count);
+      if (stock !== null && entry.quantity > stock) {
+        throw new Error('Only ' + stock + ' left in stock for "' + (product.name || 'a product') + '".');
+      }
+    }
+
+    let price = toNumber(product.price);
+    if (variant && variant.price !== undefined && variant.price !== null && variant.price !== '') {
+      const variantPrice = toNumber(variant.price);
+      if (variantPrice !== null) price = variantPrice;
+    }
     if (price === null || price < 0) {
       throw new Error('Price is unavailable for "' + (product.name || 'a product') + '".');
     }
-    const stock = toNumber(product.stock) !== null ? toNumber(product.stock) : toNumber(product.stock_count);
-    if (stock !== null && entry.quantity > stock) {
-      throw new Error('Only ' + stock + ' left in stock for "' + (product.name || 'a product') + '".');
-    }
+
     return {
       product_id: product.id,
       product_name: product.name || 'Product',
@@ -197,7 +227,9 @@ function buildOrderItems(productsById, requestedItems) {
       unit_price: formatAmount(price),
       size: entry.size,
       color: entry.color,
-      image_url: entry.image_url || ''
+      image_url: entry.image_url || '',
+      variant_id: variant ? variant.id : null,
+      variant_sku: variant ? (variant.sku || '') : ''
     };
   });
 }

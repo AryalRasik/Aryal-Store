@@ -3670,7 +3670,7 @@ function clearFilters() {
         if (params && params.search) filters.name = 'ilike.*' + encodeURIComponent(params.search) + '*';
         if (currentFilter && currentFilter !== 'all') filters.category = categoryFilterValue(currentFilter);
         if (currentSort) {
-          const sortMap = { price_asc: 'price.asc', price_desc: 'price.desc', name_asc: 'name.asc', name_desc: 'name.desc', newest: 'created_at.desc', rating: 'rating.desc' };
+          const sortMap = { price_asc: 'price.asc', price_desc: 'price.desc', name_asc: 'name.asc', name_desc: 'name.desc', newest: 'created_at.desc', rating: 'review_count.desc' };
           filters.order = sortMap[currentSort] || 'created_at.desc';
         }
         const prods = await supaFetch('products', filters);
@@ -6188,6 +6188,15 @@ function initCarousel() {
   }, 5000);
 }
 
+// Bottom nav must work before slow async startup finishes.
+window.closeMobileMenu = function() { document.querySelector('.hamburger')?.classList.remove('active'); document.querySelector('nav ul')?.classList.remove('show'); };
+document.querySelectorAll('.bottom-nav-item').forEach(function(item) {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.bottom-nav-item').forEach(function(n) { n.classList.remove('active'); });
+    this.classList.add('active');
+  });
+});
+
 // ==================== INIT ====================
 (async function() {
 
@@ -6393,15 +6402,6 @@ function initCarousel() {
     }
   }
   waitAndInitGoogle();
-
-  // Bottom nav active state tracking
-  window.closeMobileMenu = function() { document.querySelector('.hamburger')?.classList.remove('active'); document.querySelector('nav ul')?.classList.remove('show'); };
-  document.querySelectorAll('.bottom-nav-item').forEach(function(item) {
-    item.addEventListener('click', function() {
-      document.querySelectorAll('.bottom-nav-item').forEach(function(n) { n.classList.remove('active'); });
-      this.classList.add('active');
-    });
-  });
 
   // Scroll to top button
   window.addEventListener('scroll', function() {
