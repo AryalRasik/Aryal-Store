@@ -456,11 +456,12 @@
       <div class="tab-content" id="tab-delivery">
         <h3>Delivery Addresses</h3>
         <div class="card">
-          <p class="tag-hint" style="margin-top:0;">Customers can only save or select these addresses at checkout. Deleting a place removes it from customer saved addresses, but past orders keep their address snapshot.</p>
+          <p class="tag-hint" style="margin-top:0;">Customers can only save or select these addresses at checkout. Set a different delivery fee for each place. Deleting a place removes it from customer saved addresses, but past orders keep their address snapshot.</p>
           <input type="hidden" id="deliveryLocationId" value="">
           <div class="form-row">
             <div class="form-group"><label>Place Name *</label><input type="text" id="deliveryLocationLabel" placeholder="e.g. Home, Office, Kathmandu Branch"></div>
             <div class="form-group"><label>Sort Order</label><input type="number" id="deliveryLocationSort" value="0"></div>
+            <div class="form-group"><label>Delivery Fee (Rs.)</label><input type="number" id="deliveryLocationFee" min="0" step="1" value="0"></div>
           </div>
           <div class="form-group"><label>Full Address *</label><textarea id="deliveryLocationAddress" rows="2" placeholder="e.g. New Baneshwor, Kathmandu"></textarea></div>
           <div class="form-group"><label><input type="checkbox" id="deliveryLocationActive" checked> Active (visible to customers)</label></div>
@@ -1092,7 +1093,7 @@ function renderDeliveryLocations() {
       '<div><strong>' + escape(loc.label || '') + '</strong> ' +
       '<span style="font-size:0.72rem;padding:2px 7px;border-radius:50px;background:' + (active ? '#e8f7ee;color:#1e8449' : '#f1f1f1;color:#777') + ';">' + (active ? 'Active' : 'Hidden') + '</span>' +
       '<div style="color:#555;font-size:0.85rem;margin-top:3px;">' + escape(loc.address || '') + '</div>' +
-      '<div class="tag-hint">Sort order: ' + Number(loc.sort_order || 0) + '</div></div>' +
+      '<div class="tag-hint">Sort order: ' + Number(loc.sort_order || 0) + ' &nbsp;|&nbsp; Delivery fee: Rs. ' + (Number(loc.delivery_fee || 0)).toLocaleString() + '</div></div>' +
       '<div class="inline-flex">' +
       '<button class="btn btn-sm" onclick="editDeliveryLocation(\'' + escape(String(loc.id)) + '\')">Edit</button>' +
       '<button class="btn btn-sm btn-danger" onclick="deleteDeliveryLocation(\'' + escape(String(loc.id)) + '\')">Delete</button>' +
@@ -1105,6 +1106,7 @@ function resetDeliveryLocationForm() {
   document.getElementById('deliveryLocationLabel').value = '';
   document.getElementById('deliveryLocationAddress').value = '';
   document.getElementById('deliveryLocationSort').value = '0';
+  document.getElementById('deliveryLocationFee').value = '0';
   document.getElementById('deliveryLocationActive').checked = true;
 }
 
@@ -1115,6 +1117,7 @@ function editDeliveryLocation(id) {
   document.getElementById('deliveryLocationLabel').value = loc.label || '';
   document.getElementById('deliveryLocationAddress').value = loc.address || '';
   document.getElementById('deliveryLocationSort').value = Number(loc.sort_order || 0);
+  document.getElementById('deliveryLocationFee').value = Number(loc.delivery_fee || 0);
   document.getElementById('deliveryLocationActive').checked = loc.is_active === true || loc.is_active === 1 || loc.is_active === '1';
   document.getElementById('tab-delivery').scrollIntoView({ behavior: 'smooth' });
 }
@@ -1124,9 +1127,11 @@ async function saveDeliveryLocation() {
   const label = document.getElementById('deliveryLocationLabel').value.trim();
   const address = document.getElementById('deliveryLocationAddress').value.trim();
   const sortOrder = Number(document.getElementById('deliveryLocationSort').value) || 0;
+  const deliveryFee = Number(document.getElementById('deliveryLocationFee').value);
   const isActive = document.getElementById('deliveryLocationActive').checked;
   if (!label || !address) { showMsg('Place name and full address are required.', 'error'); return; }
-  const body = JSON.stringify({ label: label, address: address, sort_order: sortOrder, is_active: isActive });
+  if (!Number.isFinite(deliveryFee) || deliveryFee < 0) { showMsg('Delivery fee cannot be negative.', 'error'); return; }
+  const body = JSON.stringify({ label: label, address: address, delivery_fee: deliveryFee, sort_order: sortOrder, is_active: isActive });
   if (id) {
     await api('/admin/delivery-locations/' + encodeURIComponent(id), { method: 'PUT', body: body });
     showMsg('Delivery address updated. Saved customer addresses were checked.', 'success');

@@ -1297,6 +1297,7 @@ app.post('/api/orders', async (req, res) => {
       customer_email: customer_email,
       customer_address: customer_address,
       delivery_location_id: deliveryLocation.id,
+      delivery_fee: deliveryLocation.delivery_fee,
       customer_city: body.customer_city || body.customer_district || '',
       customer_state: body.customer_state || body.customer_province || '',
       customer_landmark: body.customer_landmark || '',
@@ -1592,6 +1593,10 @@ async function createOrderFromRequest(input) {
   }
 
   const requestedDelivery = mapDeliveryToWorkflow(input.shipping_method) || { method: 'standard', label: 'Standard Delivery', fee: 0 };
+  const locationFee = payment.toNumber(input.delivery_fee);
+  const baseDeliveryFee = locationFee === null ? 0 : Math.max(0, locationFee);
+  const upgradeFee = requestedDelivery.method === 'standard' ? 0 : requestedDelivery.fee;
+  const effectiveDeliveryFee = baseDeliveryFee + upgradeFee;
   const freeShippingThreshold = await getFreeShippingThreshold();
   const itemSubtotal = payment.round2(orderItems.reduce(function (s, i) {
     return s + (payment.toNumber(i.unit_price) || 0) * i.quantity;
@@ -1604,7 +1609,7 @@ async function createOrderFromRequest(input) {
     throw httpError(couponErr.message);
   }
 
-  const totals = payment.computeOrderTotals(orderItems, { id: requestedDelivery.method, cost: requestedDelivery.fee }, freeShippingThreshold, coupon);
+  const totals = payment.computeOrderTotals(orderItems, { id: requestedDelivery.method, cost: effectiveDeliveryFee }, freeShippingThreshold, coupon);
   const paymentMethodKey = payment.normalizePaymentMethod(input.payment_method) || 'online';
   const customerLatitude = parseCoordinate(input.customer_latitude, -90, 90);
   const customerLongitude = parseCoordinate(input.customer_longitude, -180, 180);
@@ -3044,9 +3049,12 @@ app.post('/api/admin/delivery-locations', adminMiddleware, async (req, res) => {
     const address = String(req.body.address || '').trim();
     if (!label || !address) return res.status(400).json({ error: 'Place name and address are required.' });
     const sortOrder = Number(req.body.sort_order);
+    const deliveryFee = payment.toNumber(req.body.delivery_fee);
+    if (deliveryFee !== null && deliveryFee < 0) return res.status(400).json({ error: 'Delivery fee cannot be negative.' });
     const payload = {
       label,
       address,
+      delivery_fee: deliveryFee === null ? 0 : deliveryFee,
       is_active: req.body.is_active === false || req.body.is_active === 0 || req.body.is_active === '0' ? 0 : 1,
       sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
       updated_at: new Date().toISOString()
@@ -3066,9 +3074,12 @@ app.put('/api/admin/delivery-locations/:id', adminMiddleware, async (req, res) =
     const address = String(req.body.address || '').trim();
     if (!label || !address) return res.status(400).json({ error: 'Place name and address are required.' });
     const sortOrder = Number(req.body.sort_order);
+    const deliveryFee = payment.toNumber(req.body.delivery_fee);
+    if (deliveryFee !== null && deliveryFee < 0) return res.status(400).json({ error: 'Delivery fee cannot be negative.' });
     const payload = {
       label,
       address,
+      delivery_fee: deliveryFee === null ? 0 : deliveryFee,
       is_active: req.body.is_active === false || req.body.is_active === 0 || req.body.is_active === '0' ? 0 : 1,
       sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
       updated_at: new Date().toISOString()
@@ -3562,6 +3573,7 @@ app.post('/api/orders/:id/reorder', async (req, res) => {
       customer_email: order.customer_email,
       customer_address: order.customer_address,
       delivery_location_id: order.delivery_location_id,
+      delivery_fee: deliveryLocation.delivery_fee,
       customer_city: order.customer_city,
       customer_state: order.customer_state,
       customer_landmark: order.customer_landmark,

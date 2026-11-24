@@ -2653,6 +2653,19 @@ function escapeDeliveryHtml(value) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function getDeliveryFeeForSelect(id) {
+  var el = document.getElementById(id);
+  if (!el || !el.value) return 0;
+  var loc = deliveryLocationsCache.find(function (row) { return String(row.id) === String(el.value); });
+  if (!loc) return 0;
+  var fee = Number(String(loc.delivery_fee === null || loc.delivery_fee === undefined ? 0 : loc.delivery_fee).replace(/[^0-9.]/g, ''));
+  return Number.isFinite(fee) && fee > 0 ? fee : 0;
+}
+
+function deliveryFeeSuffix(fee) {
+  return fee > 0 ? ' — Rs. ' + fee.toLocaleString() + ' delivery' : ' — Free delivery';
+}
+
 function fillDeliveryLocationSelect(id, selectedId) {
   var el = document.getElementById(id);
   if (!el) return;
@@ -2663,7 +2676,8 @@ function fillDeliveryLocationSelect(id, selectedId) {
     ? String(selectedId)
     : (el.getAttribute('data-pending-selection') || el.value);
   var options = deliveryLocationsCache.map(function (loc) {
-    return '<option value="' + escapeDeliveryHtml(loc.id) + '">' + escapeDeliveryHtml(loc.label || '') + ' — ' + escapeDeliveryHtml(loc.address || '') + '</option>';
+    var fee = Number(String(loc.delivery_fee === null || loc.delivery_fee === undefined ? 0 : loc.delivery_fee).replace(/[^0-9.]/g, '')) || 0;
+    return '<option value="' + escapeDeliveryHtml(loc.id) + '">' + escapeDeliveryHtml(loc.label || '') + ' — ' + escapeDeliveryHtml(loc.address || '') + deliveryFeeSuffix(fee) + '</option>';
   }).join('');
   el.innerHTML = '<option value="">Select a delivery address</option>' + options;
   if (current) {
@@ -2687,6 +2701,15 @@ async function loadDeliveryLocations() {
     deliveryLocationsCache = [];
   }
   renderDeliveryLocationSelects();
+  ['ordDeliveryLocation', 'cmDeliveryLocation', 'addrDeliveryLocation', 'profAddrDeliveryLocation'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el || el.getAttribute('data-fee-listener')) return;
+    el.addEventListener('change', function () {
+      if (typeof renderCheckoutSummary === 'function') renderCheckoutSummary();
+      document.dispatchEvent(new CustomEvent('deliverylocationchange'));
+    });
+    el.setAttribute('data-fee-listener', '1');
+  });
 }
 
 loadDeliveryLocations();
@@ -3287,8 +3310,12 @@ function renderCheckoutSummary() {
     html += '<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:0.8rem;"><span>' + i.name + ' x' + i.qty + '</span><span>Rs. ' + (priceNum * i.qty).toLocaleString() + '</span></div>';
   });
   const subtotal = cart.reduce((s, i) => s + (parseInt(i.price.replace(/[^0-9]/g, '')) || 0) * i.qty, 0);
-  const shipLabel = shippingCost > 0 ? 'Rs. ' + shippingCost.toLocaleString() : 'Free';
-  const grandTotal = subtotal - couponDiscount + shippingCost;
+  const placeFee = getDeliveryFeeForSelect('ordDeliveryLocation');
+  const threshold = Number(window._freeShippingThreshold || 2000);
+  const freeByThreshold = selectedShipping === 'standard' && subtotal >= threshold;
+  const displayShipping = freeByThreshold ? 0 : placeFee + (selectedShipping === 'standard' ? 0 : shippingCost);
+  const shipLabel = displayShipping > 0 ? 'Rs. ' + displayShipping.toLocaleString() : 'Free';
+  const grandTotal = subtotal - couponDiscount + displayShipping;
   html += '<hr style="border:none;border-top:1px solid #ddd;margin:6px 0;">';
   html += '<div style="display:flex;justify-content:space-between;font-size:0.8rem;color:#555;"><span>Shipping</span><span>' + shipLabel + '</span></div>';
   if (couponDiscount > 0) html += '<div style="display:flex;justify-content:space-between;font-size:0.8rem;color:#2f7d4f;"><span>Discount</span><span>-Rs. ' + couponDiscount.toLocaleString() + '</span></div>';
@@ -6552,21 +6579,26 @@ document.querySelectorAll('.bottom-nav-item').forEach(function(item) {
     var shippingEl = document.querySelector('.cm-shipping-option.selected');
     var paymentMethod = paymentEl ? paymentEl.dataset.value : '';
     var shippingMethod = shippingEl ? shippingEl.dataset.value : 'standard';
-    var shippingCost = shippingEl ? parseInt(shippingEl.dataset.cost) : 0;
+    var methodFee = shippingEl ? parseInt(shippingEl.dataset.cost) || 0 : 0;
+    var placeFee = getDeliveryFeeForSelect('cmDeliveryLocation');
     var subtotal = cart.reduce(function(s, i) { return s + (parseInt(i.price.replace(/[^0-9]/g,'')) || 0) * i.qty; }, 0);
+    var threshold = Number(window._freeShippingThreshold || 2000);
+    var freeByThreshold = shippingMethod === 'standard' && subtotal >= threshold;
+    var shippingCost = freeByThreshold ? 0 : placeFee + (shippingMethod === 'standard' ? 0 : methodFee);
     var total = Math.max(0, subtotal - couponDiscount + shippingCost);
-    var shippingLabels = { standard: 'Standard (Free)', express: 'Express (Rs. 200)', same_day: 'Same Day (Rs. 500)' };
+    var shippingLabels = { standard: 'Standard Delivery', express: 'Express Delivery', same_day: 'Same Day Delivery' };
     var itemsCount = cart.reduce(function(s,i) { return s + i.qty; }, 0);
     container.innerHTML = '<div class="cm-summary-item"><span class="cm-si-label">Items</span><span class="cm-si-value">' + itemsCount + ' items</span></div>' +
       '<div class="cm-summary-item"><span class="cm-si-label">Subtotal</span><span class="cm-si-value">Rs. ' + subtotal.toLocaleString() + '</span></div>' +
       (couponDiscount > 0 ? '<div class="cm-summary-item"><span class="cm-si-label">Discount</span><span class="cm-si-value" style="color:#2f7d4f;">-Rs. ' + couponDiscount.toLocaleString() + '</span></div>' : '') +
-      '<div class="cm-summary-item"><span class="cm-si-label">Shipping</span><span class="cm-si-value">' + (shippingLabels[shippingMethod] || 'Standard (Free)') + (shippingCost > 0 ? ' (Rs. ' + shippingCost.toLocaleString() + ')' : '') + '</span></div>' +
+      '<div class="cm-summary-item"><span class="cm-si-label">Shipping</span><span class="cm-si-value">' + (shippingLabels[shippingMethod] || 'Standard Delivery') + (shippingCost > 0 ? ' (Rs. ' + shippingCost.toLocaleString() + ')' : ' (Free)') + '</span></div>' +
       '<div class="cm-summary-item"><span class="cm-si-label">Payment</span><span class="cm-si-value">' + (paymentMethod === 'online' ? 'Online Payment (shop QR code)' : '<span style="color:#b23a2e;">Not selected</span>') + '</span></div>' +
       '<div class="cm-summary-item"><span class="cm-si-label">Deliver to</span><span class="cm-si-value">' + name + ', ' + phone + '<br>' + address + '</span></div>' +
       (email ? '<div class="cm-summary-item"><span class="cm-si-label">Email</span><span class="cm-si-value">' + email + '</span></div>' : '') +
       (notes ? '<div class="cm-summary-item"><span class="cm-si-label">Notes</span><span class="cm-si-value">' + notes + '</span></div>' : '') +
       '<div class="cm-total-row total"><span>Total to Pay</span><span>Rs. ' + total.toLocaleString() + '</span></div>';
   }
+  document.addEventListener('deliverylocationchange', function () { cmRenderSummary(); });
   window.cmPlaceOrder = async function() {
     var name = document.getElementById('cmName').value.trim();
     var phone = document.getElementById('cmPhone').value.trim();

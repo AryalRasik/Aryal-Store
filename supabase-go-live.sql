@@ -273,9 +273,10 @@ CREATE INDEX IF NOT EXISTS idx_saved_addresses_session ON saved_addresses(sessio
 
 CREATE TABLE IF NOT EXISTS delivery_locations (
   id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  label      TEXT NOT NULL DEFAULT '',
-  address    TEXT NOT NULL DEFAULT '',
-  is_active  INTEGER NOT NULL DEFAULT 1,
+  label        TEXT NOT NULL DEFAULT '',
+  address      TEXT NOT NULL DEFAULT '',
+  delivery_fee NUMERIC NOT NULL DEFAULT 0,
+  is_active    INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

@@ -346,11 +346,13 @@ async function migrateDb() {
       id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       label TEXT NOT NULL DEFAULT '',
       address TEXT NOT NULL DEFAULT '',
+      delivery_fee NUMERIC NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE delivery_locations ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC NOT NULL DEFAULT 0;
     ALTER TABLE delivery_locations DISABLE ROW LEVEL SECURITY;
     GRANT ALL ON TABLE delivery_locations TO anon, authenticated;
     CREATE INDEX IF NOT EXISTS idx_delivery_locations_active ON delivery_locations(is_active, sort_order);

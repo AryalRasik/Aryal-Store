@@ -69,10 +69,16 @@
     if (!select) return;
     const current = select.value;
     const options = state.deliveryLocations.map(function (loc) {
-      return '<option value="' + escapeHtml(String(loc.id)) + '">' + escapeHtml(loc.label || '') + ' — ' + escapeHtml(loc.address || '') + '</option>';
+      const fee = Number(String(loc.delivery_fee === null || loc.delivery_fee === undefined ? 0 : loc.delivery_fee).replace(/[^0-9.]/g, '')) || 0;
+      const suffix = fee > 0 ? ' — Rs. ' + fee.toLocaleString() + ' delivery' : ' — Free delivery';
+      return '<option value="' + escapeHtml(String(loc.id)) + '">' + escapeHtml(loc.label || '') + ' — ' + escapeHtml(loc.address || '') + suffix + '</option>';
     }).join('');
     select.innerHTML = '<option value="">Select a delivery address</option>' + options;
     if (current) select.value = current;
+    if (!select.getAttribute('data-fee-listener')) {
+      select.addEventListener('change', updateSummary);
+      select.setAttribute('data-fee-listener', '1');
+    }
   }
 
   function formatAddress(a) {
@@ -360,9 +366,18 @@
   // Standard delivery is free above the store's free-shipping threshold
   // (the server uses the same value when it stores the order).
   function isFreeShippingEligible() { return getSubtotal() >= state.freeShippingThreshold; }
+  function getSelectedLocationFee() {
+    const select = $('addrDeliveryLocation');
+    if (!select || !select.value) return 0;
+    const loc = state.deliveryLocations.find(function (row) { return String(row.id) === String(select.value); });
+    if (!loc) return 0;
+    const fee = Number(String(loc.delivery_fee === null || loc.delivery_fee === undefined ? 0 : loc.delivery_fee).replace(/[^0-9.]/g, ''));
+    return Number.isFinite(fee) && fee > 0 ? fee : 0;
+  }
   function getShippingCost() {
-    if (state.shipping.id === 'standard' && isFreeShippingEligible()) return 0;
-    return state.shipping.cost;
+    const placeFee = getSelectedLocationFee();
+    if (state.shipping.id === 'standard') return isFreeShippingEligible() ? 0 : placeFee;
+    return placeFee + state.shipping.cost;
   }
   function getDiscount() { return state.discount; }
 
@@ -486,8 +501,13 @@
   function selectAddress(i) {
     state.address = state.addresses[i];
     applyAddressLocation(state.address);
+    const locationSelect = $('addrDeliveryLocation');
+    if (locationSelect && state.address && state.address.delivery_location_id) {
+      locationSelect.value = String(state.address.delivery_location_id);
+    }
     document.querySelectorAll('.co-address-card').forEach((el, idx) => el.classList.toggle('selected', idx === i));
     document.querySelectorAll('.co-address-card input[type="radio"]').forEach((el, idx) => el.checked = idx === i);
+    updateSummary();
   }
   window._coSelectAddress = selectAddress;
 
@@ -502,6 +522,7 @@
     $('addrEmail').value = data ? (data.email || '') : '';
     renderDeliveryLocationOptions();
     $('addrDeliveryLocation').value = data && data.delivery_location_id ? String(data.delivery_location_id) : '';
+    updateSummary();
     $('addrWard').value = data ? (data.ward || '') : '';
     $('addrStreet').value = data ? (data.tole || '') : '';
     $('addrLandmark').value = data ? (data.landmark || '') : '';
