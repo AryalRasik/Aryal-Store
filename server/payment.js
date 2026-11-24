@@ -141,8 +141,20 @@ function productImageUrls(product) {
   return urls;
 }
 
-function resolveItemImage(product, requested) {
+function variantImageUrls(rows) {
+  const urls = [];
+  (rows || []).forEach(function(v) {
+    const url = ((v && v.image_url) || '').trim();
+    if (url && urls.indexOf(url) < 0) urls.push(url);
+  });
+  return urls;
+}
+
+function resolveItemImage(product, requested, extraImages) {
   const images = productImageUrls(product);
+  variantImageUrls(extraImages).forEach(function(url) {
+    if (images.indexOf(url) < 0) images.push(url);
+  });
   if (!images.length) return '';
   const selected = text(requested, 2048);
   return selected && images.indexOf(selected) !== -1 ? selected : images[0];
@@ -169,7 +181,8 @@ function buildOrderItems(productsById, requestedItems, variantsByProduct) {
     }
     const size = text(raw.size, 40);
     const color = text(raw.color, 40);
-    const imageUrl = resolveItemImage(product, raw.image_url || raw.selected_image);
+    const variantRows = variantsByProduct && variantsByProduct.get(String(productId));
+    const imageUrl = resolveItemImage(product, raw.image_url || raw.selected_image, variantRows);
     const key = productId + '::' + size + '::' + color + '::' + imageUrl;
     const existing = merged.get(key);
     if (existing) {

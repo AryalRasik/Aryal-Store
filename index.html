@@ -2942,7 +2942,9 @@ function variantColorHex(color) {
   const match = modalActiveVariants().find(function(v) {
     return sameVariantText(v.color, color) && /^#[0-9a-f]{3,8}$/i.test(String(v.color_hex || ''));
   });
-  return (match && match.color_hex) || VARIANT_COLOR_HEX[color] || '#dddddd';
+  if (match && match.color_hex) return match.color_hex;
+  const known = Object.keys(VARIANT_COLOR_HEX).find(function(name) { return sameVariantText(name, color); });
+  return (known && VARIANT_COLOR_HEX[known]) || '#dddddd';
 }
 
 function variantStockFor(color, size) {
@@ -2971,6 +2973,65 @@ function currentModalVariant() {
   if (colors.length && !selectedColor) return null;
   if (sizes.length && !selectedSize) return null;
   return findModalVariant(selectedColor, selectedSize);
+}
+
+function modalDisplayVariant() {
+  const exact = currentModalVariant();
+  if (exact) return exact;
+  const colors = modalVariantColors();
+  const sizes = modalVariantSizes();
+  if (colors.length && !selectedColor) return null;
+  return modalActiveVariants().find(function(v) {
+    return sameVariantText(v.color, selectedColor) && (!sizes.length || !selectedSize || sameVariantText(v.size, selectedSize));
+  }) || null;
+}
+
+function setModalStockText(stock, hasInfo) {
+  const el = document.getElementById('modalStock');
+  if (!el) return;
+  if (!hasInfo) { el.textContent = ''; el.className = 'stock-status'; return; }
+  const qty = Math.max(0, Number(stock) || 0);
+  if (qty <= 0) {
+    el.textContent = 'Out of Stock';
+    el.className = 'stock-status out-of-stock';
+  } else if (qty < 10) {
+    el.textContent = 'Only ' + qty + ' left in stock!';
+    el.className = 'stock-status low-stock';
+  } else {
+    el.textContent = 'In Stock';
+    el.className = 'stock-status in-stock';
+  }
+}
+
+function updateModalVariantDisplay() {
+  if (!currentModalProduct) return;
+  const variants = modalActiveVariants();
+  if (!variants.length) {
+    document.getElementById('modalPrice').textContent = productPriceText(currentModalProduct);
+    setModalStockText(currentModalProduct.stock_count, currentModalProduct.stock_count != null);
+    return;
+  }
+  const variant = modalDisplayVariant();
+  document.getElementById('modalPrice').textContent = 'Rs. ' + formatNpr(variantPriceValue(variant, currentModalProduct));
+  let stock = variant ? Number(variant.stock_quantity) : null;
+  if (stock == null) {
+    stock = selectedColor ? variantColorStock(selectedColor) : variants.reduce(function(sum, v) { return sum + Math.max(0, Number(v.stock_quantity) || 0); }, 0);
+  }
+  setModalStockText(stock, true);
+  if (variant && variant.image_url && currentGalleryImages.indexOf(variant.image_url) >= 0) {
+    goToProductImage(currentGalleryImages.indexOf(variant.image_url));
+  }
+}
+
+function refreshVariantOptionStates() {
+  const variants = modalActiveVariants();
+  if (!variants.length) return;
+  document.querySelectorAll('#sizeOptions .opt-btn').forEach(function(btn) {
+    btn.classList.toggle('is-disabled', variantSizeStock(btn.dataset.size || '') <= 0);
+  });
+  document.querySelectorAll('#colorOptions .color-opt').forEach(function(btn) {
+    btn.classList.toggle('is-disabled', variantColorStock(btn.dataset.color || '') <= 0);
+  });
 }
 
 function variantPriceValue(variant, product) {
@@ -3834,17 +3895,17 @@ function setProductUrl(id, mode) {
 }
 
 async function viewProduct(id, options) {
-  let p = findProduct(id);
+  let p = null;
 
-  if (!p) {
-    try {
-      const res = await fetch('/api/products/' + encodeURIComponent(id));
-      if (res.ok) {
-        const full = await res.json();
-        if (full && full.id != null) p = mapProduct(full);
-      }
-    } catch {}
-  }
+  try {
+    const res = await fetch('/api/products/' + encodeURIComponent(id));
+    if (res.ok) {
+      const full = await res.json();
+      if (full && full.id != null) p = mapProduct(full);
+    }
+  } catch {}
+
+  if (!p) p = findProduct(id);
 
   if (!p) {
     try {
@@ -3854,6 +3915,9 @@ async function viewProduct(id, options) {
   }
 
   if (!p) return;
+
+  const cachedIndex = allProducts.findIndex(function(row) { return String(row.id) === String(p.id); });
+  if (cachedIndex >= 0) allProducts[cachedIndex] = p;
 
   currentModalProduct = p;
   showProductModal(p);
@@ -3871,8 +3935,12 @@ async function viewProduct(id, options) {
 function showProductModal(p) {
   selectedSize = ''; selectedColor = '';
   const imgs = p.images_list && p.images_list.length ? p.images_list : (p.image ? [{ image_url: p.image, is_primary: 1 }] : []);
-  const galleryImages = imgs.filter(img => img && img.image_url);
-  currentGalleryImages = galleryImages.map(img => img.image_url);
+  const galleryUrls = imgs.filter(img => img && img.image_url).map(img => img.image_url);
+  modalActiveVariants().forEach(function(v) {
+    if (v && v.image_url && galleryUrls.indexOf(v.image_url) < 0) galleryUrls.push(v.image_url);
+  });
+  currentGalleryImages = galleryUrls;
+  const galleryImages = currentGalleryImages.map(function(url, i) { return { image_url: url, is_primary: i === 0 ? 1 : 0 }; });
   const mainImg = currentGalleryImages.length ? currentGalleryImages[0] : '';
   currentModalImage = mainImg;
 
@@ -3916,40 +3984,40 @@ function showProductModal(p) {
   const ratingHtml = p.rating ? '<span class="star">&#9733;</span> ' + p.rating.toFixed(1) + ' <span>(' + (p.review_count || 0) + ' reviews)</span>' : '<span style="color:#ddd;">No reviews yet</span>';
   document.getElementById('modalRating').innerHTML = ratingHtml;
 
-  if (p.stock_count != null && p.stock_count <= 0) {
-    document.getElementById('modalStock').textContent = 'Out of Stock';
-    document.getElementById('modalStock').className = 'stock-status out-of-stock';
-  } else if (p.stock_count != null && p.stock_count < 10) {
-    document.getElementById('modalStock').textContent = 'Only ' + p.stock_count + ' left in stock!';
-    document.getElementById('modalStock').className = 'stock-status low-stock';
-  } else if (p.stock_count != null) {
-    document.getElementById('modalStock').textContent = 'In Stock';
-    document.getElementById('modalStock').className = 'stock-status in-stock';
-  } else {
-    document.getElementById('modalStock').textContent = '';
-  }
+  setModalStockText(p.stock_count, p.stock_count != null);
 
   document.getElementById('modalDesc').textContent = p.desc || '';
 
-  if (p.sizes) {
-    const sizes = p.sizes.split(',').map(s => s.trim()).filter(Boolean);
+  const variantColors = modalVariantColors();
+  const variantSizes = modalVariantSizes();
+  if (variantColors.length && !selectedColor) {
+    selectedColor = variantColors.find(function(c) { return variantColorStock(c) > 0; }) || variantColors[0] || '';
+  }
+  const sizeOptions = variantSizes.length ? variantSizes : (p.sizes ? p.sizes.split(',').map(s => s.trim()).filter(Boolean) : []);
+  if (sizeOptions.length) {
     document.getElementById('sizeGroup').style.display = '';
-    document.getElementById('sizeOptions').innerHTML = sizes.map(s => '<button class="opt-btn" onclick="selectSize(this,\'' + s + '\')">' + s + '</button>').join('');
+    document.getElementById('sizeOptions').innerHTML = sizeOptions.map(function(s) {
+      const disabled = variantSizes.length && variantSizeStock(s) <= 0 ? ' is-disabled' : '';
+      return '<button type="button" class="opt-btn' + disabled + '" data-size="' + escHtml(s) + '" onclick="selectSize(this)">' + escHtml(s) + '</button>';
+    }).join('');
   } else {
     document.getElementById('sizeGroup').style.display = 'none';
   }
 
-  if (p.colors) {
-    const colors = p.colors.split(',').map(s => s.trim()).filter(Boolean);
+  const colorOptions = variantColors.length ? variantColors : (p.colors ? p.colors.split(',').map(s => s.trim()).filter(Boolean) : []);
+  if (colorOptions.length) {
     document.getElementById('colorGroup').style.display = '';
-    document.getElementById('colorOptions').innerHTML = colors.map(c => {
-      const colorMap = { Black: '#000', White: '#fff', Grey: '#666666', Navy: '#000080', Red: '#b23a2e', Blue: '#3B82C4', Green: '#2f7d4f', Pink: '#E8578F', Nude: '#e8c9a0', Berry: '#8b004b', Coral: '#ff7f50', Multi: 'linear-gradient(45deg,red,blue,green)', Assorted: 'linear-gradient(45deg,#111111,#666666)' };
-      const bg = colorMap[c] || '#ddd';
-      return '<div class="color-opt" style="background:' + bg + ';" onclick="selectColor(this,\'' + c + '\')" title="' + c + '"></div>';
+    document.getElementById('colorOptions').innerHTML = colorOptions.map(function(c) {
+      const disabled = variantColors.length && variantColorStock(c) <= 0 ? ' is-disabled' : '';
+      const active = sameVariantText(c, selectedColor) ? ' active' : '';
+      return '<div class="color-opt' + disabled + active + '" data-color="' + escHtml(c) + '" style="background:' + variantColorHex(c) + ';" onclick="selectColor(this)" title="' + escHtml(c) + '"></div>';
     }).join('');
   } else {
     document.getElementById('colorGroup').style.display = 'none';
   }
+
+  updateModalVariantDisplay();
+  refreshVariantOptionStates();
 
   let extraHtml = '';
   if (p.material) extraHtml += '<div class="info-item"><strong>Material:</strong> ' + p.material + '</div>';
@@ -4030,16 +4098,26 @@ function playVideo(url) {
   main.className = 'main-image';
 }
 
-function selectSize(el, size) {
+function selectSize(el) {
+  if (!el || el.classList.contains('is-disabled')) return;
   document.querySelectorAll('#sizeOptions .opt-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  selectedSize = size;
+  selectedSize = el.dataset.size || '';
+  refreshVariantOptionStates();
+  updateModalVariantDisplay();
 }
 
-function selectColor(el, color) {
+function selectColor(el) {
+  if (!el || el.classList.contains('is-disabled')) return;
   document.querySelectorAll('#colorOptions .color-opt').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  selectedColor = color;
+  selectedColor = el.dataset.color || '';
+  if (modalActiveVariants().length && selectedSize && variantStockFor(selectedColor, selectedSize) <= 0) {
+    selectedSize = '';
+    document.querySelectorAll('#sizeOptions .opt-btn').forEach(b => b.classList.remove('active'));
+  }
+  refreshVariantOptionStates();
+  updateModalVariantDisplay();
 }
 
 function addFromModal() {

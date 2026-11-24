@@ -355,12 +355,20 @@
   function updateCartQty(key, delta) {
     const item = state.cart.find(c => c.cartKey === key);
     if (!item) return;
+    if (delta > 0 && item.max_qty != null && (item.qty || 1) >= item.max_qty) {
+      showToast('Only ' + item.max_qty + ' available', 'error');
+      return;
+    }
     item.qty = Math.max(1, (item.qty || 1) + delta);
     saveCartState();
   }
 
+  function itemPrice(item) {
+    if (item && item.price_num != null && Number.isFinite(Number(item.price_num))) return Number(item.price_num);
+    return parseFloat(String((item && item.price) || '').replace(/[^0-9.]/g, '')) || 0;
+  }
   function getSubtotal() {
-    return state.cart.reduce((sum, c) => sum + (parseFloat(c.price) || 0) * (c.qty || 1), 0);
+    return state.cart.reduce((sum, c) => sum + itemPrice(c) * (c.qty || 1), 0);
   }
 
   // Standard delivery is free above the store's free-shipping threshold
@@ -435,7 +443,7 @@
         <div class="co-cart-item-info">
           <div class="co-cart-item-name">${item.name}</div>
           ${variant ? '<div class="co-cart-item-variant">' + variant + '</div>' : ''}
-          <div class="co-cart-item-price">Rs. ${parseFloat(item.price).toLocaleString()}</div>
+          <div class="co-cart-item-price">Rs. ${itemPrice(item).toLocaleString()}</div>
           <div class="co-cart-item-qty">
             <button onclick="window._coUpdateQty('${item.cartKey}', -1)"><i class="fas fa-minus"></i></button>
             <span>${item.qty || 1}</span>
@@ -443,7 +451,7 @@
             <button class="co-cart-item-remove" onclick="window._coRemoveItem('${item.cartKey}')"><i class="fas fa-trash-alt"></i></button>
           </div>
         </div>
-        <div class="co-cart-item-total">Rs. ${((parseFloat(item.price) || 0) * (item.qty || 1)).toLocaleString()}</div>
+        <div class="co-cart-item-total">Rs. ${((itemPrice(item) || 0) * (item.qty || 1)).toLocaleString()}</div>
       </div>`;
     });
     container.innerHTML = html;
@@ -745,7 +753,7 @@
           ${variant ? '<div class="co-summary-mini-variant">' + variant + '</div>' : ''}
           <div class="co-summary-mini-qty">Qty: ${item.qty || 1}</div>
         </div>
-        <div class="co-summary-mini-price">Rs. ${((parseFloat(item.price) || 0) * (item.qty || 1)).toLocaleString()}</div>
+        <div class="co-summary-mini-price">Rs. ${((itemPrice(item) || 0) * (item.qty || 1)).toLocaleString()}</div>
       </div>`;
     }).join('');
   }
@@ -789,9 +797,9 @@
             <div class="co-summary-mini-info">
               <div class="co-summary-mini-name">${item.name}</div>
               ${variant ? '<div class="co-summary-mini-variant">' + variant + '</div>' : ''}
-              <div class="co-summary-mini-qty">Qty: ${item.qty || 1} × Rs. ${parseFloat(item.price).toLocaleString()}</div>
+              <div class="co-summary-mini-qty">Qty: ${item.qty || 1} × Rs. ${itemPrice(item).toLocaleString()}</div>
             </div>
-            <div class="co-summary-mini-price">Rs. ${((parseFloat(item.price) || 0) * (item.qty || 1)).toLocaleString()}</div>
+            <div class="co-summary-mini-price">Rs. ${((itemPrice(item) || 0) * (item.qty || 1)).toLocaleString()}</div>
           </div>`;
         }).join('')}
       </div>
