@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ARYAL STORE — THEME MOTION LAYER
+   RASDONA — THEME MOTION LAYER
    Progressive enhancement only. If this file fails to load, the site still
    renders and functions exactly as before (reveal elements default visible
    because the reveal classes are added by this script only).

@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Aryal Store",
-  "short_name": "Aryal Store",
-  "description": "Shop clothes, stationery, cosmetics, and LPG cylinder refills from Aryal Store in Gulmi, Nepal.",
+  "name": "RasDona",
+  "short_name": "RasDona",
+  "description": "Shop clothes, stationery, cosmetics, and LPG cylinder refills from RasDona in Gulmi, Nepal.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "/",

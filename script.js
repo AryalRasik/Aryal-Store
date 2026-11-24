@@ -1,5 +1,5 @@
 // =========================================================
-// Aryal Store - Frontend Script
+// RasDona - Frontend Script
 // =========================================================
 // Core functionality is inlined in index.html.
 // This file provides supplementary helpers and is loaded
@@ -80,4 +80,4 @@ async function supaDelete(table, id) {
   }
 }
 
-console.log('Aryal Store script.js loaded');
+console.log('RasDona script.js loaded');

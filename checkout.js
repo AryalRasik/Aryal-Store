@@ -252,7 +252,7 @@
       await loadAddresses();
       updateAuthUI();
       closeAuthModal();
-      showToast('Account created! Welcome to Aryal Store.', 'success');
+      showToast('Account created! Welcome to RasDona.', 'success');
       return true;
     } catch (e) { showToast(e.message, 'error'); return false; }
   }
@@ -293,7 +293,7 @@
         </div>
         <div id="coAuthSignupForm" style="display:none;">
           <h3 style="margin-bottom:16px;font-size:1.2rem;">Create Account</h3>
-          <p style="margin-bottom:20px;font-size:0.88rem;color:var(--co-text-secondary);">Join Aryal Store for faster checkout.</p>
+          <p style="margin-bottom:20px;font-size:0.88rem;color:var(--co-text-secondary);">Join RasDona for faster checkout.</p>
           <div class="co-row"><div class="co-field"><input type="text" id="coAuthFirstName" placeholder="First Name" style="padding:12px 14px;"></div><div class="co-field"><input type="text" id="coAuthLastName" placeholder="Last Name" style="padding:12px 14px;"></div></div>
           <div class="co-field"><input type="email" id="coAuthRegEmail" placeholder="Email" style="padding:12px 14px;"></div>
           <div class="co-field"><input type="tel" id="coAuthPhone" placeholder="Phone Number" style="padding:12px 14px;"></div>
