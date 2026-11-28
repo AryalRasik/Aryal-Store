@@ -2791,16 +2791,9 @@ function supaDeleteBy(table, field, value) {
   }).then(r => r.json());
 }
 
-function imgUrl(url, opts) {
+function imgUrl(url) {
   if (!url) return '';
-  var out = String(url).trim();
-  var width = opts && opts.width ? parseInt(opts.width, 10) : 0;
-  if (width && /\/storage\/v1\/object\/public\//.test(out)) {
-    var transformed = out.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/');
-    var sep = transformed.indexOf('?') === -1 ? '?' : '&';
-    return transformed + sep + 'width=' + width + '&quality=75';
-  }
-  return out;
+  return String(url).trim();
 }
 
 function escHtml(s) {
