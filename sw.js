@@ -31,7 +31,7 @@ const PRECACHE_URLS = [
   '/favicon-32.png'
 ];
 
-const CACHEABLE_API = /^\/api\/(categories|settings|hero|about|contact|testimonials)(?:\/|$)/;
+const CACHEABLE_API = /^\/api\/(products|categories|settings|hero|about|contact|testimonials)(?:\/|$)/;
 
 self.addEventListener('install', event => {
   event.waitUntil(

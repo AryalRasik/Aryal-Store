@@ -417,6 +417,18 @@ async function migrateDb() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     ALTER TABLE uploaded_files DISABLE ROW LEVEL SECURITY;
+    CREATE INDEX IF NOT EXISTS products_status_created_idx ON products (status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS products_category_idx ON products (category);
+    CREATE INDEX IF NOT EXISTS products_brand_idx ON products (brand);
+    CREATE INDEX IF NOT EXISTS products_sold_count_idx ON products (sold_count DESC);
+    CREATE INDEX IF NOT EXISTS products_created_idx ON products (created_at DESC);
+    CREATE INDEX IF NOT EXISTS products_is_featured_idx ON products (created_at DESC) WHERE is_featured = 1;
+    CREATE INDEX IF NOT EXISTS products_is_new_idx ON products (created_at DESC) WHERE is_new = 1;
+    CREATE INDEX IF NOT EXISTS products_is_best_seller_idx ON products (sold_count DESC) WHERE is_best_seller = 1;
+    CREATE INDEX IF NOT EXISTS products_is_trending_idx ON products (sold_count DESC) WHERE is_trending = 1;
+    CREATE INDEX IF NOT EXISTS products_status_category_created_idx ON products (status, category, created_at DESC);
+    CREATE INDEX IF NOT EXISTS product_images_product_idx ON product_images (product_id);
+    CREATE INDEX IF NOT EXISTS reviews_product_idx ON reviews (product_id, status);
   `;
   const ok = await runMigration(sql);
   if (ok) console.log('Database schema migrated successfully.');

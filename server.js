@@ -419,6 +419,21 @@ app.post('/api/upload/multiple', adminMiddleware, (req, res) => {
   });
 });
 
+const fileBufferCache = new Map();
+const FILE_BUFFER_CACHE_MAX = 32;
+
+function cachedFileBuffer(id, fileData) {
+  const cached = fileBufferCache.get(id);
+  if (cached) return cached;
+  const buffer = Buffer.from(fileData, 'base64');
+  if (fileBufferCache.size >= FILE_BUFFER_CACHE_MAX) {
+    const oldest = fileBufferCache.keys().next().value;
+    if (oldest !== undefined) fileBufferCache.delete(oldest);
+  }
+  fileBufferCache.set(id, buffer);
+  return buffer;
+}
+
 app.get('/api/files/:id', async (req, res) => {
   const id = req.params.id || '';
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
@@ -431,7 +446,10 @@ app.get('/api/files/:id', async (req, res) => {
       .eq('id', id)
       .maybeSingle();
     if (error || !data || !data.file_data) return res.status(404).json({ error: 'Not found' });
-    const buffer = Buffer.from(data.file_data, 'base64');
+    const etag = '"file-' + id + '"';
+    res.setHeader('ETag', etag);
+    if (req.headers['if-none-match'] === etag) return res.status(304).end();
+    const buffer = cachedFileBuffer(id, data.file_data);
     res.setHeader('Content-Type', data.mime_type || 'application/octet-stream');
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.send(buffer);
@@ -531,19 +549,25 @@ async function attachProductRatings(products) {
   if (!list.length) return list;
   const ids = [...new Set(list.map(p => p && p.id).filter(Boolean))].map(String);
   const stats = new Map();
+  const batches = [];
   for (let i = 0; i < ids.length; i += 80) {
-    const { data: rows } = await supabase.from('reviews')
+    batches.push(ids.slice(i, i + 80));
+  }
+  const results = await Promise.all(batches.map(function(batch) {
+    return supabase.from('reviews')
       .select('product_id,rating')
       .eq('status', 'approved')
-      .in('product_id', ids.slice(i, i + 80));
-    (rows || []).forEach(function(r) {
+      .in('product_id', batch);
+  }));
+  results.forEach(function(result) {
+    (result.data || []).forEach(function(r) {
       const key = String(r.product_id);
       const entry = stats.get(key) || { sum: 0, count: 0 };
       entry.sum += Number(r.rating) || 0;
       entry.count += 1;
       stats.set(key, entry);
     });
-  }
+  });
   list.forEach(function(p) {
     const entry = stats.get(String(p.id));
     const count = entry ? entry.count : 0;
@@ -551,6 +575,34 @@ async function attachProductRatings(products) {
     p.review_count = count;
   });
   return list;
+}
+
+const showcaseCache = new Map();
+const productListCache = new Map();
+const SHOWCASE_CACHE_TTL_MS = 60 * 1000;
+const PRODUCT_LIST_CACHE_TTL_MS = 30 * 1000;
+
+async function cachedValue(cache, key, ttlMs, loader, isValid) {
+  const cached = cache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.value;
+  const value = await loader();
+  if (!isValid || isValid(value)) cache.set(key, { value: value, expires: Date.now() + ttlMs });
+  return value;
+}
+
+function cachedShowcase(key, loader) {
+  return cachedValue(showcaseCache, key, SHOWCASE_CACHE_TTL_MS, loader, Array.isArray);
+}
+
+function cachedProductList(key, loader) {
+  return cachedValue(productListCache, key, PRODUCT_LIST_CACHE_TTL_MS, loader, function(value) {
+    return !!value && Array.isArray(value.data);
+  });
+}
+
+function invalidateProductCaches() {
+  showcaseCache.clear();
+  productListCache.clear();
 }
 
 async function syncProductReviewStats(productId) {
@@ -572,9 +624,8 @@ async function syncProductReviewStats(productId) {
       const limitNum = Math.min(48, Math.max(1, parseInt(limit, 10) || 0));
       const wantsPagination = limitNum > 0;
 
-      async function fetchProducts(filterStatus) {
-        let q = supabase.from('products').select(PRODUCT_LIST_SELECT);
-        if (filterStatus) q = q.eq('status', 'active');
+      function applyCommonFilters(q, includeStatus) {
+        if (includeStatus) q = q.eq('status', 'active');
         if (category && category !== 'all') {
           const cats = String(category).split(',').map(c => c.trim()).filter(Boolean);
           q = cats.length > 1 ? q.in('category', cats) : q.eq('category', category);
@@ -582,30 +633,96 @@ async function syncProductReviewStats(productId) {
         if (brand) q = q.eq('brand', brand);
         if (material) q = q.ilike('material', '%' + material + '%');
         if (search) q = q.or('name.ilike.%' + search + '%,description.ilike.%' + search + '%');
-        return await q;
+        return q;
       }
 
-      let { data: products, error } = await fetchProducts(true);
-      if (error && error.message && error.message.includes('does not exist')) {
-        const fallback = await fetchProducts(false);
-        if (fallback.error) throw fallback.error;
-        products = fallback.data;
-      } else if (error && error.message && error.message.includes('Could not find') && search) {
-        let q2 = supabase.from('products').select(PRODUCT_LIST_SELECT);
-        if (category && category !== 'all') {
-          const cats2 = String(category).split(',').map(c => c.trim()).filter(Boolean);
-          q2 = cats2.length > 1 ? q2.in('category', cats2) : q2.eq('category', category);
+      function applyFastOptions(q, options) {
+        if (options.order) {
+          q = q.order(options.order.column, { ascending: false, nullsFirst: false });
         }
-        if (brand) q2 = q2.eq('brand', brand);
-        if (material) q2 = q2.ilike('material', '%' + material + '%');
-        if (search) q2 = q2.or('name.ilike.%' + search + '%');
-        const fb2 = await q2;
-        if (fb2.error) throw fb2.error;
-        products = fb2.data;
-      } else if (error) {
-        throw error;
+        if (options.range) q = q.range(options.range.from, options.range.to);
+        return q;
       }
-      if (!products) products = [];
+
+      async function fetchProducts(filterStatus, options) {
+        const selectArgs = options.count ? { count: 'exact' } : undefined;
+        let q = selectArgs
+          ? supabase.from('products').select(PRODUCT_LIST_SELECT, selectArgs)
+          : supabase.from('products').select(PRODUCT_LIST_SELECT);
+        q = applyCommonFilters(q, filterStatus);
+        return await applyFastOptions(q, options);
+      }
+
+      async function fetchSearchFallback(options) {
+        let q = supabase.from('products').select(PRODUCT_LIST_SELECT);
+        if (category && category !== 'all') {
+          const cats = String(category).split(',').map(c => c.trim()).filter(Boolean);
+          q = cats.length > 1 ? q.in('category', cats) : q.eq('category', category);
+        }
+        if (brand) q = q.eq('brand', brand);
+        if (material) q = q.ilike('material', '%' + material + '%');
+        if (search) q = q.or('name.ilike.%' + search + '%');
+        return await applyFastOptions(q, options);
+      }
+
+      async function fetchWithFallback(options) {
+        const result = await fetchProducts(true, options);
+        if (result.error && result.error.message && result.error.message.includes('does not exist')) {
+          const fallback = await fetchProducts(false, options);
+          if (fallback.error) throw fallback.error;
+          return fallback;
+        }
+        if (result.error && result.error.message && result.error.message.includes('Could not find') && search) {
+          const fallback = await fetchSearchFallback(options);
+          if (fallback.error) throw fallback.error;
+          return fallback;
+        }
+        if (result.error) throw result.error;
+        return result;
+      }
+
+      const needsClientProcessing = !!(color || size || min_price || max_price ||
+        sort === 'price_asc' || sort === 'price_desc' || sort === 'rating' || sort === 'popular');
+
+      if (!needsClientProcessing) {
+        const start = (pageNum - 1) * limitNum;
+        const range = wantsPagination ? { from: start, to: start + limitNum - 1 } : null;
+        const options = {
+          count: wantsPagination,
+          order: { column: sort === 'popular' ? 'sold_count' : 'created_at', ascending: false },
+          range: range
+        };
+        const buildFastResult = async function() {
+          const result = await fetchWithFallback(options);
+          await attachProductRatings(result.data || []);
+          return result;
+        };
+        const cacheableList = wantsPagination && !category && !brand && !material && !search &&
+          !color && !size && !min_price && !max_price && (!sort || sort === 'newest');
+        const result = cacheableList
+          ? await cachedProductList('list:' + pageNum + ':' + limitNum + ':' + (sort || ''), buildFastResult)
+          : await buildFastResult();
+        const products = result.data || [];
+
+        if (wantsPagination) {
+          const total = typeof result.count === 'number' ? result.count : products.length;
+          res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+          return res.json({
+            items: products,
+            total: total,
+            page: pageNum,
+            limit: limitNum,
+            hasMore: start + products.length < total
+          });
+        }
+
+        if (!category && !brand && !material && !search && !color && !size && !min_price && !max_price && !sort) {
+          res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+        }
+        return res.json(products);
+      }
+
+      let products = (await fetchWithFallback({})).data || [];
       await attachProductRatings(products);
 
       if (color) products = products.filter(p => p.colors && p.colors.toLowerCase().includes(color.toLowerCase()));
@@ -637,6 +754,7 @@ async function syncProductReviewStats(productId) {
       res.status(500).json({ error: err.message });
     }
   });
+
 
   app.get('/api/products/search', async (req, res) => {
     try {
@@ -677,10 +795,13 @@ async function syncProductReviewStats(productId) {
 
   app.get('/api/products/featured', async (req, res) => {
     try {
-      const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').eq('is_featured', 1).order('created_at', { ascending: false }).limit(12);
-      if (error) throw error;
+      const products = await cachedShowcase('featured', async function() {
+        const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').eq('is_featured', 1).order('created_at', { ascending: false }).limit(12);
+        if (error) throw error;
+        return await attachProductRatings(rows || []);
+      });
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-      res.json(await attachProductRatings(products));
+      res.json(products);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -688,10 +809,13 @@ async function syncProductReviewStats(productId) {
 
   app.get('/api/products/best-sellers', async (req, res) => {
     try {
-      const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('sold_count', { ascending: false }).limit(8);
-      if (error) throw error;
+      const products = await cachedShowcase('best-sellers', async function() {
+        const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('sold_count', { ascending: false }).limit(8);
+        if (error) throw error;
+        return await attachProductRatings(rows || []);
+      });
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-      res.json(await attachProductRatings(products));
+      res.json(products);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -699,10 +823,13 @@ async function syncProductReviewStats(productId) {
 
   app.get('/api/products/new-arrivals', async (req, res) => {
     try {
-      const { data: products, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('created_at', { ascending: false }).limit(8);
-      if (error) throw error;
+      const products = await cachedShowcase('new-arrivals', async function() {
+        const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('created_at', { ascending: false }).limit(8);
+        if (error) throw error;
+        return await attachProductRatings(rows || []);
+      });
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-      res.json(await attachProductRatings(products));
+      res.json(products);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -710,14 +837,18 @@ async function syncProductReviewStats(productId) {
 
 app.get('/api/products/trending', async (req, res) => {
   try {
-    const { data: products, error } = await supabase.from('products').select('*').eq('is_trending', 1).order('sold_count', { ascending: false }).limit(8);
-    if (error) throw error;
+    const products = await cachedShowcase('trending', async function() {
+      const { data: rows, error } = await supabase.from('products').select('*').eq('is_trending', 1).order('sold_count', { ascending: false }).limit(8);
+      if (error) throw error;
+      return await attachProductRatings(rows || []);
+    });
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json(await attachProductRatings(products));
+    res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 function parseImageList(value) {
   const urls = [];
@@ -827,6 +958,7 @@ app.post('/api/products', adminMiddleware, async (req, res) => {
       }
     }
 
+    invalidateProductCaches();
     res.json(product || { success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -875,6 +1007,7 @@ app.put('/api/products/:id', adminMiddleware, async (req, res) => {
       }
     }
 
+    invalidateProductCaches();
     res.json({ success: true, variants: savedVariants });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -900,6 +1033,7 @@ app.delete('/api/products/:id', adminMiddleware, async (req, res) => {
     ]);
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
+    invalidateProductCaches();
     res.json({ success: true });
 
     // Only local /uploads files need cleaning up; hosted URLs are untouched.
@@ -956,6 +1090,7 @@ app.post('/api/product-images', adminMiddleware, async (req, res) => {
       product_id, image_url, is_primary: is_primary || false, sort_order: 0
     });
     if (error) throw error;
+    invalidateProductCaches();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -966,6 +1101,7 @@ app.delete('/api/product-images/:id', adminMiddleware, async (req, res) => {
   try {
     const { error } = await supabase.from('product_images').delete().eq('id', req.params.id);
     if (error) throw error;
+    invalidateProductCaches();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2385,6 +2521,7 @@ app.post('/api/reviews', async (req, res) => {
     });
 
     await syncProductReviewStats(product_id);
+    invalidateProductCaches();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2411,6 +2548,7 @@ app.put('/api/reviews/:id/update', async (req, res) => {
       title: title || '', comment: comment || '', size: size || '',
       color: color || '', status: 'pending'
     }).eq('id', req.params.id);
+    invalidateProductCaches();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2424,6 +2562,7 @@ app.delete('/api/reviews/:id/remove', async (req, res) => {
     if (!review) return res.status(404).json({ error: 'Review not found' });
     await supabase.from('reviews').delete().eq('id', req.params.id);
     await syncProductReviewStats(review.product_id);
+    invalidateProductCaches();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2456,6 +2595,7 @@ app.put('/api/reviews/:id/status', adminMiddleware, async (req, res) => {
     const { data: review } = await supabase.from('reviews').select('*').eq('id', req.params.id).maybeSingle();
     if (review) {
       await syncProductReviewStats(review.product_id);
+      invalidateProductCaches();
     }
     res.json({ success: true });
   } catch (err) {
@@ -2469,6 +2609,7 @@ app.delete('/api/reviews/:id', adminMiddleware, async (req, res) => {
     await supabase.from('reviews').delete().eq('id', req.params.id);
     if (review) {
       await syncProductReviewStats(review.product_id);
+      invalidateProductCaches();
     }
     res.json({ success: true });
   } catch (err) {
@@ -3626,6 +3767,7 @@ app.put('/api/products/:id/stock', adminMiddleware, async (req, res) => {
         await supabase.from('products').update({ status: 'active' }).eq('id', req.params.id);
       }
     }
+    invalidateProductCaches();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3639,6 +3781,7 @@ app.post('/api/inventory/bulk-update', adminMiddleware, async (req, res) => {
     for (const u of updates) {
       await supabase.from('products').update({ stock: u.stock_count ?? u.stock }).eq('id', u.product_id);
     }
+    invalidateProductCaches();
     res.json({ success: true, updated: updates.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
