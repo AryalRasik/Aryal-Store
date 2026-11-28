@@ -993,32 +993,40 @@ if (location.search.includes('reset=')) {
 
 (async function() {
   const token = getAdminToken();
-  if (token) {
-    // Try backend validation first, fall back to local decode
-    try {
-      const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
-      if (res.ok) {
-        document.getElementById('loginPage').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        await loadAllTabs();
+  if (!token) return;
+  const stillCurrent = () => getAdminToken() === token;
+  const openDashboard = async () => {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    await loadAllTabs();
+  };
+  // Try backend validation first; only decode locally when the backend is unreachable.
+  let backendRejected = false;
+  try {
+    const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (res.ok) {
+      if (stillCurrent()) await openDashboard();
+      return;
+    }
+    backendRejected = true;
+  } catch {}
+  if (!stillCurrent()) return;
+  if (backendRejected) {
+    clearAdminToken();
+    return;
+  }
+  // Offline fallback: only accept a real JWT (3 dot-separated parts).
+  try {
+    const parts = token.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      if (payload.role === 'admin' && (!payload.exp || payload.exp * 1000 > Date.now())) {
+        if (stillCurrent()) await openDashboard();
         return;
       }
-    } catch {}
-    // Fallback for offline use: only accept a real JWT (3 dot-separated parts).
-    try {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        if (payload.role === 'admin' && (!payload.exp || payload.exp * 1000 > Date.now())) {
-          document.getElementById('loginPage').style.display = 'none';
-          document.getElementById('dashboard').style.display = 'block';
-          await loadAllTabs();
-          return;
-        }
-      }
-    } catch {}
-    clearAdminToken();
-  }
+    }
+  } catch {}
+  if (stillCurrent()) clearAdminToken();
 })();
 
 async function loadAllTabs() {

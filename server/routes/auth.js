@@ -363,7 +363,30 @@ router.post('/resend-verification', authMiddleware, async (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authMiddleware, async (req, res) => {
+// Admin tokens are issued by /api/login and have no matching users row, so
+// validate them directly instead of sending them through user authMiddleware.
+router.get('/me', (req, res, next) => {
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(header.split(' ')[1], JWT_SECRET);
+      if (decoded && decoded.role === 'admin') {
+        return res.json({
+          id: 'admin',
+          name: 'Administrator',
+          email: '',
+          phone: '',
+          address: '',
+          profile_picture: '',
+          email_verified: true,
+          email_verified_at: null,
+          role: 'admin'
+        });
+      }
+    } catch {}
+  }
+  return authMiddleware(req, res, next);
+}, async (req, res) => {
   try {
     const user = req.userData;
     res.json({
