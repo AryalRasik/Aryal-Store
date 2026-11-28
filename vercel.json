@@ -39,6 +39,10 @@
     {
       "src": "*.{json,woff,woff2,ttf,eot}",
       "use": "@vercel/static"
+    },
+    {
+      "src": "*.{txt,xml}",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
