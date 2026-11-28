@@ -138,12 +138,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
-if (process.env.VERCEL) {
-  app.use(express.static(process.cwd()));
-} else {
-  app.use(express.static(path.join(__dirname)));
-}
-app.use('/uploads', express.static(UPLOADS_DIR));
+
 
 // Timeout middleware to prevent hanging requests
 function requestTimeout(ms) {
@@ -205,10 +200,10 @@ function isAdminRequest(req) {
 function stripProductCost(value) {
   if (Array.isArray(value)) return value.map(stripProductCost);
   if (value && typeof value === 'object') {
-    const copy = {};
-    for (const key in value) {
-      if (key === 'cost_price') continue;
-      copy[key] = stripProductCost(value[key]);
+    const copy = Object.assign({}, value);
+    for (const key of Object.keys(copy)) {
+      if (key === 'cost_price') delete copy[key];
+      else if (copy[key] && typeof copy[key] === 'object') copy[key] = stripProductCost(copy[key]);
     }
     return copy;
   }
@@ -579,8 +574,10 @@ async function attachProductRatings(products) {
 
 const showcaseCache = new Map();
 const productListCache = new Map();
+const flashSalesCache = new Map();
 const SHOWCASE_CACHE_TTL_MS = 60 * 1000;
 const PRODUCT_LIST_CACHE_TTL_MS = 30 * 1000;
+const FLASH_SALES_CACHE_TTL_MS = 30 * 1000;
 
 async function cachedValue(cache, key, ttlMs, loader, isValid) {
   const cached = cache.get(key);
@@ -603,6 +600,7 @@ function cachedProductList(key, loader) {
 function invalidateProductCaches() {
   showcaseCache.clear();
   productListCache.clear();
+  flashSalesCache.clear();
 }
 
 async function syncProductReviewStats(productId) {
@@ -616,6 +614,26 @@ async function syncProductReviewStats(productId) {
 }
 
   const PRODUCT_LIST_SELECT = 'id,name,description,price,cost_price,compare_price,image_url,image,images,category,subcategory,sizes,colors,material,brand,sku,icon,gradient,video_url,care_instructions,fit_info,stock,stock_count,sold_count,review_count,is_featured,is_new,is_best_seller,is_trending,status,created_at';
+
+  async function getDefaultProductsPage(pageNum, limitNum, sortKey) {
+    const start = (pageNum - 1) * limitNum;
+    return cachedProductList('list:' + pageNum + ':' + limitNum + ':' + sortKey, async function() {
+      let result = await supabase.from('products')
+        .select(PRODUCT_LIST_SELECT, { count: 'exact' })
+        .eq('status', 'active')
+        .order('created_at', { ascending: false, nullsFirst: false })
+        .range(start, start + limitNum - 1);
+      if (result.error && result.error.message && result.error.message.includes('does not exist')) {
+        result = await supabase.from('products')
+          .select(PRODUCT_LIST_SELECT, { count: 'exact' })
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .range(start, start + limitNum - 1);
+      }
+      if (result.error) throw result.error;
+      await attachProductRatings(result.data || []);
+      return result;
+    });
+  }
 
   app.get('/api/products', async (req, res) => {
     try {
@@ -700,7 +718,7 @@ async function syncProductReviewStats(productId) {
         const cacheableList = wantsPagination && !category && !brand && !material && !search &&
           !color && !size && !min_price && !max_price && (!sort || sort === 'newest');
         const result = cacheableList
-          ? await cachedProductList('list:' + pageNum + ':' + limitNum + ':' + (sort || ''), buildFastResult)
+          ? await getDefaultProductsPage(pageNum, limitNum, sort || '')
           : await buildFastResult();
         const products = result.data || [];
 
@@ -793,13 +811,36 @@ async function syncProductReviewStats(productId) {
     }
   });
 
+  const SHOWCASE_LOADERS = {
+    featured: async function() {
+      const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').eq('is_featured', 1).order('created_at', { ascending: false }).limit(12);
+      if (error) throw error;
+      return await attachProductRatings(rows || []);
+    },
+    'best-sellers': async function() {
+      const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('sold_count', { ascending: false }).limit(8);
+      if (error) throw error;
+      return await attachProductRatings(rows || []);
+    },
+    'new-arrivals': async function() {
+      const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('created_at', { ascending: false }).limit(8);
+      if (error) throw error;
+      return await attachProductRatings(rows || []);
+    },
+    trending: async function() {
+      const { data: rows, error } = await supabase.from('products').select('*').eq('is_trending', 1).order('sold_count', { ascending: false }).limit(8);
+      if (error) throw error;
+      return await attachProductRatings(rows || []);
+    }
+  };
+
+  function getShowcaseData(key) {
+    return cachedShowcase(key, SHOWCASE_LOADERS[key]);
+  }
+
   app.get('/api/products/featured', async (req, res) => {
     try {
-      const products = await cachedShowcase('featured', async function() {
-        const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').eq('is_featured', 1).order('created_at', { ascending: false }).limit(12);
-        if (error) throw error;
-        return await attachProductRatings(rows || []);
-      });
+      const products = await getShowcaseData('featured');
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
       res.json(products);
     } catch (err) {
@@ -809,11 +850,7 @@ async function syncProductReviewStats(productId) {
 
   app.get('/api/products/best-sellers', async (req, res) => {
     try {
-      const products = await cachedShowcase('best-sellers', async function() {
-        const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('sold_count', { ascending: false }).limit(8);
-        if (error) throw error;
-        return await attachProductRatings(rows || []);
-      });
+      const products = await getShowcaseData('best-sellers');
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
       res.json(products);
     } catch (err) {
@@ -823,11 +860,7 @@ async function syncProductReviewStats(productId) {
 
   app.get('/api/products/new-arrivals', async (req, res) => {
     try {
-      const products = await cachedShowcase('new-arrivals', async function() {
-        const { data: rows, error } = await supabase.from('products').select(PRODUCT_LIST_SELECT).eq('status', 'active').order('created_at', { ascending: false }).limit(8);
-        if (error) throw error;
-        return await attachProductRatings(rows || []);
-      });
+      const products = await getShowcaseData('new-arrivals');
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
       res.json(products);
     } catch (err) {
@@ -837,11 +870,7 @@ async function syncProductReviewStats(productId) {
 
 app.get('/api/products/trending', async (req, res) => {
   try {
-    const products = await cachedShowcase('trending', async function() {
-      const { data: rows, error } = await supabase.from('products').select('*').eq('is_trending', 1).order('sold_count', { ascending: false }).limit(8);
-      if (error) throw error;
-      return await attachProductRatings(rows || []);
-    });
+    const products = await getShowcaseData('trending');
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(products);
   } catch (err) {
@@ -2950,8 +2979,8 @@ app.get('/api/products/search/fuzzy', async (req, res) => {
 });
 
 // ========== FLASH SALES ==========
-app.get('/api/flash-sales/active', async (req, res) => {
-  try {
+async function getActiveFlashSales() {
+  return cachedValue(flashSalesCache, 'active', FLASH_SALES_CACHE_TTL_MS, async function() {
     const now = new Date().toISOString();
     const { data: sales, error } = await supabase
       .from('flash_sales')
@@ -2961,11 +2990,27 @@ app.get('/api/flash-sales/active', async (req, res) => {
       .gte('end_time', now)
       .order('end_time');
     if (error) throw error;
+
+    const saleIds = (sales || []).map(function(sale) { return sale.id; }).filter(Boolean);
+    let flashProducts = [];
+    if (saleIds.length) {
+      const { data: rows } = await supabase.from('flash_sale_products').select('*').in('flash_sale_id', saleIds);
+      flashProducts = rows || [];
+    }
+
+    const productIds = [...new Set(flashProducts.map(function(fp) { return fp.product_id; }).filter(Boolean))].map(String);
+    let products = [];
+    if (productIds.length) {
+      const { data: rows } = await supabase.from('products').select('name, price, image_url, stock').in('id', productIds);
+      products = rows || [];
+    }
+    const productMap = new Map(products.map(function(product) { return [String(product.id), product]; }));
+
     const result = [];
     for (const sale of sales || []) {
-      const { data: fsp } = await supabase.from('flash_sale_products').select('*').eq('flash_sale_id', sale.id);
-      for (const fp of fsp || []) {
-        const { data: product } = await supabase.from('products').select('name, price, image_url, stock').eq('id', fp.product_id).maybeSingle();
+      const saleProducts = flashProducts.filter(function(fp) { return String(fp.flash_sale_id) === String(sale.id); });
+      for (const fp of saleProducts) {
+        const product = productMap.get(String(fp.product_id));
         if (product) {
           result.push({
             ...sale,
@@ -2981,7 +3026,13 @@ app.get('/api/flash-sales/active', async (req, res) => {
         }
       }
     }
-    res.json(result);
+    return result;
+  }, Array.isArray);
+}
+
+app.get('/api/flash-sales/active', async (req, res) => {
+  try {
+    res.json(await getActiveFlashSales());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -3030,6 +3081,7 @@ app.post('/api/flash-sales', adminMiddleware, async (req, res) => {
         }
       }
     }
+    invalidateProductCaches();
     res.json(sale);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3044,6 +3096,7 @@ app.put('/api/flash-sales/:id', adminMiddleware, async (req, res) => {
       is_active: is_active || false
     }).eq('id', req.params.id);
     if (error) throw error;
+    invalidateProductCaches();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3055,6 +3108,7 @@ app.delete('/api/flash-sales/:id', adminMiddleware, async (req, res) => {
     await supabase.from('flash_sale_products').delete().eq('flash_sale_id', req.params.id);
     const { error } = await supabase.from('flash_sales').delete().eq('id', req.params.id);
     if (error) throw error;
+    invalidateProductCaches();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -4016,21 +4070,6 @@ app.post('/api/seed', adminMiddleware, async (req, res) => {
   }
 });
 
-initDb().then(async function() {
-  const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
-  if (!count || count === 0) {
-    console.log('Database empty - seeding with default products...');
-    try {
-      const { importAll } = require('./import-products');
-      await importAll(false);
-    } catch (err) {
-      console.error('Auto-seed failed:', err.message);
-    }
-  }
-}).catch(function(err) {
-  console.error('Database init warning (tables may already exist):', err.message);
-});
-
 // ========== PASSWORD RESET PAGE ==========
 app.get('/reset-password', (req, res) => {
   const token = req.query.token || '';
@@ -4277,6 +4316,43 @@ async function importProductsIntoResponse(res, products) {
   res.json({ success: true, created: created.length, failed, createdCount: created.length, failedCount: failed.length });
 }
 
+app.get('/api/boot', async (req, res) => {
+  try {
+    const [aboutResult, contactResult, testimonialsResult, productsResult, featured, bestSellers, newArrivals, flashSales] = await Promise.all([
+      supabase.from('about').select('title, heading, desc1, desc2, features').eq('id', 1).maybeSingle(),
+      supabase.from('contact').select('*').eq('id', 1).maybeSingle(),
+      supabase.from('testimonials').select('*').order('id'),
+      getDefaultProductsPage(1, 12, ''),
+      getShowcaseData('featured'),
+      getShowcaseData('best-sellers'),
+      getShowcaseData('new-arrivals'),
+      getActiveFlashSales()
+    ]);
+    if (aboutResult.error) throw aboutResult.error;
+    if (contactResult.error) throw contactResult.error;
+    if (testimonialsResult.error) throw testimonialsResult.error;
+
+    const products = productsResult.data || [];
+    const total = typeof productsResult.count === 'number' ? productsResult.count : products.length;
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+    res.json(stripProductCost({
+      about: aboutResult.data || { title: '', heading: '', desc1: '', desc2: '', features: '' },
+      contact: contactResult.data || { address: '', phone: '', email: '', hours: '', lat: '28.0340872', lng: '83.4126681', whatsapp: '' },
+      testimonials: testimonialsResult.data || [],
+      products: { items: products, total: total, page: 1, limit: 12, hasMore: products.length < total },
+      featured: featured,
+      bestSellers: bestSellers,
+      newArrivals: newArrivals,
+      flashSales: flashSales
+    }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.use('/uploads', express.static(UPLOADS_DIR));
+if (!process.env.VERCEL) app.use(express.static(path.join(__dirname)));
+
 // SPA catch-all: serve index.html for any non-API, non-static-file route
 app.get('*', (req, res) => {
   // Skip API routes
@@ -4290,6 +4366,9 @@ app.get('*', (req, res) => {
 if (require.main === module) {
   app.listen(PORT, function() {
     console.log('Aryal Store backend running at http://localhost:' + PORT);
+  });
+  initDb().catch(function(err) {
+    console.error('Database init warning (tables may already exist):', err.message);
   });
 }
 

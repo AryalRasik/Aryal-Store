@@ -3721,7 +3721,7 @@ function clearFilters() {
   let productHasMore = false;
   let productLoading = false;
 
-  async function loadProducts(params) {
+  async function loadProducts(params, injectedPayload) {
     if (productLoading) return;
     if (params && Object.prototype.hasOwnProperty.call(params, 'search')) {
       currentSearchQuery = (params.search || '').toLowerCase();
@@ -3735,13 +3735,16 @@ function clearFilters() {
     }
     var loaded = false;
     try {
-      var url = '/api/products?page=' + productPage + '&limit=' + PRODUCT_PAGE_SIZE;
-      if (currentFilter && currentFilter !== 'all') url += '&category=' + encodeURIComponent(categoryApiValue(currentFilter));
-      if (currentSort) url += '&sort=' + encodeURIComponent(currentSort);
-      if (params && params.search) url += '&search=' + encodeURIComponent(params.search);
-      var res = await fetch(url);
-      if (res.ok) {
-        var payload = await res.json();
+      var payload = injectedPayload;
+      if (!payload) {
+        var url = '/api/products?page=' + productPage + '&limit=' + PRODUCT_PAGE_SIZE;
+        if (currentFilter && currentFilter !== 'all') url += '&category=' + encodeURIComponent(categoryApiValue(currentFilter));
+        if (currentSort) url += '&sort=' + encodeURIComponent(currentSort);
+        if (params && params.search) url += '&search=' + encodeURIComponent(params.search);
+        var res = await fetch(url);
+        if (res.ok) payload = await res.json();
+      }
+      if (payload) {
         var items = Array.isArray(payload) ? payload : (payload.items || []);
         var mapped = items.map(mapProduct);
         allProducts = append ? allProducts.concat(mapped) : mapped;
@@ -4505,8 +4508,10 @@ async function apiFetch(url) {
   return null;
 }
 
-async function loadDynamicContent() {
-  var aboutP = apiFetch('/api/about').then(function(a) {
+async function loadDynamicContent(injected) {
+  var aboutSource = injected && injected.about ? Promise.resolve(injected.about) : apiFetch('/api/about');
+  var contactSource = injected && injected.contact ? Promise.resolve(injected.contact) : apiFetch('/api/contact');
+  var aboutP = aboutSource.then(function(a) {
     if (a && a.heading) {
       var titleEl = document.getElementById('aboutTitle');
       if (titleEl) { titleEl.textContent = a.title || 'About Us'; titleEl.style.display = ''; }
@@ -4528,7 +4533,7 @@ async function loadDynamicContent() {
       }
     }
   });
-  var contactP = apiFetch('/api/contact').then(function(c) {
+  var contactP = contactSource.then(function(c) {
     if (c && c.address) document.getElementById('contactAddress').textContent = c.address;
     if (c && c.phone) document.getElementById('contactPhone').textContent = c.phone;
     if (c && c.email) document.getElementById('contactEmail').textContent = c.email;
@@ -4556,7 +4561,7 @@ async function loadDynamicContent() {
     return productCataloguePromise;
   }
 
-  async function loadShowcaseSections(poolInput) {
+  async function loadShowcaseSections(poolInput, injected) {
     const sections = [
       { id: 'featuredRow', endpoint: 'featured' },
       { id: 'bestSellerRow', endpoint: 'best-sellers' },
@@ -4592,6 +4597,12 @@ async function loadDynamicContent() {
     await Promise.all(sections.map(function(s) {
       var container = document.getElementById(s.id);
       if (!container) return Promise.resolve();
+      var injectedKey = s.endpoint === 'featured' ? 'featured' : s.endpoint === 'best-sellers' ? 'bestSellers' : 'newArrivals';
+      var injectedData = injected && injected[injectedKey];
+      if (Array.isArray(injectedData)) {
+        renderCards(container, injectedData.slice(0, 8).map(mapProduct));
+        return Promise.resolve();
+      }
       return fetch('/api/products/' + s.endpoint)
         .then(function(r) { return r.ok ? r.json() : []; })
         .then(function(data) { renderCards(container, (data || []).slice(0, 8).map(mapProduct)); })
@@ -4766,10 +4777,13 @@ function loadRecentlyViewed() {
 let flashSaleTimer = null;
 let flashSaleEndTime = null;
 
-async function loadFlashSales() {
+async function loadFlashSales(injected) {
   try {
-    const res = await fetch('/api/flash-sales/active');
-    const sales = await res.json();
+    var sales = Array.isArray(injected) ? injected : (injected && injected.flashSales);
+    if (!Array.isArray(sales)) {
+      const res = await fetch('/api/flash-sales/active');
+      sales = await res.json();
+    }
     if (!sales || !sales.length) {
       document.getElementById('flashSaleSection').style.display = 'none';
       return;
@@ -6329,42 +6343,41 @@ document.querySelectorAll('.bottom-nav-item').forEach(function(item) {
     }
   }
 
-  var productsPromise = loadProducts();
-  var fetches = Promise.all([
-    loadDynamicContent(),
-    loadShowcaseSections(),
-    loadFlashSales(),
-    productsPromise,
-    fetch('/api/testimonials').then(function(r) { return r.ok ? r.json() : Promise.reject(); }).then(function(tests) {
-      if (tests && tests.length) renderTestimonials(tests);
-    }).catch(function() {
-      supaFetch('testimonials').then(function(tests) {
-        if (tests && tests.length) renderTestimonials(tests);
-      }).catch(function() {});
-    })
-  ]);
+  var bootPromise = fetch('/api/boot').then(function(r) { return r.ok ? r.json() : Promise.reject(); }).catch(function() { return null; });
+  var productsPromise = bootPromise.then(function(boot) {
+    return loadProducts(undefined, boot && boot.products);
+  });
+  var fetches = bootPromise.then(function(boot) {
+    if (!boot) {
+      return Promise.all([
+        loadDynamicContent(),
+        loadShowcaseSections(),
+        loadFlashSales(),
+        loadProducts(),
+        fetch('/api/testimonials').then(function(r) { return r.ok ? r.json() : Promise.reject(); }).then(function(tests) {
+          if (tests && tests.length) renderTestimonials(tests);
+        }).catch(function() {
+          supaFetch('testimonials').then(function(tests) {
+            if (tests && tests.length) renderTestimonials(tests);
+          }).catch(function() {});
+        })
+      ]);
+    }
+    return Promise.all([
+      loadDynamicContent(boot),
+      loadShowcaseSections(undefined, boot),
+      loadFlashSales(boot),
+      productsPromise,
+      Promise.resolve().then(function() {
+        if (boot.testimonials && boot.testimonials.length) renderTestimonials(boot.testimonials);
+      })
+    ]);
+  });
 
   updateCartUI();
   updateUserMenu();
   loadWishlist();
   loadNotifications();
-
-  // Verify stored token is still valid (non-blocking)
-  const token = getToken();
-  if (token) {
-    var authCtrl = new AbortController();
-    var authTimer = setTimeout(function() { authCtrl.abort(); }, 5000);
-    try {
-      const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token }, signal: authCtrl.signal });
-      clearTimeout(authTimer);
-      if (res.status === 401) { clearAuth(); updateUserMenu(); }
-      else if (res.ok) {
-        const data = await res.json();
-        saveAuth(token, data);
-        updateUserMenu();
-      }
-    } catch {}
-  }
 
   await fetches;
 

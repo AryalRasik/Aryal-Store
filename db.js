@@ -67,15 +67,13 @@ function isSupabaseTable(name) {
 }
 
 async function probeOrderSchema() {
-  for (const table of Object.keys(ORDER_SCHEMA_PROBE)) {
+  const checks = await Promise.all(Object.keys(ORDER_SCHEMA_PROBE).map(async function(table) {
     const cols = ORDER_SCHEMA_PROBE[table].join(',');
     const { error } = await supabase.from(table).select(cols).limit(1);
-    if (error) {
-      console.warn(`Hosted table "${table}" is missing order-workflow columns (${error.message}).`);
-      return false;
-    }
-  }
-  return true;
+    if (error) console.warn(`Hosted table "${table}" is missing order-workflow columns (${error.message}).`);
+    return !error;
+  }));
+  return checks.every(Boolean);
 }
 
 function from(tableName) {
@@ -436,19 +434,26 @@ async function migrateDb() {
 }
 
 async function initDb() {
-  const { count, error } = await supabase
-    .from('products')
-    .select('*', { count: 'exact', head: true });
+  const isVercel = !!process.env.VERCEL;
+  let count = 0;
 
-  if (error) {
-    if (error.message.includes('relation') && error.message.includes('does not exist')) {
-      console.error('Supabase tables not found. Please run the migration SQL in supabase-FIX-migration.sql first.');
+  if (!isVercel) {
+    const result = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true });
+    const error = result.error;
+    count = result.count || 0;
+
+    if (error) {
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        console.error('Supabase tables not found. Please run the migration SQL in supabase-FIX-migration.sql first.');
+        throw error;
+      }
       throw error;
     }
-    throw error;
-  }
 
-  await migrateDb();
+    await migrateDb();
+  }
 
   // Order tables move to Supabase once the hosted schema carries the full
   // manual-confirmation workflow. Otherwise they stay in local SQLite.
@@ -461,9 +466,7 @@ async function initDb() {
   }
 
   // Pre-check auth tables and fall back to local if needed
-  for (const t of AUTH_TABLES) {
-    await getTableSource(t);
-  }
+  await Promise.all(AUTH_TABLES.map(function(table) { return getTableSource(table); }));
 
   if (tableSource.users === 'local') {
     console.log('Auth tables will use local SQLite. Supabase users table not found.');
@@ -471,7 +474,7 @@ async function initDb() {
     console.log('Users table ready in Supabase.');
   }
 
-  if (count === 0) {
+  if (!isVercel && count === 0) {
     console.log('Database empty — seeding with default data...');
     await seedData();
   }
