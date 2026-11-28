@@ -8,6 +8,17 @@ const app = require('../server');
 let initialised = false;
 let initPromise = null;
 
+function hasAdminBearer(req) {
+  const header = req.headers && req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return false;
+  try {
+    const parts = header.slice(7).split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    return payload && payload.role === 'admin';
+  } catch { return false; }
+}
+
 module.exports = async (req, res) => {
   try {
     if (req.method === 'GET' && req.url.split('?')[0] === '/api/config/oauth') {
@@ -18,7 +29,10 @@ module.exports = async (req, res) => {
         environment: process.env.NODE_ENV || 'production'
       });
     }
-    if (!initialised) {
+    const path = req.url.split('?')[0];
+    const adminFastPath = (req.method === 'POST' && path === '/api/login') ||
+      (req.method === 'GET' && path === '/api/auth/me' && hasAdminBearer(req));
+    if (!initialised && !adminFastPath) {
       if (!initPromise) {
         initPromise = initDb()
           .then(() => { initialised = true; })

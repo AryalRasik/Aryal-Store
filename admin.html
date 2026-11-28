@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Admin - Full Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
@@ -904,45 +907,50 @@ async function supaDelete(table, id) {
   }
 }
 
-// Login — try localStorage first, then backend
+// Login — backend JWT only. A local placeholder token cannot call protected APIs.
 async function handleLogin() {
   const pw = document.getElementById('loginPassword').value.trim();
   const btn = document.querySelector('.login-box .btn-primary');
-  if (!pw) { document.getElementById('loginError').textContent = 'Please enter the admin password'; document.getElementById('loginError').style.display = 'block'; return; }
+  const err = document.getElementById('loginError');
+  if (!pw) { err.textContent = 'Please enter the admin password'; err.style.display = 'block'; return; }
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
-  document.getElementById('loginError').style.display = 'none';
-  // Always try the backend first: protected routes like /api/orders and
-  // /api/return-requests require a valid JWT, not the local placeholder token.
-  try {
-    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.token) {
-      saveAdminToken(data.token);
-      document.getElementById('loginPage').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-      await loadAllTabs();
-      btn.disabled = false;
-      btn.innerHTML = 'Login';
-      return;
+  err.style.display = 'none';
+  let res = null;
+  let networkError = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+      if ((res.status === 500 || res.status === 504) && attempt < 2) {
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      networkError = null;
+      break;
+    } catch (e) {
+      networkError = e;
+      if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
     }
-    document.getElementById('loginError').textContent = data.error || 'Invalid password';
-    document.getElementById('loginError').style.display = 'block';
+  }
+  if (networkError) {
+    err.textContent = 'Cannot connect to the server. Check the backend and try again.';
+    err.style.display = 'block';
     btn.disabled = false;
     btn.innerHTML = 'Login';
     return;
-  } catch (e) {
-    // Backend unreachable — fall back to the local password for offline use.
   }
-  if (pw === getLocalPw() || pw === 'admin123') {
-    saveAdminToken(btoa(JSON.stringify({ role: 'admin', id: 'local', exp: Date.now() + 86400000 })));
-    document.getElementById('loginPage').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-    try { await loadAllTabs(); } catch (e) { console.error(e); }
-  } else {
-    document.getElementById('loginError').textContent = 'Invalid password';
-    document.getElementById('loginError').style.display = 'block';
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.token) {
+    err.textContent = data.error || 'Invalid password';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = 'Login';
+    return;
   }
+  saveAdminToken(data.token);
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  try { await loadAllTabs(); } catch (e) { console.error(e); }
   btn.disabled = false;
   btn.innerHTML = 'Login';
 }
@@ -1008,7 +1016,9 @@ if (location.search.includes('reset=')) {
       if (stillCurrent()) await openDashboard();
       return;
     }
-    backendRejected = true;
+    // Only an explicit auth rejection invalidates the token. A 500/404 from a
+    // cold deployment must not log the admin out.
+    backendRejected = res.status === 401 || res.status === 403;
   } catch {}
   if (!stillCurrent()) return;
   if (backendRejected) {
@@ -1916,11 +1926,17 @@ async function adminSupa(table) {
   return fetch(SUPABASE_URL + '/rest/v1/' + table + '?select=*', { headers: { apikey: SUPABASE_KEY } }).then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); });
 }
 
+function asProductArray(data) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.products)) return data.products;
+  return [];
+}
+
 async function loadProducts() {
   try {
-    allProducts = await api('/products');
+    allProducts = asProductArray(await api('/products'));
   } catch {
-    try { allProducts = await adminSupa('products'); } catch { allProducts = await supaFetch('products'); }
+    try { allProducts = asProductArray(await adminSupa('products')); } catch { allProducts = asProductArray(await supaFetch('products')); }
   }
   renderFilteredProducts();
 }
@@ -1942,6 +1958,7 @@ function renderFilteredProducts() {
 }
 
 function pruneProductSelection() {
+  if (!Array.isArray(allProducts)) allProducts = [];
   const valid = new Set(allProducts.map(p => String(p.id)));
   Array.from(selectedProductIds).forEach(id => { if (!valid.has(id)) selectedProductIds.delete(id); });
 }
